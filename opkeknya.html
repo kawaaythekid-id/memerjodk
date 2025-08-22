@@ -1,171 +1,126 @@
--- GUI Interaktif Android Stress Test + Auto Teleport
+-- LocalScript (StarterGui)
+
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
 local player = Players.LocalPlayer
-local PlayerGui = player:WaitForChild("PlayerGui")
-local Workspace = game:GetService("Workspace")
 
--- ========================
--- Buat ScreenGui
--- ========================
+-- ======= GUI Setup =======
 local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = PlayerGui
-screenGui.Name = "MobileInteractiveGUI"
+screenGui.Name = "GigaChadHelper"
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Frame utama
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0,220,0,150)
-frame.Position = UDim2.new(0,20,0,50)
-frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
+frame.Size = UDim2.new(0, 300, 0, 250)
+frame.Position = UDim2.new(0, 50, 0, 50)
+frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 frame.BorderSizePixel = 0
-frame.Parent = screenGui
 frame.Active = true
-frame.Draggable = true -- Bisa digeser di layar sentuh
+frame.Draggable = true
+frame.Parent = screenGui
 
--- Tombol minimize
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Size = UDim2.new(0,30,0,30)
-minimizeBtn.Position = UDim2.new(1,-35,0,5)
-minimizeBtn.Text = "_"
-minimizeBtn.Parent = frame
+local function createToggle(name, default, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 30)
+    btn.Position = UDim2.new(0,5,0,0)
+    btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Text = name.." : "..(default and "ON" or "OFF")
+    btn.Parent = frame
+    btn.MouseButton1Click:Connect(function()
+        default = not default
+        btn.Text = name.." : "..(default and "ON" or "OFF")
+        callback(default)
+    end)
+    return btn
+end
 
--- Tombol close
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0,30,0,30)
-closeBtn.Position = UDim2.new(1,-70,0,5)
-closeBtn.Text = "X"
-closeBtn.Parent = frame
+local function createSlider(name, min, max, default, callback)
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -10, 0, 20)
+    label.Position = UDim2.new(0,5,0,0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(255,255,255)
+    label.Text = name.." : "..default
+    label.TextXAlignment = Enum.TextXAlignment.Left
+    label.Parent = frame
 
--- Container tombol
-local buttonContainer = Instance.new("Frame")
-buttonContainer.Size = UDim2.new(1,0,1,-40)
-buttonContainer.Position = UDim2.new(0,0,0,40)
-buttonContainer.BackgroundTransparency = 1
-buttonContainer.Parent = frame
+    local slider = Instance.new("TextBox")
+    slider.Size = UDim2.new(1, -10, 0, 25)
+    slider.Position = UDim2.new(0,5,0,0)
+    slider.Text = tostring(default)
+    slider.ClearTextOnFocus = false
+    slider.Parent = frame
 
--- Tombol Start/Stop Stress Test
-local startStressBtn = Instance.new("TextButton")
-startStressBtn.Size = UDim2.new(0,100,0,40)
-startStressBtn.Position = UDim2.new(0,10,0,10)
-startStressBtn.Text = "Start Stress"
-startStressBtn.Parent = buttonContainer
-
-local stopStressBtn = Instance.new("TextButton")
-stopStressBtn.Size = UDim2.new(0,100,0,40)
-stopStressBtn.Position = UDim2.new(0,110,0,10)
-stopStressBtn.Text = "Stop Stress"
-stopStressBtn.Parent = buttonContainer
-
--- Tombol Start/Stop Teleport
-local startTPBtn = Instance.new("TextButton")
-startTPBtn.Size = UDim2.new(0,100,0,40)
-startTPBtn.Position = UDim2.new(0,10,0,60)
-startTPBtn.Text = "Start TP"
-startTPBtn.Parent = buttonContainer
-
-local stopTPBtn = Instance.new("TextButton")
-stopTPBtn.Size = UDim2.new(0,100,0,40)
-stopTPBtn.Position = UDim2.new(0,110,0,60)
-stopTPBtn.Text = "Stop TP"
-stopTPBtn.Parent = buttonContainer
-
--- ========================
--- Fungsi Minimize / Close
--- ========================
-minimizeBtn.MouseButton1Click:Connect(function()
-    buttonContainer.Visible = not buttonContainer.Visible
-    if buttonContainer.Visible then
-        frame.Size = UDim2.new(0,220,0,150)
-    else
-        frame.Size = UDim2.new(0,220,0,40)
-    end
-end)
-
-closeBtn.MouseButton1Click:Connect(function()
-    screenGui:Destroy()
-end)
-
--- ========================
--- Stress Test Logic
--- ========================
-local stressParts = {}
-local stressRunning = false
-
-local function startStressTest()
-    if stressRunning then return end
-    stressRunning = true
-    local NUM_PARTS = 500 -- dikurangi untuk performa mobile
-    for i = 1, NUM_PARTS do
-        local part = Instance.new("Part")
-        part.Size = Vector3.new(2,2,2)
-        part.Position = Vector3.new(math.random(-50,50), math.random(10,50), math.random(-50,50))
-        part.Anchored = false
-        part.CanCollide = false
-        part.BrickColor = BrickColor.Random()
-        part.Parent = Workspace
-        table.insert(stressParts, part)
-    end
-
-    RunService.Heartbeat:Connect(function()
-        if not stressRunning then return end
-        for _, part in ipairs(stressParts) do
-            part.Velocity = Vector3.new(
-                math.random(-50,50),
-                math.random(-50,50),
-                math.random(-50,50)
-            )
+    slider.FocusLost:Connect(function()
+        local val = tonumber(slider.Text)
+        if val then
+            callback(val)
+            label.Text = name.." : "..val
         end
     end)
 end
 
-local function stopStressTest()
-    stressRunning = false
-    for _, part in ipairs(stressParts) do
-        if part and part.Parent then
-            part:Destroy()
-        end
-    end
-    stressParts = {}
-end
+-- ======= RemoteEvent setup =======
+local trainEvent = ReplicatedStorage:WaitForChild("TrainEvent")
+local collectEvent = ReplicatedStorage:WaitForChild("CollectPetEvent")
 
-startStressBtn.MouseButton1Click:Connect(startStressTest)
-stopStressBtn.MouseButton1Click:Connect(stopStressTest)
-
--- ========================
--- Teleport Logic
--- ========================
-local teleportPositions = {
-    Vector3.new(-694.5, 109.2, 298.0),
-    Vector3.new(-674.7, 169.2, 700.6),
-    Vector3.new(-681.2, 120, 500)
+-- ======= Spot latihan terbaik =======
+local spots = {
+    Vector3.new(0,10,0),
+    Vector3.new(50,10,50),
+    Vector3.new(100,10,0)
 }
+local spotIndex = 1
 
-local teleportIndex = 1
-local teleportRunning = false
+-- ======= Variabel kontrol =======
+local autoTrain = false
+local autoCollect = false
+local autoTeleport = false
+local trainSpeed = 3    -- FireServer per frame
+local collectSpeed = 2  -- FireServer per frame
 
-local function startTeleport()
-    teleportRunning = true
-    while teleportRunning do
-        local character = player.Character
-        if character and character:FindFirstChild("HumanoidRootPart") then
-            character.HumanoidRootPart.CFrame = CFrame.new(teleportPositions[teleportIndex])
-            teleportIndex = teleportIndex + 1
-            if teleportIndex > #teleportPositions then
-                teleportIndex = 1
-            end
-        end
-        wait(2.5)
-    end
-end
+-- ======= GUI Elements =======
+createToggle("Auto Train", false, function(state) autoTrain = state end)
+createSlider("Train Speed", 1, 10, trainSpeed, function(val) trainSpeed = val end)
 
-local function stopTeleport()
-    teleportRunning = false
-end
+createToggle("Auto Collect", false, function(state) autoCollect = state end)
+createSlider("Collect Speed", 1, 10, collectSpeed, function(val) collectSpeed = val end)
 
-startTPBtn.MouseButton1Click:Connect(function()
-    if not teleportRunning then
-        spawn(startTeleport)
-    end
+createToggle("Auto Teleport", false, function(state) autoTeleport = state end)
+
+local stopBtn = Instance.new("TextButton")
+stopBtn.Size = UDim2.new(1, -10, 0, 30)
+stopBtn.Text = "STOP ALL"
+stopBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+stopBtn.TextColor3 = Color3.fromRGB(255,255,255)
+stopBtn.Parent = frame
+stopBtn.MouseButton1Click:Connect(function()
+    autoTrain = false
+    autoCollect = false
+    autoTeleport = false
 end)
 
-stopTPBtn.MouseButton1Click:Connect(stopTeleport)
+-- ======= Main Loop =======
+RunService.Heartbeat:Connect(function()
+    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp and autoTeleport then
+        hrp.CFrame = CFrame.new(spots[spotIndex])
+        spotIndex = spotIndex + 1
+        if spotIndex > #spots then spotIndex = 1 end
+    end
+
+    if autoTrain then
+        for i = 1, trainSpeed do
+            trainEvent:FireServer()
+        end
+    end
+
+    if autoCollect then
+        for i = 1, collectSpeed do
+            collectEvent:FireServer()
+        end
+    end
+end)
