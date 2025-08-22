@@ -1,0 +1,325 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local StarterGui = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
+local CoreGui = game:GetService("CoreGui")
+
+-- Create ScreenGui with high compatibility
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "TeleportGUI"
+screenGui.IgnoreGuiInset = true
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+screenGui.Parent = CoreGui
+
+-- Create Frame
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 350)
+frame.Position = UDim2.new(0.5, -100, 0.5, -175)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Parent = screenGui
+
+-- Create Title Label
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 40)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.Text = "Teleport GUI"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+titleLabel.TextScaled = true
+titleLabel.Parent = frame
+
+-- Create Minimize Button
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 20, 0, 20)
+minimizeButton.Position = UDim2.new(1, -50, 0, 5)
+minimizeButton.Text = "-"
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 0)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(100, 100, 0)
+minimizeButton.TextScaled = true
+minimizeButton.Parent = frame
+
+-- Create Close Button
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 20, 0, 20)
+closeButton.Position = UDim2.new(1, -25, 0, 5)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 0, 0)
+closeButton.BackgroundColor3 = Color3.fromRGB(100, 0, 0)
+closeButton.TextScaled = true
+closeButton.Parent = frame
+closeButton.MouseButton1Click:Connect(function()
+    screenGui.Enabled = false
+end)
+
+-- Create Current Position Section
+local currentLabel = Instance.new("TextLabel")
+currentLabel.Size = UDim2.new(1, -10, 0, 50)
+currentLabel.Position = UDim2.new(0, 5, 0, 40)
+currentLabel.Text = "Current Position"
+currentLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+currentLabel.BackgroundTransparency = 1
+currentLabel.TextScaled = true
+currentLabel.Parent = frame
+
+local xLabel = Instance.new("TextLabel")
+xLabel.Size = UDim2.new(0.3, 0, 0, 20)
+xLabel.Position = UDim2.new(0, 5, 0, 90)
+xLabel.Text = "X: 0.00"
+xLabel.TextColor3 = Color3.fromRGB(150, 150, 255)
+xLabel.BackgroundTransparency = 1
+xLabel.TextScaled = true
+xLabel.Parent = frame
+
+local yLabel = Instance.new("TextLabel")
+yLabel.Size = UDim2.new(0.3, 0, 0, 20)
+yLabel.Position = UDim2.new(0.35, 0, 0, 90)
+yLabel.Text = "Y: 0.00"
+yLabel.TextColor3 = Color3.fromRGB(150, 150, 255)
+yLabel.BackgroundTransparency = 1
+yLabel.TextScaled = true
+yLabel.Parent = frame
+
+local zLabel = Instance.new("TextLabel")
+zLabel.Size = UDim2.new(0.3, 0, 0, 20)
+zLabel.Position = UDim2.new(0.7, 0, 0, 90)
+zLabel.Text = "Z: 0.00"
+zLabel.TextColor3 = Color3.fromRGB(150, 150, 255)
+zLabel.BackgroundTransparency = 1
+zLabel.TextScaled = true
+zLabel.Parent = frame
+
+-- Create Save and Copy Buttons
+local saveButton = Instance.new("TextButton")
+saveButton.Size = UDim2.new(0.4, -5, 0, 40)
+saveButton.Position = UDim2.new(0.1, 0, 0, 120)
+saveButton.Text = "SAVE"
+saveButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+saveButton.BackgroundColor3 = Color3.fromRGB(50, 50, 100)
+saveButton.TextScaled = true
+saveButton.Parent = frame
+
+local copyButton = Instance.new("TextButton")
+copyButton.Size = UDim2.new(0.4, -5, 0, 40)
+copyButton.Position = UDim2.new(0.5, 5, 0, 120)
+copyButton.Text = "COPY"
+copyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+copyButton.BackgroundColor3 = Color3.fromRGB(50, 100, 50)
+copyButton.TextScaled = true
+copyButton.Parent = frame
+
+-- Saved Positions Section
+local savedLabel = Instance.new("TextLabel")
+savedLabel.Size = UDim2.new(1, -10, 0, 20)
+savedLabel.Position = UDim2.new(0, 5, 0, 170)
+savedLabel.Text = "Saved Positions"
+savedLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+savedLabel.BackgroundTransparency = 1
+savedLabel.TextScaled = true
+savedLabel.Parent = frame
+
+-- Create Scrolling Frame for Saved Positions
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, -10, 0, 80)
+scrollFrame.Position = UDim2.new(0, 5, 0, 190)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.ScrollBarThickness = 5
+scrollFrame.Parent = frame
+local uiListLayout = Instance.new("UIListLayout")
+uiListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+uiListLayout.Parent = scrollFrame
+
+-- Manual Teleport Section
+local manualLabel = Instance.new("TextLabel")
+manualLabel.Size = UDim2.new(1, -10, 0, 20)
+manualLabel.Position = UDim2.new(0, 5, 0, 280)
+manualLabel.Text = "Manual Teleport"
+manualLabel.TextColor3 = Color3.fromRGB(150, 150, 150)
+manualLabel.BackgroundTransparency = 1
+manualLabel.TextScaled = true
+manualLabel.Parent = frame
+
+local manualInput = Instance.new("TextBox")
+manualInput.Size = UDim2.new(0.8, 0, 0, 20)
+manualInput.Position = UDim2.new(0.1, 0, 0, 300)
+manualInput.Text = "X:0, Y:0, Z:0"
+manualInput.TextColor3 = Color3.fromRGB(255, 255, 255)
+manualInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+manualInput.TextScaled = true
+manualInput.Parent = frame
+
+local manualTpButton = Instance.new("TextButton")
+manualTpButton.Size = UDim2.new(0.8, 0, 0, 30)
+manualTpButton.Position = UDim2.new(0.1, 0, 0, 320)
+manualTpButton.Text = "TELEPORT"
+manualTpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+manualTpButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+manualTpButton.TextScaled = true
+manualTpButton.Parent = frame
+
+-- Saved Coordinates List
+local savedPositions = {}
+
+-- Update Coordinate Display
+local function updateCoordDisplay()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local pos = char.HumanoidRootPart.Position
+        xLabel.Text = "X: " .. string.format("%.2f", pos.X)
+        yLabel.Text = "Y: " .. string.format("%.2f", pos.Y)
+        zLabel.Text = "Z: " .. string.format("%.2f", pos.Z)
+    end
+end
+
+-- Save Current Position
+local function savePosition()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local pos = char.HumanoidRootPart.Position
+        table.insert(savedPositions, {x = pos.X, y = pos.Y, z = pos.Z})
+        local displayText = "X" .. string.format("%.1f", pos.X) .. " Y" .. string.format("%.1f", pos.Y) .. " Z" .. string.format("%.1f", pos.Z)
+        local posFrame = Instance.new("Frame")
+        posFrame.Size = UDim2.new(1, 0, 0, 30)
+        posFrame.BackgroundTransparency = 1
+        posFrame.Parent = scrollFrame
+        local savedDisplay = Instance.new("TextLabel")
+        savedDisplay.Size = UDim2.new(0.7, 0, 1, 0)
+        savedDisplay.Text = displayText
+        savedDisplay.TextColor3 = Color3.fromRGB(255, 255, 255)
+        savedDisplay.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+        savedDisplay.TextScaled = true
+        savedDisplay.Parent = posFrame
+        local tpButton = Instance.new("TextButton")
+        tpButton.Size = UDim2.new(0.25, 0, 1, 0)
+        tpButton.Position = UDim2.new(0.75, -5, 0, 0)
+        tpButton.Text = "TP"
+        tpButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+        tpButton.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+        tpButton.TextScaled = true
+        tpButton.Parent = posFrame
+        tpButton.MouseButton1Click:Connect(function()
+            teleportToSaved({x = pos.X, y = pos.Y, z = pos.Z})
+        end)
+        pcall(function()
+            StarterGui:SetCore("SendNotification", {
+                Title = "Position Saved",
+                Text = "Saved: " .. displayText,
+                Duration = 3
+            })
+        end)
+        scrollFrame.CanvasSize = UDim2.new(0, 0, 0, uiListLayout.AbsoluteContentSize.Y)
+    end
+end
+
+saveButton.MouseButton1Click:Connect(savePosition)
+
+-- Copy Current Position
+copyButton.MouseButton1Click:Connect(function()
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        local pos = char.HumanoidRootPart.Position
+        local copyText = string.format("X:%.1f, Y:%.1f, Z:%.1f", pos.X, pos.Y, pos.Z)
+        manualInput.Text = copyText
+        pcall(function()
+            setclipboard(copyText)
+            StarterGui:SetCore("SendNotification", {
+                Title = "Position Copied",
+                Text = copyText,
+                Duration = 3
+            })
+        end)
+    end
+end)
+
+-- Teleport Function
+local function teleportToSaved(coords)
+    local char = LocalPlayer.Character
+    if char and char:FindFirstChild("HumanoidRootPart") and char:FindFirstChild("Humanoid") then
+        local humanoid = char.Humanoid
+        pcall(function()
+            humanoid:ChangeState(Enum.HumanoidStateType.None)
+            char.HumanoidRootPart.CFrame = CFrame.new(coords.x, coords.y, coords.z)
+            wait(0.05)
+            humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
+            StarterGui:SetCore("SendNotification", {
+                Title = "Teleported",
+                Text = "Teleported to: X: " .. coords.x .. ", Y: " .. coords.y .. ", Z: " .. coords.z,
+                Duration = 3
+            })
+        end)
+    end
+end
+
+-- Manual Teleport
+manualTpButton.MouseButton1Click:Connect(function()
+    local coords = {}
+    for coord in manualInput.Text:gmatch("[-]?%d+%.?%d*") do
+        table.insert(coords, tonumber(coord))
+    end
+    if #coords >= 3 then
+        teleportToSaved({x = coords[1], y = coords[2], z = coords[3]})
+    else
+        pcall(function()
+            StarterGui:SetCore("SendNotification", {
+                Title = "Invalid Input",
+                Text = "Please enter coordinates in format: X:0, Y:0, Z:0",
+                Duration = 3
+            })
+        end)
+    end
+end)
+
+-- Minimize Functionality
+local isMinimized = false
+local originalSize = frame.Size
+local originalPos = frame.Position
+minimizeButton.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    if isMinimized then
+        frame.Size = UDim2.new(0, 200, 0, 40)
+        frame.Position = UDim2.new(0.5, -100, 0, 0)
+        for _, child in pairs(frame:GetChildren()) do
+            if child ~= titleLabel and child ~= minimizeButton and child ~= closeButton then
+                child.Visible = false
+            end
+        end
+        minimizeButton.Text = "+"
+    else
+        frame.Size = originalSize
+        frame.Position = originalPos
+        for _, child in pairs(frame:GetChildren()) do
+            child.Visible = true
+        end
+        minimizeButton.Text = "-"
+    end
+end)
+
+-- Update coordinates in real-time
+RunService.RenderStepped:Connect(updateCoordDisplay)
+
+-- Ensure GUI visibility
+local function ensureGuiVisibility()
+    local success, err = pcall(function()
+        screenGui.Enabled = true
+        frame.Visible = true
+        if not game:GetService("Workspace"):FindFirstChild("Terrain") and LocalPlayer.Character then
+            screenGui.Parent = CoreGui
+        end
+    end)
+    if not success then
+        pcall(function()
+            StarterGui:SetCore("SendNotification", {
+                Title = "GUI Error",
+                Text = "Retrying GUI initialization...",
+                Duration = 5
+            })
+        end)
+        wait(1)
+        ensureGuiVisibility()
+    end
+end
+
+ensureGuiVisibility()
