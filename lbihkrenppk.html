@@ -1,4 +1,4 @@
--- GUI Auto Teleport Stabil (tidak hilang saat respawn)
+-- GUI Auto Teleport Stabil & Loop
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
@@ -93,12 +93,16 @@ local function setupGUI()
             local hrp = character:WaitForChild("HumanoidRootPart")
             if not teleporting then
                 teleporting = true
-                for _, pos in ipairs(TELEPORT_POSITIONS) do
-                    if not teleporting then break end
-                    hrp.CFrame = CFrame.new(pos)
-                    wait(2.5)
-                end
-                teleporting = false
+                -- Loop terus-menerus sampai tombol End ditekan
+                spawn(function()
+                    while teleporting do
+                        for _, pos in ipairs(TELEPORT_POSITIONS) do
+                            if not teleporting then break end
+                            hrp.CFrame = CFrame.new(pos)
+                            wait(2.5)
+                        end
+                    end
+                end)
             end
         end
     end)
