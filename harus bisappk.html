@@ -1,0 +1,44 @@
+-- Auto Teleport Script dengan Tombol Start
+-- Paste script ini ke dalam StarterGui > ScreenGui > TextButton (Start)
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+-- Daftar koordinat teleport
+local TELEPORT_POSITIONS = {
+    Vector3.new(-694.5, 109.2, 298.0),
+    Vector3.new(-674.7, 169.2, 700.6),
+    Vector3.new(-681.2, 213.0, 1094.4),
+    Vector3.new(-565.3, 201.2, 1332.0),
+    Vector3.new(-797.8, 225.2, 1505.6),
+    Vector3.new(-433.8, 352.5, 1570.5),
+    Vector3.new(275.1, 325.1, 1543.4),
+    Vector3.new(625.8, 309.2, 1604.2),
+    Vector3.new(892.5, 425.2, 1600.5)
+}
+
+-- Fungsi teleport
+local function teleportSequence()
+    for _, pos in ipairs(TELEPORT_POSITIONS) do
+        humanoidRootPart.CFrame = CFrame.new(pos)
+        wait(1) -- jeda 1 detik antar teleport, bisa diubah
+    end
+end
+
+-- Tombol Start
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local startButton = Instance.new("TextButton")
+startButton.Size = UDim2.new(0, 150, 0, 50)
+startButton.Position = UDim2.new(0, 20, 0, 20)
+startButton.Text = "Start Teleport"
+startButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+startButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+startButton.Parent = screenGui
+
+startButton.MouseButton1Click:Connect(function()
+    teleportSequence()
+end)
