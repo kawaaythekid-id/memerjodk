@@ -1,126 +1,126 @@
--- LocalScript (StarterGui)
-
+-- Minimalis WalkSpeed + WallWalk GUI (Android Friendly & Respawn Safe)
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-
 local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
 
--- ======= GUI Setup =======
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "GigaChadHelper"
-screenGui.Parent = player:WaitForChild("PlayerGui")
+local function setupCharacter(char)
+    local humanoid = char:WaitForChild("Humanoid")
+    local rootPart = char:WaitForChild("HumanoidRootPart")
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 300, 0, 250)
-frame.Position = UDim2.new(0, 50, 0, 50)
-frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Draggable = true
-frame.Parent = screenGui
+    -- Minimalis GUI
+    local guiName = "MiniWalkWallGUI_"..tostring(player.UserId)
+    local screenGui = playerGui:FindFirstChild(guiName) or Instance.new("ScreenGui")
+    screenGui.Name = guiName
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = playerGui
 
-local function createToggle(name, default, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1, -10, 0, 30)
-    btn.Position = UDim2.new(0,5,0,0)
-    btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.Text = name.." : "..(default and "ON" or "OFF")
-    btn.Parent = frame
-    btn.MouseButton1Click:Connect(function()
-        default = not default
-        btn.Text = name.." : "..(default and "ON" or "OFF")
-        callback(default)
+    -- Frame kecil di pojok
+    local frame = screenGui:FindFirstChild("Frame") or Instance.new("Frame")
+    frame.Size = UDim2.new(0, 180, 0, 80)
+    frame.Position = UDim2.new(0, 10, 0, 10)
+    frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
+
+    -- Slider
+    local sliderBg = frame:FindFirstChild("SliderBg") or Instance.new("Frame")
+    sliderBg.Name = "SliderBg"
+    sliderBg.Size = UDim2.new(1, -20, 0, 15)
+    sliderBg.Position = UDim2.new(0, 10, 0, 10)
+    sliderBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
+    sliderBg.Parent = frame
+
+    local handle = sliderBg:FindFirstChild("Handle") or Instance.new("Frame")
+    handle.Name = "Handle"
+    handle.Size = UDim2.new(0, 15, 1, 0)
+    handle.Position = UDim2.new(0,0,0,0)
+    handle.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    handle.Parent = sliderBg
+
+    local speedText = sliderBg:FindFirstChild("SpeedText") or Instance.new("TextLabel")
+    speedText.Name = "SpeedText"
+    speedText.Size = UDim2.new(1,0,0,15)
+    speedText.Position = UDim2.new(0,0,0,-20)
+    speedText.BackgroundTransparency = 1
+    speedText.TextColor3 = Color3.fromRGB(255,255,255)
+    speedText.Font = Enum.Font.SourceSans
+    speedText.TextSize = 14
+    speedText.Text = "Speed: 16"
+    speedText.Parent = sliderBg
+
+    -- Slider logic
+    local dragging = false
+    local function setWalkSpeed(x)
+        local relativeX = math.clamp(x / sliderBg.AbsoluteSize.X, 0, 1)
+        local speed = math.floor(1 + relativeX * 29)
+        humanoid.WalkSpeed = speed
+        speedText.Text = "Speed: "..speed
+        handle.Position = UDim2.new(relativeX,0,0,0)
+    end
+
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
     end)
-    return btn
+    handle.InputEnded:Connect(function() dragging=false end)
+    sliderBg.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            setWalkSpeed(input.Position.X - sliderBg.AbsolutePosition.X)
+            dragging = true
+        end
+    end)
+    sliderBg.InputEnded:Connect(function() dragging=false end)
+    sliderBg.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+            setWalkSpeed(input.Position.X - sliderBg.AbsolutePosition.X)
+        end
+    end)
+
+    -- Fungsi publik
+    screenGui.SetWalkSpeed = function(speed)
+        speed = math.clamp(speed,1,30)
+        local relativeX = (speed-1)/29
+        humanoid.WalkSpeed = speed
+        handle.Position = UDim2.new(relativeX,0,0,0)
+        speedText.Text = "Speed: "..speed
+    end
+
+    -- WallWalk Toggle Button
+    local walkBtn = frame:FindFirstChild("WalkBtn") or Instance.new("TextButton")
+    walkBtn.Name = "WalkBtn"
+    walkBtn.Size = UDim2.new(0,80,0,25)
+    walkBtn.Position = UDim2.new(0,10,0,45)
+    walkBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    walkBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    walkBtn.Font = Enum.Font.SourceSansBold
+    walkBtn.TextSize = 14
+    walkBtn.Text = "WallWalk Off"
+    walkBtn.Parent = frame
+
+    local walking = false
+    walkBtn.MouseButton1Click:Connect(function()
+        walking = not walking
+        walkBtn.Text = walking and "WallWalk On" or "WallWalk Off"
+    end)
+
+    -- Smooth wall walking
+    RunService.RenderStepped:Connect(function()
+        if walking then
+            local cam = workspace.CurrentCamera
+            local dir = Vector3.new(cam.CFrame.LookVector.X,0,cam.CFrame.LookVector.Z).Unit
+            local ray = Ray.new(rootPart.Position,dir*3)
+            local hit,pos = workspace:FindPartOnRay(ray,char)
+            if hit then
+                rootPart.CFrame = CFrame.new(pos + Vector3.new(0,1,0)) * CFrame.lookAt(pos,pos+dir)
+            else
+                rootPart.Velocity = dir*humanoid.WalkSpeed
+            end
+        end
+    end)
 end
 
-local function createSlider(name, min, max, default, callback)
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(1, -10, 0, 20)
-    label.Position = UDim2.new(0,5,0,0)
-    label.BackgroundTransparency = 1
-    label.TextColor3 = Color3.fromRGB(255,255,255)
-    label.Text = name.." : "..default
-    label.TextXAlignment = Enum.TextXAlignment.Left
-    label.Parent = frame
+-- Setup pertama
+setupCharacter(player.Character or player.CharacterAdded:Wait())
 
-    local slider = Instance.new("TextBox")
-    slider.Size = UDim2.new(1, -10, 0, 25)
-    slider.Position = UDim2.new(0,5,0,0)
-    slider.Text = tostring(default)
-    slider.ClearTextOnFocus = false
-    slider.Parent = frame
-
-    slider.FocusLost:Connect(function()
-        local val = tonumber(slider.Text)
-        if val then
-            callback(val)
-            label.Text = name.." : "..val
-        end
-    end)
-end
-
--- ======= RemoteEvent setup =======
-local trainEvent = ReplicatedStorage:WaitForChild("TrainEvent")
-local collectEvent = ReplicatedStorage:WaitForChild("CollectPetEvent")
-
--- ======= Spot latihan terbaik =======
-local spots = {
-    Vector3.new(0,10,0),
-    Vector3.new(50,10,50),
-    Vector3.new(100,10,0)
-}
-local spotIndex = 1
-
--- ======= Variabel kontrol =======
-local autoTrain = false
-local autoCollect = false
-local autoTeleport = false
-local trainSpeed = 3    -- FireServer per frame
-local collectSpeed = 2  -- FireServer per frame
-
--- ======= GUI Elements =======
-createToggle("Auto Train", false, function(state) autoTrain = state end)
-createSlider("Train Speed", 1, 10, trainSpeed, function(val) trainSpeed = val end)
-
-createToggle("Auto Collect", false, function(state) autoCollect = state end)
-createSlider("Collect Speed", 1, 10, collectSpeed, function(val) collectSpeed = val end)
-
-createToggle("Auto Teleport", false, function(state) autoTeleport = state end)
-
-local stopBtn = Instance.new("TextButton")
-stopBtn.Size = UDim2.new(1, -10, 0, 30)
-stopBtn.Text = "STOP ALL"
-stopBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
-stopBtn.TextColor3 = Color3.fromRGB(255,255,255)
-stopBtn.Parent = frame
-stopBtn.MouseButton1Click:Connect(function()
-    autoTrain = false
-    autoCollect = false
-    autoTeleport = false
-end)
-
--- ======= Main Loop =======
-RunService.Heartbeat:Connect(function()
-    local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    if hrp and autoTeleport then
-        hrp.CFrame = CFrame.new(spots[spotIndex])
-        spotIndex = spotIndex + 1
-        if spotIndex > #spots then spotIndex = 1 end
-    end
-
-    if autoTrain then
-        for i = 1, trainSpeed do
-            trainEvent:FireServer()
-        end
-    end
-
-    if autoCollect then
-        for i = 1, collectSpeed do
-            collectEvent:FireServer()
-        end
-    end
-end)
+-- Respawn handler
+player.CharacterAdded:Connect(setupCharacter)
