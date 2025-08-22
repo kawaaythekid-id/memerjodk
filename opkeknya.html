@@ -1,180 +1,164 @@
--- Dragable Mini GUI + WalkSpeed Enable + Smooth WallWalk
+-- Combined GUI Script: WalkSpeed + FullBright + Infinity Jump
+-- Tempelkan di StarterGui > LocalScript
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local UserInputService = game:GetService("UserInputService")
+
 local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-local workspace = game:GetService("Workspace")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
 
-local function setupCharacter(char)
-    local humanoid = char:WaitForChild("Humanoid")
-    local rootPart = char:WaitForChild("HumanoidRootPart")
+-- Simpan pengaturan awal Lighting
+local originalAmbient = Lighting.Ambient
+local originalOutdoorAmbient = Lighting.OutdoorAmbient
+local originalClockTime = Lighting.ClockTime
+local originalBrightness = Lighting.Brightness
 
-    -- ===== ScreenGui =====
-    local guiName = "DragMiniGUI_"..tostring(player.UserId)
-    local screenGui = playerGui:FindFirstChild(guiName) or Instance.new("ScreenGui")
-    screenGui.Name = guiName
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = playerGui
+-- GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
-    -- ===== Draggable Frame =====
-    local frame = screenGui:FindFirstChild("Frame") or Instance.new("Frame")
-    frame.Size = UDim2.new(0, 200, 0, 110)
-    frame.Position = UDim2.new(0, 10, 0, 10)
-    frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
-    frame.BorderSizePixel = 0
-    frame.Parent = screenGui
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 220, 0, 260)
+frame.Position = UDim2.new(0, 20, 0, 20)
+frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+frame.Parent = screenGui
 
-    -- Drag logic
-    local dragging = false
-    local dragInput, mousePos, framePos
-    frame.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            mousePos = input.Position
-            framePos = frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
+-- WalkSpeed
+local wsLabel = Instance.new("TextLabel")
+wsLabel.Size = UDim2.new(0, 200, 0, 20)
+wsLabel.Position = UDim2.new(0, 10, 0, 10)
+wsLabel.Text = "WalkSpeed: 16"
+wsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+wsLabel.BackgroundTransparency = 1
+wsLabel.Parent = frame
+
+local wsBox = Instance.new("TextBox")
+wsBox.Size = UDim2.new(0, 200, 0, 30)
+wsBox.Position = UDim2.new(0, 10, 0, 35)
+wsBox.Text = "16"
+wsBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+wsBox.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+wsBox.ClearTextOnFocus = false
+wsBox.Parent = frame
+
+local wsButton = Instance.new("TextButton")
+wsButton.Size = UDim2.new(0, 200, 0, 30)
+wsButton.Position = UDim2.new(0, 10, 0, 70)
+wsButton.Text = "Enable WalkSpeed"
+wsButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+wsButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+wsButton.Parent = frame
+
+-- FullBright
+local fbButton = Instance.new("TextButton")
+fbButton.Size = UDim2.new(0, 200, 0, 30)
+fbButton.Position = UDim2.new(0, 10, 0, 110)
+fbButton.Text = "Enable FullBright"
+fbButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+fbButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+fbButton.Parent = frame
+
+-- Infinity Jump
+local ijButton = Instance.new("TextButton")
+ijButton.Size = UDim2.new(0, 200, 0, 30)
+ijButton.Position = UDim2.new(0, 10, 0, 150)
+ijButton.Text = "Enable Infinity Jump"
+ijButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ijButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+ijButton.Parent = frame
+
+-- WalkSpeed Logic
+local walkSpeed = 16
+local wsEnabled = false
+
+wsBox.FocusLost:Connect(function(enterPressed)
+    local value = tonumber(wsBox.Text)
+    if value and value >= 1 and value <= 25 then
+        walkSpeed = value
+        wsLabel.Text = "WalkSpeed: " .. walkSpeed
+        if wsEnabled then
+            humanoid.WalkSpeed = walkSpeed
         end
-    end)
-
-    frame.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-            dragInput = input
-        end
-    end)
-
-    RunService.RenderStepped:Connect(function()
-        if dragging and dragInput then
-            local delta = dragInput.Position - mousePos
-            frame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
-        end
-    end)
-
-    -- ===== WalkSpeed Slider =====
-    local sliderBg = frame:FindFirstChild("SliderBg") or Instance.new("Frame")
-    sliderBg.Name = "SliderBg"
-    sliderBg.Size = UDim2.new(1, -20, 0, 15)
-    sliderBg.Position = UDim2.new(0, 10, 0, 10)
-    sliderBg.BackgroundColor3 = Color3.fromRGB(100,100,100)
-    sliderBg.Parent = frame
-
-    local handle = sliderBg:FindFirstChild("Handle") or Instance.new("Frame")
-    handle.Name = "Handle"
-    handle.Size = UDim2.new(0, 15, 1, 0)
-    handle.Position = UDim2.new(0,0,0,0)
-    handle.BackgroundColor3 = Color3.fromRGB(255,0,0)
-    handle.Parent = sliderBg
-
-    local speedText = sliderBg:FindFirstChild("SpeedText") or Instance.new("TextLabel")
-    speedText.Name = "SpeedText"
-    speedText.Size = UDim2.new(1,0,0,15)
-    speedText.Position = UDim2.new(0,0,0,-20)
-    speedText.BackgroundTransparency = 1
-    speedText.TextColor3 = Color3.fromRGB(255,255,255)
-    speedText.Font = Enum.Font.SourceSans
-    speedText.TextSize = 14
-    speedText.Text = "Speed: 16"
-    speedText.Parent = sliderBg
-
-    local draggingSlider = false
-    local walkSpeedEnabled = true
-
-    local function setWalkSpeed(x)
-        if walkSpeedEnabled then
-            local relativeX = math.clamp(x / sliderBg.AbsoluteSize.X, 0, 1)
-            local speed = math.floor(1 + relativeX * 29)
-            humanoid.WalkSpeed = speed
-            speedText.Text = "Speed: "..speed
-            handle.Position = UDim2.new(relativeX,0,0,0)
-        end
+    else
+        wsBox.Text = walkSpeed
     end
+end)
 
-    handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then draggingSlider = true end
-    end)
-    handle.InputEnded:Connect(function() draggingSlider=false end)
-    sliderBg.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            setWalkSpeed(input.Position.X - sliderBg.AbsolutePosition.X)
-            draggingSlider = true
-        end
-    end)
-    sliderBg.InputEnded:Connect(function() draggingSlider=false end)
-    sliderBg.InputChanged:Connect(function(input)
-        if draggingSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
-            setWalkSpeed(input.Position.X - sliderBg.AbsolutePosition.X)
-        end
-    end)
-
-    -- WalkSpeed Enable/Disable button
-    local wsBtn = frame:FindFirstChild("WSBtn") or Instance.new("TextButton")
-    wsBtn.Name = "WSBtn"
-    wsBtn.Size = UDim2.new(0,80,0,25)
-    wsBtn.Position = UDim2.new(0,10,0,35)
-    wsBtn.BackgroundColor3 = Color3.fromRGB(0,0,150)
-    wsBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    wsBtn.Font = Enum.Font.SourceSansBold
-    wsBtn.TextSize = 14
-    wsBtn.Text = "WS Enabled"
-    wsBtn.Parent = frame
-
-    wsBtn.MouseButton1Click:Connect(function()
-        walkSpeedEnabled = not walkSpeedEnabled
-        wsBtn.Text = walkSpeedEnabled and "WS Enabled" or "WS Disabled"
-    end)
-
-    screenGui.SetWalkSpeed = function(speed)
-        speed = math.clamp(speed,1,30)
-        local relativeX = (speed-1)/29
-        humanoid.WalkSpeed = walkSpeedEnabled and speed or humanoid.WalkSpeed
-        handle.Position = UDim2.new(relativeX,0,0,0)
-        speedText.Text = "Speed: "..speed
+wsButton.MouseButton1Click:Connect(function()
+    wsEnabled = not wsEnabled
+    if wsEnabled then
+        humanoid.WalkSpeed = walkSpeed
+        wsButton.Text = "WalkSpeed Enabled"
+        wsButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+    else
+        humanoid.WalkSpeed = 16
+        wsButton.Text = "Enable WalkSpeed"
+        wsButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
     end
+end)
 
-    -- ===== WallWalk Button =====
-    local walkBtn = frame:FindFirstChild("WalkBtn") or Instance.new("TextButton")
-    walkBtn.Name = "WalkBtn"
-    walkBtn.Size = UDim2.new(0,80,0,25)
-    walkBtn.Position = UDim2.new(0,110,0,35)
-    walkBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
-    walkBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    walkBtn.Font = Enum.Font.SourceSansBold
-    walkBtn.TextSize = 14
-    walkBtn.Text = "WallWalk Off"
-    walkBtn.Parent = frame
-
-    local walking = false
-    walkBtn.MouseButton1Click:Connect(function()
-        walking = not walking
-        walkBtn.Text = walking and "WallWalk On" or "WallWalk Off"
-    end)
-
-    -- ===== Smooth WallWalk Logic =====
-    RunService.RenderStepped:Connect(function()
-        if walking then
-            local cam = workspace.CurrentCamera
-            local dir = Vector3.new(cam.CFrame.LookVector.X,0,cam.CFrame.LookVector.Z).Unit
-            local params = RaycastParams.new()
-            params.FilterDescendantsInstances = {char}
-            params.FilterType = Enum.RaycastFilterType.Blacklist
-
-            local ray = workspace:Raycast(rootPart.Position, dir*3, params)
-            if ray then
-                local wallPos = ray.Position
-                local newCFrame = CFrame.new(wallPos + Vector3.new(0,1,0), wallPos + dir)
-                rootPart.CFrame = rootPart.CFrame:Lerp(newCFrame, 0.2)
-            else
-                rootPart.Velocity = dir*(walkSpeedEnabled and humanoid.WalkSpeed or 16)
-            end
-        end
-    end)
+-- FullBright Logic
+local fbEnabled = false
+local function setFullBright(enable)
+    if enable then
+        Lighting.Ambient = Color3.new(1, 1, 1)
+        Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+    else
+        Lighting.Ambient = originalAmbient
+        Lighting.OutdoorAmbient = originalOutdoorAmbient
+        Lighting.Brightness = originalBrightness
+        Lighting.ClockTime = originalClockTime
+    end
 end
 
--- Setup pertama
-setupCharacter(player.Character or player.CharacterAdded:Wait())
+fbButton.MouseButton1Click:Connect(function()
+    fbEnabled = not fbEnabled
+    setFullBright(fbEnabled)
+    if fbEnabled then
+        fbButton.Text = "FullBright Enabled"
+        fbButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+    else
+        fbButton.Text = "Enable FullBright"
+        fbButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    end
+end)
 
--- Respawn handler
-player.CharacterAdded:Connect(setupCharacter)
+-- Infinity Jump Logic
+local ijEnabled = false
+ijButton.MouseButton1Click:Connect(function()
+    ijEnabled = not ijEnabled
+    if ijEnabled then
+        ijButton.Text = "Infinity Jump Enabled"
+        ijButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+    else
+        ijButton.Text = "Enable Infinity Jump"
+        ijButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    end
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if ijEnabled and humanoid and humanoid.Health > 0 then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- Respawn handling
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = character:WaitForChild("Humanoid")
+    if wsEnabled then
+        humanoid.WalkSpeed = walkSpeed
+    end
+end)
+
+-- Keep FullBright active
+RunService.RenderStepped:Connect(function()
+    if fbEnabled then
+        setFullBright(true)
+    end
+end)
