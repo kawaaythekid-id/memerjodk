@@ -1,29 +1,59 @@
--- Minimalis WalkSpeed + WallWalk GUI (Android Friendly & Respawn Safe)
+-- Dragable Mini GUI + WalkSpeed Enable + Smooth WallWalk
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
+local workspace = game:GetService("Workspace")
 
 local function setupCharacter(char)
     local humanoid = char:WaitForChild("Humanoid")
     local rootPart = char:WaitForChild("HumanoidRootPart")
 
-    -- Minimalis GUI
-    local guiName = "MiniWalkWallGUI_"..tostring(player.UserId)
+    -- ===== ScreenGui =====
+    local guiName = "DragMiniGUI_"..tostring(player.UserId)
     local screenGui = playerGui:FindFirstChild(guiName) or Instance.new("ScreenGui")
     screenGui.Name = guiName
     screenGui.ResetOnSpawn = false
     screenGui.Parent = playerGui
 
-    -- Frame kecil di pojok
+    -- ===== Draggable Frame =====
     local frame = screenGui:FindFirstChild("Frame") or Instance.new("Frame")
-    frame.Size = UDim2.new(0, 180, 0, 80)
+    frame.Size = UDim2.new(0, 200, 0, 110)
     frame.Position = UDim2.new(0, 10, 0, 10)
     frame.BackgroundColor3 = Color3.fromRGB(50,50,50)
     frame.BorderSizePixel = 0
     frame.Parent = screenGui
 
-    -- Slider
+    -- Drag logic
+    local dragging = false
+    local dragInput, mousePos, framePos
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            mousePos = input.Position
+            framePos = frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+
+    RunService.RenderStepped:Connect(function()
+        if dragging and dragInput then
+            local delta = dragInput.Position - mousePos
+            frame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+        end
+    end)
+
+    -- ===== WalkSpeed Slider =====
     local sliderBg = frame:FindFirstChild("SliderBg") or Instance.new("Frame")
     sliderBg.Name = "SliderBg"
     sliderBg.Size = UDim2.new(1, -20, 0, 15)
@@ -49,47 +79,66 @@ local function setupCharacter(char)
     speedText.Text = "Speed: 16"
     speedText.Parent = sliderBg
 
-    -- Slider logic
-    local dragging = false
+    local draggingSlider = false
+    local walkSpeedEnabled = true
+
     local function setWalkSpeed(x)
-        local relativeX = math.clamp(x / sliderBg.AbsoluteSize.X, 0, 1)
-        local speed = math.floor(1 + relativeX * 29)
-        humanoid.WalkSpeed = speed
-        speedText.Text = "Speed: "..speed
-        handle.Position = UDim2.new(relativeX,0,0,0)
+        if walkSpeedEnabled then
+            local relativeX = math.clamp(x / sliderBg.AbsoluteSize.X, 0, 1)
+            local speed = math.floor(1 + relativeX * 29)
+            humanoid.WalkSpeed = speed
+            speedText.Text = "Speed: "..speed
+            handle.Position = UDim2.new(relativeX,0,0,0)
+        end
     end
 
     handle.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = true end
+        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then draggingSlider = true end
     end)
-    handle.InputEnded:Connect(function() dragging=false end)
+    handle.InputEnded:Connect(function() draggingSlider=false end)
     sliderBg.InputBegan:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
             setWalkSpeed(input.Position.X - sliderBg.AbsolutePosition.X)
-            dragging = true
+            draggingSlider = true
         end
     end)
-    sliderBg.InputEnded:Connect(function() dragging=false end)
+    sliderBg.InputEnded:Connect(function() draggingSlider=false end)
     sliderBg.InputChanged:Connect(function(input)
-        if dragging and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
+        if draggingSlider and (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) then
             setWalkSpeed(input.Position.X - sliderBg.AbsolutePosition.X)
         end
     end)
 
-    -- Fungsi publik
+    -- WalkSpeed Enable/Disable button
+    local wsBtn = frame:FindFirstChild("WSBtn") or Instance.new("TextButton")
+    wsBtn.Name = "WSBtn"
+    wsBtn.Size = UDim2.new(0,80,0,25)
+    wsBtn.Position = UDim2.new(0,10,0,35)
+    wsBtn.BackgroundColor3 = Color3.fromRGB(0,0,150)
+    wsBtn.TextColor3 = Color3.fromRGB(255,255,255)
+    wsBtn.Font = Enum.Font.SourceSansBold
+    wsBtn.TextSize = 14
+    wsBtn.Text = "WS Enabled"
+    wsBtn.Parent = frame
+
+    wsBtn.MouseButton1Click:Connect(function()
+        walkSpeedEnabled = not walkSpeedEnabled
+        wsBtn.Text = walkSpeedEnabled and "WS Enabled" or "WS Disabled"
+    end)
+
     screenGui.SetWalkSpeed = function(speed)
         speed = math.clamp(speed,1,30)
         local relativeX = (speed-1)/29
-        humanoid.WalkSpeed = speed
+        humanoid.WalkSpeed = walkSpeedEnabled and speed or humanoid.WalkSpeed
         handle.Position = UDim2.new(relativeX,0,0,0)
         speedText.Text = "Speed: "..speed
     end
 
-    -- WallWalk Toggle Button
+    -- ===== WallWalk Button =====
     local walkBtn = frame:FindFirstChild("WalkBtn") or Instance.new("TextButton")
     walkBtn.Name = "WalkBtn"
     walkBtn.Size = UDim2.new(0,80,0,25)
-    walkBtn.Position = UDim2.new(0,10,0,45)
+    walkBtn.Position = UDim2.new(0,110,0,35)
     walkBtn.BackgroundColor3 = Color3.fromRGB(0,150,0)
     walkBtn.TextColor3 = Color3.fromRGB(255,255,255)
     walkBtn.Font = Enum.Font.SourceSansBold
@@ -103,17 +152,22 @@ local function setupCharacter(char)
         walkBtn.Text = walking and "WallWalk On" or "WallWalk Off"
     end)
 
-    -- Smooth wall walking
+    -- ===== Smooth WallWalk Logic =====
     RunService.RenderStepped:Connect(function()
         if walking then
             local cam = workspace.CurrentCamera
             local dir = Vector3.new(cam.CFrame.LookVector.X,0,cam.CFrame.LookVector.Z).Unit
-            local ray = Ray.new(rootPart.Position,dir*3)
-            local hit,pos = workspace:FindPartOnRay(ray,char)
-            if hit then
-                rootPart.CFrame = CFrame.new(pos + Vector3.new(0,1,0)) * CFrame.lookAt(pos,pos+dir)
+            local params = RaycastParams.new()
+            params.FilterDescendantsInstances = {char}
+            params.FilterType = Enum.RaycastFilterType.Blacklist
+
+            local ray = workspace:Raycast(rootPart.Position, dir*3, params)
+            if ray then
+                local wallPos = ray.Position
+                local newCFrame = CFrame.new(wallPos + Vector3.new(0,1,0), wallPos + dir)
+                rootPart.CFrame = rootPart.CFrame:Lerp(newCFrame, 0.2)
             else
-                rootPart.Velocity = dir*humanoid.WalkSpeed
+                rootPart.Velocity = dir*(walkSpeedEnabled and humanoid.WalkSpeed or 16)
             end
         end
     end)
