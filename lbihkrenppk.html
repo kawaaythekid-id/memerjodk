@@ -1,11 +1,7 @@
--- GUI Auto Teleport Script dengan Animasi
--- Paste ke StarterGui > LocalScript
-
+-- GUI Auto Teleport Stabil (tidak hilang saat respawn)
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
 
 -- Daftar koordinat teleport
 local TELEPORT_POSITIONS = {
@@ -22,120 +18,132 @@ local TELEPORT_POSITIONS = {
 
 local teleporting = false
 
--- Fungsi teleport
-local function teleportSequence()
-    teleporting = true
-    for _, pos in ipairs(TELEPORT_POSITIONS) do
-        if not teleporting then break end
-        humanoidRootPart.CFrame = CFrame.new(pos)
-        wait(2.5) -- jeda antar teleport diubah 2,5 detik
-    end
-    teleporting = false
+-- Cek apakah GUI sudah ada
+local screenGui = player:WaitForChild("PlayerGui"):FindFirstChild("AutoTeleportGUI")
+if not screenGui then
+    screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AutoTeleportGUI"
+    screenGui.Parent = player:WaitForChild("PlayerGui")
 end
 
--- Membuat GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = player:WaitForChild("PlayerGui")
+-- Fungsi buat kotak dan tombol (hanya sekali)
+local function setupGUI()
+    if screenGui:FindFirstChild("Box") then return end -- Sudah ada
 
-local box = Instance.new("Frame")
-box.Size = UDim2.new(0, 200, 0, 150)
-box.Position = UDim2.new(0, 50, 0, 50)
-box.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-box.BorderSizePixel = 2
-box.Parent = screenGui
+    local box = Instance.new("Frame")
+    box.Name = "Box"
+    box.Size = UDim2.new(0, 200, 0, 150)
+    box.Position = UDim2.new(0, 50, 0, 50)
+    box.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    box.BorderSizePixel = 2
+    box.Parent = screenGui
 
--- Judul box (bisa digeser)
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
-title.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-title.Text = "Auto Teleport"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
-title.Parent = box
+    local title = Instance.new("TextLabel")
+    title.Size = UDim2.new(1, 0, 0, 30)
+    title.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    title.Text = "Auto Teleport"
+    title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    title.Parent = box
 
--- Tombol Start
-local startButton = Instance.new("TextButton")
-startButton.Size = UDim2.new(0, 80, 0, 40)
-startButton.Position = UDim2.new(0, 10, 0, 50)
-startButton.Text = "Start"
-startButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-startButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-startButton.Parent = box
+    local startButton = Instance.new("TextButton")
+    startButton.Size = UDim2.new(0, 80, 0, 40)
+    startButton.Position = UDim2.new(0, 10, 0, 50)
+    startButton.Text = "Start"
+    startButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    startButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    startButton.Parent = box
 
--- Tombol End
-local endButton = Instance.new("TextButton")
-endButton.Size = UDim2.new(0, 80, 0, 40)
-endButton.Position = UDim2.new(0, 110, 0, 50)
-endButton.Text = "End"
-endButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-endButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-endButton.Parent = box
+    local endButton = Instance.new("TextButton")
+    endButton.Size = UDim2.new(0, 80, 0, 40)
+    endButton.Position = UDim2.new(0, 110, 0, 50)
+    endButton.Text = "End"
+    endButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    endButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    endButton.Parent = box
 
--- Tombol minimize
-local minimizeButton = Instance.new("TextButton")
-minimizeButton.Size = UDim2.new(0, 30, 0, 30)
-minimizeButton.Position = UDim2.new(1, -35, 0, 0)
-minimizeButton.Text = "_"
-minimizeButton.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-minimizeButton.Parent = box
+    local minimizeButton = Instance.new("TextButton")
+    minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+    minimizeButton.Position = UDim2.new(1, -35, 0, 0)
+    minimizeButton.Text = "_"
+    minimizeButton.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+    minimizeButton.Parent = box
 
-local contentVisible = true
-minimizeButton.MouseButton1Click:Connect(function()
-    contentVisible = not contentVisible
-    local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-    if contentVisible then
-        -- Animate expand
-        local tween = TweenService:Create(box, tweenInfo, {Size = UDim2.new(0, 200, 0, 150)})
-        tween:Play()
-        tween.Completed:Wait()
-        startButton.Visible = true
-        endButton.Visible = true
-    else
-        -- Animate minimize (hanya sisa title)
-        startButton.Visible = false
-        endButton.Visible = false
-        local tween = TweenService:Create(box, tweenInfo, {Size = UDim2.new(0, 200, 0, 30)})
-        tween:Play()
-    end
-end)
+    local contentVisible = true
+    minimizeButton.MouseButton1Click:Connect(function()
+        contentVisible = not contentVisible
+        local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+        if contentVisible then
+            local tween = TweenService:Create(box, tweenInfo, {Size = UDim2.new(0, 200, 0, 150)})
+            tween:Play()
+            tween.Completed:Wait()
+            startButton.Visible = true
+            endButton.Visible = true
+        else
+            startButton.Visible = false
+            endButton.Visible = false
+            local tween = TweenService:Create(box, tweenInfo, {Size = UDim2.new(0, 200, 0, 30)})
+            tween:Play()
+        end
+    end)
 
--- Tombol start klik
-startButton.MouseButton1Click:Connect(function()
-    if not teleporting then
-        teleportSequence()
-    end
-end)
-
--- Tombol end klik
-endButton.MouseButton1Click:Connect(function()
-    teleporting = false
-end)
-
--- Fungsi drag box
-local dragging = false
-local dragInput, mousePos, framePos
-
-title.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        mousePos = input.Position
-        framePos = box.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
+    -- Tombol Start
+    startButton.MouseButton1Click:Connect(function()
+        local character = player.Character
+        if character then
+            local hrp = character:WaitForChild("HumanoidRootPart")
+            if not teleporting then
+                teleporting = true
+                for _, pos in ipairs(TELEPORT_POSITIONS) do
+                    if not teleporting then break end
+                    hrp.CFrame = CFrame.new(pos)
+                    wait(2.5)
+                end
+                teleporting = false
             end
-        end)
-    end
-end)
+        end
+    end)
 
-title.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
+    -- Tombol End
+    endButton.MouseButton1Click:Connect(function()
+        teleporting = false
+    end)
 
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - mousePos
-        box.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
-    end
+    -- Dragging box
+    local dragging = false
+    local dragInput, mousePos, framePos
+
+    title.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 then
+            dragging = true
+            mousePos = input.Position
+            framePos = box.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    title.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement then
+            dragInput = input
+        end
+    end)
+
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - mousePos
+            box.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X, framePos.Y.Scale, framePos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- Setup GUI sekali
+setupGUI()
+
+-- Pastikan GUI tetap ada dan tombol tetap aktif saat respawn
+player.CharacterAdded:Connect(function(char)
+    wait(0.1)
+    setupGUI()
 end)
