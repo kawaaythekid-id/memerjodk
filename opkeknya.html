@@ -1,9 +1,8 @@
--- Super Stylish Dragable GUI: WalkSpeed + FullBright + Infinity Jump + KAWEY GANTENG + Persistent
+-- Compact Dragable GUI: WalkSpeed + FullBright + Infinity Jump + Label
 -- LocalScript di StarterGui
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 local UserInputService = game:GetService("UserInputService")
 
@@ -17,204 +16,208 @@ local originalOutdoorAmbient = Lighting.OutdoorAmbient
 local originalClockTime = Lighting.ClockTime
 local originalBrightness = Lighting.Brightness
 
--- Fungsi membuat GUI
-local function createGUI()
-    -- GUI
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "KaweGUI"
-    screenGui.Parent = player:WaitForChild("PlayerGui")
+-- GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
-    -- Panel utama
-    local panel = Instance.new("Frame")
-    panel.Size = UDim2.new(0,50,0,70)
-    panel.Position = UDim2.new(0,20,0,20)
-    panel.BackgroundColor3 = Color3.fromRGB(50,50,50)
-    panel.BackgroundTransparency = 0.3
-    panel.BorderSizePixel = 0
-    panel.Parent = screenGui
+-- Panel utama (dragable)
+local panel = Instance.new("Frame")
+panel.Size = UDim2.new(0, 50, 0, 70) -- lebih tinggi untuk label
+panel.Position = UDim2.new(0, 20, 0, 20)
+panel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+panel.Parent = screenGui
 
-    -- Rounded corners
-    local uICorner = Instance.new("UICorner")
-    uICorner.CornerRadius = UDim.new(0,8)
-    uICorner.Parent = panel
+-- Label KAWEY GANTENG
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, 0, 0, 20)
+titleLabel.Position = UDim2.new(0, 0, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "KAWEY GANTENG"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.Font = Enum.Font.SourceSansBold
+titleLabel.TextScaled = true
+titleLabel.Parent = panel
 
-    -- Gradient animasi
-    local gradient = Instance.new("UIGradient")
-    gradient.Color = ColorSequence.new{ColorSequenceKeypoint.new(0,Color3.fromRGB(255,0,100)),ColorSequenceKeypoint.new(1,Color3.fromRGB(0,200,255))}
-    gradient.Rotation = 0
-    gradient.Parent = panel
-    -- Animasi gradient
-    spawn(function()
-        while true do
-            for i=0,360,1 do
-                gradient.Rotation = i
-                RunService.RenderStepped:Wait()
+-- Toggle expand/minimize
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(1, 0, 0, 50)
+toggleButton.Position = UDim2.new(0, 0, 0, 20)
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+toggleButton.Text = "+"
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Parent = panel
+
+-- Tombol container
+local buttonContainer = Instance.new("Frame")
+buttonContainer.Size = UDim2.new(0, 220, 0, 180)
+buttonContainer.Position = UDim2.new(0, 60, 0, 0)
+buttonContainer.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+buttonContainer.Visible = false
+buttonContainer.Parent = panel
+
+-- Fungsi buat tombol
+local function createButton(text, y)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 200, 0, 30)
+    btn.Position = UDim2.new(0, 10, 0, y)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+    btn.Parent = buttonContainer
+    return btn
+end
+
+-- WalkSpeed
+local wsLabel = Instance.new("TextLabel")
+wsLabel.Size = UDim2.new(0, 200, 0, 20)
+wsLabel.Position = UDim2.new(0, 10, 0, 10)
+wsLabel.Text = "WalkSpeed: 16"
+wsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+wsLabel.BackgroundTransparency = 1
+wsLabel.Parent = buttonContainer
+
+local wsBox = Instance.new("TextBox")
+wsBox.Size = UDim2.new(0, 200, 0, 30)
+wsBox.Position = UDim2.new(0, 10, 0, 35)
+wsBox.Text = "16"
+wsBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+wsBox.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+wsBox.ClearTextOnFocus = false
+wsBox.Parent = buttonContainer
+
+local wsButton = createButton("Enable WalkSpeed", 70)
+local fbButton = createButton("Enable FullBright", 110)
+local ijButton = createButton("Enable Infinity Jump", 150)
+
+-- WalkSpeed logic
+local walkSpeed = 16
+local wsEnabled = false
+
+wsBox.FocusLost:Connect(function()
+    local value = tonumber(wsBox.Text)
+    if value and value >= 1 and value <= 25 then
+        walkSpeed = value
+        wsLabel.Text = "WalkSpeed: "..walkSpeed
+        if wsEnabled then
+            humanoid.WalkSpeed = walkSpeed
+        end
+    else
+        wsBox.Text = walkSpeed
+    end
+end)
+
+wsButton.MouseButton1Click:Connect(function()
+    wsEnabled = not wsEnabled
+    if wsEnabled then
+        humanoid.WalkSpeed = walkSpeed
+        wsButton.Text = "WalkSpeed Enabled"
+        wsButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
+    else
+        humanoid.WalkSpeed = 16
+        wsButton.Text = "Enable WalkSpeed"
+        wsButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    end
+end)
+
+-- FullBright logic
+local fbEnabled = false
+local function setFullBright(enable)
+    if enable then
+        Lighting.Ambient = Color3.new(1,1,1)
+        Lighting.OutdoorAmbient = Color3.new(1,1,1)
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+    else
+        Lighting.Ambient = originalAmbient
+        Lighting.OutdoorAmbient = originalOutdoorAmbient
+        Lighting.Brightness = originalBrightness
+        Lighting.ClockTime = originalClockTime
+    end
+end
+
+fbButton.MouseButton1Click:Connect(function()
+    fbEnabled = not fbEnabled
+    setFullBright(fbEnabled)
+    if fbEnabled then
+        fbButton.Text = "FullBright Enabled"
+        fbButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
+    else
+        fbButton.Text = "Enable FullBright"
+        fbButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    end
+end)
+
+-- Infinity Jump logic
+local ijEnabled = false
+ijButton.MouseButton1Click:Connect(function()
+    ijEnabled = not ijEnabled
+    if ijEnabled then
+        ijButton.Text = "Infinity Jump Enabled"
+        ijButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
+    else
+        ijButton.Text = "Enable Infinity Jump"
+        ijButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
+    end
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if ijEnabled and humanoid and humanoid.Health>0 then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- Respawn
+player.CharacterAdded:Connect(function(char)
+    character = char
+    humanoid = character:WaitForChild("Humanoid")
+    if wsEnabled then
+        humanoid.WalkSpeed = walkSpeed
+    end
+end)
+
+-- Keep FullBright
+RunService.RenderStepped:Connect(function()
+    if fbEnabled then
+        setFullBright(true)
+    end
+end)
+
+-- Toggle expand/minimize
+toggleButton.MouseButton1Click:Connect(function()
+    buttonContainer.Visible = not buttonContainer.Visible
+    toggleButton.Text = buttonContainer.Visible and "-" or "+"
+end)
+
+-- Dragable panel
+local dragging, dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    panel.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+panel.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = panel.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
             end
-        end
-    end)
-
-    -- Label KAWEY GANTENG
-    local titleLabel = Instance.new("TextLabel")
-    titleLabel.Size = UDim2.new(1,0,0,20)
-    titleLabel.Position = UDim2.new(0,0,0,0)
-    titleLabel.BackgroundTransparency = 1
-    titleLabel.Text = "KAWEY GANTENG"
-    titleLabel.TextColor3 = Color3.fromRGB(255,255,255)
-    titleLabel.Font = Enum.Font.GothamBold
-    titleLabel.TextScaled = true
-    titleLabel.Parent = panel
-
-    -- Toggle button
-    local toggleButton = Instance.new("TextButton")
-    toggleButton.Size = UDim2.new(1,0,0,50)
-    toggleButton.Position = UDim2.new(0,0,0,20)
-    toggleButton.BackgroundColor3 = Color3.fromRGB(0,150,0)
-    toggleButton.Text = "+"
-    toggleButton.TextColor3 = Color3.fromRGB(255,255,255)
-    toggleButton.Parent = panel
-    local toggleCorner = Instance.new("UICorner")
-    toggleCorner.CornerRadius = UDim.new(0,8)
-    toggleCorner.Parent = toggleButton
-
-    -- Button container
-    local buttonContainer = Instance.new("Frame")
-    buttonContainer.Size = UDim2.new(0,220,0,180)
-    buttonContainer.Position = UDim2.new(0,60,0,0)
-    buttonContainer.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    buttonContainer.BackgroundTransparency = 0.3
-    buttonContainer.Visible = false
-    buttonContainer.Parent = panel
-    local containerCorner = Instance.new("UICorner")
-    containerCorner.CornerRadius = UDim.new(0,8)
-    containerCorner.Parent = buttonContainer
-
-    -- Fungsi buat tombol
-    local function createButton(text,y)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0,200,0,30)
-        btn.Position = UDim2.new(0,10,0,y)
-        btn.Text = text
-        btn.TextColor3 = Color3.fromRGB(255,255,255)
-        btn.BackgroundColor3 = Color3.fromRGB(0,150,0)
-        btn.Parent = buttonContainer
-        local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0,6)
-        corner.Parent = btn
-        -- Hover effect
-        btn.MouseEnter:Connect(function()
-            TweenService:Create(btn,TweenInfo.new(0.2),{BackgroundColor3 = Color3.fromRGB(0,200,0)}):Play()
         end)
-        btn.MouseLeave:Connect(function()
-            TweenService:Create(btn,TweenInfo.new(0.2),{BackgroundColor3 = Color3.fromRGB(0,150,0)}):Play()
-        end)
-        return btn
     end
+end)
 
-    -- WalkSpeed
-    local wsLabel = Instance.new("TextLabel")
-    wsLabel.Size = UDim2.new(0,200,0,20)
-    wsLabel.Position = UDim2.new(0,10,0,10)
-    wsLabel.Text = "WalkSpeed: 16"
-    wsLabel.TextColor3 = Color3.fromRGB(255,255,255)
-    wsLabel.BackgroundTransparency = 1
-    wsLabel.Parent = buttonContainer
-
-    local wsBox = Instance.new("TextBox")
-    wsBox.Size = UDim2.new(0,200,0,30)
-    wsBox.Position = UDim2.new(0,10,0,35)
-    wsBox.Text = "16"
-    wsBox.TextColor3 = Color3.fromRGB(255,255,255)
-    wsBox.BackgroundColor3 = Color3.fromRGB(70,70,70)
-    wsBox.ClearTextOnFocus = false
-    wsBox.Parent = buttonContainer
-    local wsBoxCorner = Instance.new("UICorner")
-    wsBoxCorner.CornerRadius = UDim.new(0,6)
-    wsBoxCorner.Parent = wsBox
-
-    local wsButton = createButton("Enable WalkSpeed",70)
-    local fbButton = createButton("Enable FullBright",110)
-    local ijButton = createButton("Enable Infinity Jump",150)
-
-    -- WalkSpeed logic
-    local walkSpeed = 16
-    local wsEnabled = false
-
-    wsBox.FocusLost:Connect(function()
-        local value = tonumber(wsBox.Text)
-        if value and value >=1 and value <=25 then
-            walkSpeed = value
-            wsLabel.Text = "WalkSpeed: "..walkSpeed
-            if wsEnabled then humanoid.WalkSpeed = walkSpeed end
-        else
-            wsBox.Text = walkSpeed
-        end
-    end)
-
-    wsButton.MouseButton1Click:Connect(function()
-        wsEnabled = not wsEnabled
-        if wsEnabled then humanoid.WalkSpeed = walkSpeed wsButton.Text = "WalkSpeed Enabled" wsButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
-        else humanoid.WalkSpeed = 16 wsButton.Text = "Enable WalkSpeed" wsButton.BackgroundColor3 = Color3.fromRGB(0,150,0) end
-    end)
-
-    -- FullBright logic
-    local fbEnabled = false
-    local function setFullBright(enable)
-        if enable then
-            Lighting.Ambient = Color3.new(1,1,1)
-            Lighting.OutdoorAmbient = Color3.new(1,1,1)
-            Lighting.Brightness = 2
-            Lighting.ClockTime = 14
-        else
-            Lighting.Ambient = originalAmbient
-            Lighting.OutdoorAmbient = originalOutdoorAmbient
-            Lighting.Brightness = originalBrightness
-            Lighting.ClockTime = originalClockTime
-        end
+panel.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
     end
+end)
 
-    fbButton.MouseButton1Click:Connect(function()
-        fbEnabled = not fbEnabled
-        setFullBright(fbEnabled)
-        if fbEnabled then fbButton.Text = "FullBright Enabled" fbButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
-        else fbButton.Text = "Enable FullBright" fbButton.BackgroundColor3 = Color3.fromRGB(0,150,0) end
-    end)
-
-    -- Infinity Jump logic
-    local ijEnabled = false
-    ijButton.MouseButton1Click:Connect(function()
-        ijEnabled = not ijEnabled
-        if ijEnabled then ijButton.Text = "Infinity Jump Enabled" ijButton.BackgroundColor3 = Color3.fromRGB(0,200,0)
-        else ijButton.Text = "Enable Infinity Jump" ijButton.BackgroundColor3 = Color3.fromRGB(0,150,0) end
-    end)
-
-    UserInputService.JumpRequest:Connect(function()
-        if ijEnabled and humanoid and humanoid.Health>0 then humanoid:ChangeState(Enum.HumanoidStateType.Jumping) end
-    end)
-
-    -- Toggle expand/minimize dengan animasi
-    toggleButton.MouseButton1Click:Connect(function()
-        local goal = {Size = UDim2.new(0,220,0,180)}
-        if buttonContainer.Visible then goal.Size = UDim2.new(0,0,0,0) end
-        local tweenInfo = TweenInfo.new(0.3,Enum.EasingStyle.Quad,Enum.EasingDirection.Out)
-        local tween = TweenService:Create(buttonContainer,tweenInfo,goal)
-        tween:Play()
-        buttonContainer.Visible = true
-        tween.Completed:Connect(function()
-            if goal.Size == UDim2.new(0,0,0,0) then buttonContainer.Visible = false end
-        end)
-    end)
-
-    -- Dragable panel
-    local dragging, dragInput, dragStart, startPos
-    local function update(input)
-        local delta = input.Position - dragStart
-        panel.Position = UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
     end
-
-    panel.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = panel.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End
+end)
