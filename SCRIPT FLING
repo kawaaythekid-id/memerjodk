@@ -2,6 +2,8 @@
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
+local UIS = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
 -- ====== GUI ======
 local ScreenGui = Instance.new("ScreenGui")
@@ -13,6 +15,8 @@ Frame.Size = UDim2.new(0, 250, 0, 160)
 Frame.Position = UDim2.new(0.35, 0, 0.7, 0)
 Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
 Frame.BorderSizePixel = 0
+Frame.Active = true  -- penting supaya bisa digeser
+Frame.Draggable = false -- kita bikin manual drag biar smooth
 Frame.Parent = ScreenGui
 
 local Title = Instance.new("TextLabel")
@@ -37,7 +41,7 @@ MinButton.Parent = Frame
 local TextBox = Instance.new("TextBox")
 TextBox.Size = UDim2.new(1, -10, 0.25, -5)
 TextBox.Position = UDim2.new(0, 5, 0.25, 0)
-TextBox.Text = "20000" -- default fling power
+TextBox.Text = "20000"
 TextBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
 TextBox.TextColor3 = Color3.new(1,1,1)
 TextBox.ClearTextOnFocus = false
@@ -87,6 +91,45 @@ MinButton.MouseButton1Click:Connect(function()
     end
 end)
 
+-- ====== Fitur Drag GUI ======
+local dragging, dragInput, dragStart, startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    Frame.Position = UDim2.new(
+        startPos.X.Scale, startPos.X.Offset + delta.X,
+        startPos.Y.Scale, startPos.Y.Offset + delta.Y
+    )
+end
+
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement 
+    or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if dragging and dragInput then
+        update(dragInput)
+    end
+end)
+
 -- ====== FUNGSI FLING ======
 local function setupChar(char)
     local hrp = char:WaitForChild("HumanoidRootPart")
@@ -115,13 +158,13 @@ local function setupChar(char)
                 bv.Parent = otherHRP
 
                 game:GetService("Debris"):AddItem(bv, 0.3)
-                print("💥 " .. otherPlayer.Name .. " ke-fling dengan power " .. flingPower .. "!")
+                print("💥 " .. otherPlayer.Name .. " ter-fling dengan power " .. flingPower)
             end
         end
     end)
 end
 
--- Jalankan untuk karakter awal & respawn
+-- Jalankan saat karakter muncul / respawn
 LocalPlayer.CharacterAdded:Connect(setupChar)
 if LocalPlayer.Character then
     setupChar(LocalPlayer.Character)
