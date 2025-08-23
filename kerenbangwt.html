@@ -1,4 +1,4 @@
--- Ultimate Minimal GUI + Infinity Jump + Full Bright + No Clip (Estetik, LocalScript)
+-- Ultimate Minimal GUI + Infinity Jump + Full Bright + No Clip + Hapus Objek
 -- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -12,7 +12,11 @@ local WalkSpeed = 16
 local InfinityJumpEnabled = true
 local FullBrightEnabled = false
 local NoClipEnabled = false
+local DeleteEnabled = false  -- untuk toggle hapus objek
 local character = Player.Character or Player.CharacterAdded:Wait()
+
+-- Daftar nama Part yang ingin dihapus
+local objectNames = {"Part1","Part2","Part3"} -- ganti sesuai nama Part di Workspace
 
 -- Simpan pengaturan asli Lighting
 local OriginalLighting = {
@@ -31,7 +35,7 @@ local function createGUI()
     screenGui.Parent = Player:WaitForChild("PlayerGui")
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0,160,0,150)
+    frame.Size = UDim2.new(0,160,0,180)
     frame.Position = UDim2.new(0,20,0,20)
     frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
     frame.BorderSizePixel = 0
@@ -65,7 +69,7 @@ local function createGUI()
                 v.Visible = not minimized
             end
         end
-        frame.Size = minimized and UDim2.new(0,160,0,20) or UDim2.new(0,160,0,150)
+        frame.Size = minimized and UDim2.new(0,160,0,20) or UDim2.new(0,160,0,180)
     end)
 
     -- Fungsi untuk tombol toggle estetik
@@ -146,6 +150,11 @@ local function createGUI()
         NoClipEnabled = state
     end)
 
+    -- Delete Objects
+    createToggleButton("Delete Objects", 175, DeleteEnabled, function(state)
+        DeleteEnabled = state
+    end)
+
     -- Drag GUI
     local dragging, dragInput, dragStart, startPos
     title.InputBegan:Connect(function(input)
@@ -208,6 +217,30 @@ UserInputService.JumpRequest:Connect(function()
         end
     end
 end)
+
+-- ===== Delete Objects saat disentuh =====
+local function onPartTouched(hit)
+    if not DeleteEnabled then return end
+    local characterHit = hit.Parent
+    local player = game.Players:GetPlayerFromCharacter(characterHit)
+    if player then
+        for _, objName in ipairs(objectNames) do
+            local obj = workspace:FindFirstChild(objName)
+            if obj and obj:IsA("BasePart") then
+                obj:Destroy()
+                print(objName .. " berhasil dihapus oleh " .. player.Name)
+            end
+        end
+    end
+end
+
+-- Sambungkan fungsi ke setiap Part di daftar
+for _, objName in ipairs(objectNames) do
+    local obj = workspace:FindFirstChild(objName)
+    if obj and obj:IsA("BasePart") then
+        obj.Touched:Connect(onPartTouched)
+    end
+end
 
 -- ===== Respawn =====
 Player.CharacterAdded:Connect(function(char)
