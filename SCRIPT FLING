@@ -1,102 +1,89 @@
 -- LocalScript di StarterPlayerScripts
--- OVERPOWERED TELEKINESIS (Mobile Android)
--- Bisa ambil objek jauh, lempar keras, rotasi super cepat
 
-local player = game.Players.LocalPlayer
-local uis = game:GetService("UserInputService")
-local runService = game:GetService("RunService")
-local camera = workspace.CurrentCamera
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local rootPart = character:WaitForChild("HumanoidRootPart")
+local Debris = game:GetService("Debris")
 
-local selectedPart = nil
-local bodyPosition = nil
-local bodyGyro = nil
-local distance = 12 -- jarak default
-local rotationY = 0 
-local heightOffset = 0 
+-- Default
+local flingEnabled = false
+local flingPower = 5000
+local maxSafeVelocity = 500000  -- batas aman untuk physics
+local debounceTime = 0.3
+local lastFling = 0
 
--- GUI tombol
-local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = player:WaitForChild("PlayerGui")
+-- GUI Setup minimalis
+local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+screenGui.Name = "FlingGUI"
 
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 180, 0, 60)
-button.Position = UDim2.new(0.5, -90, 1, -90)
-button.Text = "⚡ Telekinesis ⚡"
-button.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
-button.TextColor3 = Color3.fromRGB(255,255,255)
-button.TextScaled = true
-button.Font = Enum.Font.SourceSansBold
-button.Parent = screenGui
+local frame = Instance.new("Frame", screenGui)
+frame.Size = UDim2.new(0, 240, 0, 120)
+frame.Position = UDim2.new(0, 20, 0, 50)
+frame.BackgroundColor3 = Color3.fromRGB(60,60,60)
+frame.Active = true
+frame.Draggable = true
 
--- Ambil / Lepas
-button.MouseButton1Click:Connect(function()
-	if selectedPart then
-		if bodyPosition then bodyPosition:Destroy() end
-		if bodyGyro then bodyGyro:Destroy() end
-		selectedPart = nil
-		button.Text = "⚡ Telekinesis ⚡"
-	else
-		-- Bisa ambil objek dari jarak super jauh
-		local ray = Ray.new(camera.CFrame.Position, camera.CFrame.LookVector * 200)
-		local part, pos = workspace:FindPartOnRay(ray, player.Character, false, true)
-		if part and part:IsA("Part") then
-			selectedPart = part
+-- Tombol Enable/Disable
+local toggleButton = Instance.new("TextButton", frame)
+toggleButton.Size = UDim2.new(1, -20, 0, 50)
+toggleButton.Position = UDim2.new(0, 10, 0, 10)
+toggleButton.Text = "Enable Fling"
+toggleButton.TextColor3 = Color3.new(1,1,1)
+toggleButton.BackgroundColor3 = Color3.fromRGB(100,200,100)
+toggleButton.Font = Enum.Font.SourceSansBold
+toggleButton.TextSize = 20
 
-			bodyPosition = Instance.new("BodyPosition")
-			bodyPosition.MaxForce = Vector3.new(9999999, 9999999, 9999999) -- super force
-			bodyPosition.P = 100000 -- power sangat tinggi
-			bodyPosition.D = 1000
-			bodyPosition.Parent = part
-
-			bodyGyro = Instance.new("BodyGyro")
-			bodyGyro.MaxTorque = Vector3.new(9999999, 9999999, 9999999)
-			bodyGyro.P = 100000
-			bodyGyro.D = 1000
-			bodyGyro.Parent = part
-
-			button.Text = "Lepaskan"
-			distance = 12
-			rotationY = 0
-			heightOffset = 0
-		end
-	end
+toggleButton.MouseButton1Click:Connect(function()
+    flingEnabled = not flingEnabled
+    toggleButton.Text = flingEnabled and "Disable Fling" or "Enable Fling"
+    toggleButton.BackgroundColor3 = flingEnabled and Color3.fromRGB(200,100,100) or Color3.fromRGB(100,200,100)
 end)
 
--- Kontrol swipe
-uis.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.Touch and selectedPart then
-		if math.abs(input.Delta.Y) > math.abs(input.Delta.X) then
-			if input.Delta.Y < 0 then
-				distance = distance + 2 -- dorong cepat
-			else
-				distance = math.max(3, distance - 2) -- tarik cepat
-			end
-		else
-			if input.Delta.X > 0 then
-				rotationY = rotationY + 10 -- rotasi super cepat kanan
-			else
-				rotationY = rotationY - 10 -- rotasi super cepat kiri
-			end
-		end
-	end
+-- Textbox untuk atur kekuatan fling
+local powerBox = Instance.new("TextBox", frame)
+powerBox.Size = UDim2.new(1, -20, 0, 40)
+powerBox.Position = UDim2.new(0, 10, 0, 70)
+powerBox.PlaceholderText = "Masukkan kekuatan fling"
+powerBox.Text = tostring(flingPower)
+powerBox.ClearTextOnFocus = false
+powerBox.TextColor3 = Color3.new(0,0,0)
+powerBox.BackgroundColor3 = Color3.fromRGB(220,220,220)
+powerBox.Font = Enum.Font.SourceSansBold
+powerBox.TextSize = 18
+
+-- Update kekuatan dari textbox (tanpa batas maksimal)
+powerBox.FocusLost:Connect(function()
+    local val = tonumber(powerBox.Text)
+    if val and val >= 1 then
+        flingPower = val
+    else
+        powerBox.Text = tostring(flingPower)
+    end
 end)
 
--- Update posisi
-runService.RenderStepped:Connect(function()
-	if selectedPart and bodyPosition and bodyGyro then
-		local basePos = camera.CFrame.Position + camera.CFrame.LookVector * distance
-		local targetPos = basePos + Vector3.new(0, heightOffset, 0)
-		bodyPosition.Position = targetPos
-		bodyGyro.CFrame = CFrame.new(selectedPart.Position) * CFrame.Angles(0, math.rad(rotationY), 0)
-	end
-end)
+-- Fungsi fling aman
+local function fling(otherPlayer)
+    if flingEnabled and otherPlayer and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local now = tick()
+        if now - lastFling < debounceTime then return end
+        lastFling = now
 
--- Naik / Turun dengan tap dua jari
-uis.TouchEnded:Connect(function(input, processed)
-	if selectedPart and input.UserInputType == Enum.UserInputType.Touch then
-		-- kalau tap dengan dua jari sekaligus, objek meluncur ke atas
-		if #uis:GetTouches() >= 2 then
-			heightOffset = heightOffset + 20 -- langsung melesat ke atas
-		end
-	end
+        local direction = (otherPlayer.Character.HumanoidRootPart.Position - rootPart.Position).unit
+        local velocityMagnitude = math.min(flingPower, maxSafeVelocity)
+        
+        local bv = Instance.new("BodyVelocity")
+        bv.Velocity = direction * velocityMagnitude
+        bv.MaxForce = Vector3.new(1e7, 1e7, 1e7)
+        bv.Parent = otherPlayer.Character.HumanoidRootPart
+        Debris:AddItem(bv, 0.2)
+    end
+end
+
+-- Deteksi sentuhan
+rootPart.Touched:Connect(function(hit)
+    local otherPlayer = Players:GetPlayerFromCharacter(hit.Parent)
+    if otherPlayer and otherPlayer ~= player then
+        fling(otherPlayer)
+    end
 end)
