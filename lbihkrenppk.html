@@ -1,5 +1,4 @@
--- LocalScript: Ultimate Player Enhancer Compact v1
--- Compact GUI, semua fitur tetap aktif
+-- LocalScript: Ultimate GUI + Manual WalkSpeed
 -- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -9,7 +8,7 @@ local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 
--- ===== Variabel Fitur =====
+-- ===== Variabel =====
 local DefaultWalkSpeed = 16
 local WalkSpeed = 50
 local WalkSpeedEnabled = false
@@ -36,25 +35,29 @@ ScreenGui.Name = "UltimateGUI"
 ScreenGui.Parent = PlayerGui
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 150, 0, 220) -- compact
-Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-Frame.BorderSizePixel = 0
+Frame.Size = UDim2.new(0,200,0,250)
+Frame.Position = UDim2.new(0.05,0,0.05,0)
+Frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 Frame.Parent = ScreenGui
 
 local MinimizeButton = Instance.new("TextButton")
-MinimizeButton.Size = UDim2.new(0, 40, 0, 25)
-MinimizeButton.Position = UDim2.new(1, -45, 0, 5)
-MinimizeButton.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-MinimizeButton.TextColor3 = Color3.fromRGB(0,0,0)
+MinimizeButton.Size = UDim2.new(0,40,0,25)
+MinimizeButton.Position = UDim2.new(1,-45,0,5)
 MinimizeButton.Text = "-"
 MinimizeButton.Parent = Frame
 
--- Fungsi buat tombol
-local function CreateButton(name, yPos)
+local ShowButton = Instance.new("TextButton")
+ShowButton.Size = UDim2.new(0,40,0,25)
+ShowButton.Position = UDim2.new(0.05,0,0.05,0)
+ShowButton.Text = "GUI"
+ShowButton.Visible = false
+ShowButton.Parent = ScreenGui
+
+-- Tombol
+local function CreateButton(name,yPos)
     local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 130, 0, 30)
-    btn.Position = UDim2.new(0.5, -65, 0, yPos)
+    btn.Size = UDim2.new(0,180,0,30)
+    btn.Position = UDim2.new(0.5,-90,0,yPos)
     btn.BackgroundColor3 = Color3.fromRGB(255,0,0)
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.Text = name..": OFF"
@@ -62,21 +65,22 @@ local function CreateButton(name, yPos)
     return btn
 end
 
-local WalkSpeedButton = CreateButton("WalkSpeed", 40)
-local SpeedLabel = Instance.new("TextLabel")
-SpeedLabel.Size = UDim2.new(0,130,0,20)
-SpeedLabel.Position = UDim2.new(0.5,-65,0,75)
-SpeedLabel.BackgroundTransparency = 1
-SpeedLabel.TextColor3 = Color3.fromRGB(255,255,255)
-SpeedLabel.Text = "Speed: "..WalkSpeed
-SpeedLabel.Parent = Frame
+local WalkSpeedButton = CreateButton("WalkSpeed",40)
+local SpeedTextBox = Instance.new("TextBox")
+SpeedTextBox.Size = UDim2.new(0,180,0,25)
+SpeedTextBox.Position = UDim2.new(0.5,-90,0,75)
+SpeedTextBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+SpeedTextBox.TextColor3 = Color3.fromRGB(255,255,255)
+SpeedTextBox.PlaceholderText = "Masukkan WalkSpeed"
+SpeedTextBox.Text = tostring(WalkSpeed)
+SpeedTextBox.Parent = Frame
 
-local InfinityJumpButton = CreateButton("Infinity Jump", 100)
-local FullBrightButton = CreateButton("Full Bright", 135)
-local NoClipButton = CreateButton("No Clip", 170)
-local AutoHealButton = CreateButton("AutoHeal", 205)
+local InfinityJumpButton = CreateButton("Infinity Jump",110)
+local FullBrightButton = CreateButton("Full Bright",145)
+local NoClipButton = CreateButton("No Clip",180)
+local AutoHealButton = CreateButton("AutoHeal",215)
 
--- ===== Variabel karakter =====
+-- ===== Karakter =====
 local Humanoid
 local Character = Player.Character
 
@@ -85,25 +89,26 @@ local function UpdateCharacterRefs(char)
     Humanoid = char:WaitForChild("Humanoid")
 end
 
--- ===== Fungsi update tombol =====
-local function UpdateButtonColor(button, enabled)
-    button.BackgroundColor3 = enabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
-    button.Text = button.Text:match("^(.-):") .. ": " .. (enabled and "ON" or "OFF")
-end
-
--- ===== Fitur =====
+-- ===== Fungsi fitur =====
 local AutoHealConnection
+
+local function UpdateButtonColor(button,enabled)
+    button.BackgroundColor3 = enabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+    button.Text = button.Text:match("^(.-):").." : "..(enabled and "ON" or "OFF")
+end
 
 local function SetWalkSpeed(enabled)
     if Humanoid then
-        Humanoid.WalkSpeed = enabled and WalkSpeed or DefaultWalkSpeed
+        local speed = tonumber(SpeedTextBox.Text)
+        if not speed then speed = WalkSpeed end
+        Humanoid.WalkSpeed = enabled and speed or DefaultWalkSpeed
     end
-    UpdateButtonColor(WalkSpeedButton, enabled)
+    UpdateButtonColor(WalkSpeedButton,enabled)
 end
 
 local function SetInfinityJump(enabled)
     InfinityJumpEnabled = enabled
-    UpdateButtonColor(InfinityJumpButton, enabled)
+    UpdateButtonColor(InfinityJumpButton,enabled)
 end
 
 local function SetFullBright(enabled)
@@ -118,19 +123,19 @@ local function SetFullBright(enabled)
         Lighting.FogEnd = DefaultLighting.FogEnd
         Lighting.GlobalShadows = DefaultLighting.GlobalShadows
     end
-    UpdateButtonColor(FullBrightButton, enabled)
+    UpdateButtonColor(FullBrightButton,enabled)
 end
 
 local function SetNoClip(enabled)
     NoClipEnabled = enabled
-    UpdateButtonColor(NoClipButton, enabled)
+    UpdateButtonColor(NoClipButton,enabled)
 end
 
 local function SetAutoHeal(enabled)
     AutoHealEnabled = enabled
-    UpdateButtonColor(AutoHealButton, enabled)
+    UpdateButtonColor(AutoHealButton,enabled)
     if AutoHealConnection then AutoHealConnection:Disconnect() end
-    if enabled and Character and Humanoid then
+    if enabled then
         AutoHealConnection = RunService.RenderStepped:Connect(function()
             if Character and Humanoid then
                 Humanoid.Health = Humanoid.MaxHealth
@@ -139,15 +144,16 @@ local function SetAutoHeal(enabled)
     end
 end
 
-local function ToggleGUI()
-    GuiVisible = not GuiVisible
-    Frame.Visible = GuiVisible
-end
-
 -- ===== Tombol Event =====
 WalkSpeedButton.MouseButton1Click:Connect(function()
     WalkSpeedEnabled = not WalkSpeedEnabled
     SetWalkSpeed(WalkSpeedEnabled)
+end)
+
+SpeedTextBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed and WalkSpeedEnabled then
+        SetWalkSpeed(true)
+    end
 end)
 
 InfinityJumpButton.MouseButton1Click:Connect(function()
@@ -166,7 +172,16 @@ AutoHealButton.MouseButton1Click:Connect(function()
     SetAutoHeal(not AutoHealEnabled)
 end)
 
-MinimizeButton.MouseButton1Click:Connect(ToggleGUI)
+-- ===== Minimize / Show =====
+MinimizeButton.MouseButton1Click:Connect(function()
+    Frame.Visible = false
+    ShowButton.Visible = true
+end)
+
+ShowButton.MouseButton1Click:Connect(function()
+    Frame.Visible = true
+    ShowButton.Visible = false
+end)
 
 -- ===== Infinity Jump =====
 UserInputService.JumpRequest:Connect(function()
@@ -186,7 +201,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ===== Respawn handling =====
+-- ===== Respawn =====
 Player.CharacterAdded:Connect(function(char)
     UpdateCharacterRefs(char)
     SetWalkSpeed(WalkSpeedEnabled)
@@ -195,39 +210,34 @@ Player.CharacterAdded:Connect(function(char)
 end)
 
 -- ===== Drag GUI =====
-local dragging = false
+local dragging=false
 local dragInput
 local dragStart
 local startPos
-
 local function update(input)
     local delta = input.Position - dragStart
-    Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    Frame.Position = UDim2.new(startPos.X.Scale,startPos.X.Offset+delta.X,startPos.Y.Scale,startPos.Y.Offset+delta.Y)
 end
 
 Frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = Frame.Position
+    if input.UserInputType==Enum.UserInputType.MouseButton1 or input.UserInputType==Enum.UserInputType.Touch then
+        dragging=true
+        dragStart=input.Position
+        startPos=Frame.Position
         input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
+            if input.UserInputState==Enum.UserInputState.End then dragging=false end
         end)
     end
 end)
 
 Frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
+    if input.UserInputType==Enum.UserInputType.MouseMovement or input.UserInputType==Enum.UserInputType.Touch then
+        dragInput=input
     end
 end)
 
 UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        update(input)
-    end
+    if input==dragInput and dragging then update(input) end
 end)
 
 -- ===== Inisialisasi =====
