@@ -1,21 +1,20 @@
--- LocalScript: Kotak Putih + Tombol Run Script + Scriptmu
+-- LocalScript: Kotak Putih + Toggle Fitur
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
+local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local Lighting = game:GetService("Lighting")
+local Workspace = game:GetService("Workspace")
 
--- Membuat ScreenGui
+-- Kotak GUI
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "WhiteBoxGUI"
 screenGui.Parent = PlayerGui
 
--- Frame utama
 local frame = Instance.new("Frame")
-frame.Name = "MainFrame"
-frame.Size = UDim2.new(0, 300, 0, 200)
-frame.Position = UDim2.new(0.5, -150, 0.5, -100)
-frame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-frame.BorderSizePixel = 2
+frame.Size = UDim2.new(0, 250, 0, 400)
+frame.Position = UDim2.new(0.5, -125, 0.5, -200)
+frame.BackgroundColor3 = Color3.fromRGB(255,255,255)
 frame.Parent = screenGui
 
 -- Header
@@ -36,6 +35,7 @@ title.Parent = header
 local minimizeBtn = Instance.new("TextButton")
 minimizeBtn.Text = "_"
 minimizeBtn.Size = UDim2.new(0.3,0,1,0)
+minimizeBtn.Position = UDim2.new(0.7,0,0,0)
 minimizeBtn.BackgroundColor3 = Color3.fromRGB(150,150,150)
 minimizeBtn.TextColor3 = Color3.fromRGB(0,0,0)
 minimizeBtn.Font = Enum.Font.SourceSansBold
@@ -43,32 +43,27 @@ minimizeBtn.TextSize = 18
 minimizeBtn.Parent = header
 
 local minimized = false
-
--- Tombol Run Script
-local runButton = Instance.new("TextButton")
-runButton.Text = "Run Script"
-runButton.Size = UDim2.new(0.9,0,0,50)
-runButton.Position = UDim2.new(0.05,0,0.3,0)
-runButton.BackgroundColor3 = Color3.fromRGB(180,180,180)
-runButton.TextColor3 = Color3.fromRGB(0,0,0)
-runButton.Font = Enum.Font.SourceSansBold
-runButton.TextSize = 18
-runButton.Parent = frame
-
--- Fungsi Minimize
 minimizeBtn.MouseButton1Click:Connect(function()
     if minimized then
-        frame.Size = UDim2.new(0,300,0,200)
+        frame.Size = UDim2.new(0, 250, 0, 400)
         minimized = false
-        runButton.Visible = true
+        for _, child in pairs(frame:GetChildren()) do
+            if child:IsA("TextButton") then
+                child.Visible = true
+            end
+        end
     else
-        frame.Size = UDim2.new(0,300,0,30)
+        frame.Size = UDim2.new(0, 250, 0, 30)
         minimized = true
-        runButton.Visible = false
+        for _, child in pairs(frame:GetChildren()) do
+            if child:IsA("TextButton") then
+                child.Visible = false
+            end
+        end
     end
 end)
 
--- Drag GUI Android/PC
+-- Drag
 local dragging = false
 local dragInput, touchPos, framePos
 
@@ -99,177 +94,158 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- ===== Fungsi Menjalankan Scriptmu =====
-local function runScript()
-    -- ===============================
-    -- SEMUA SCRIPTMU DIMASUKKAN DI SINI
-    -- ===============================
-    local RunService = game:GetService("RunService")
-    local Lighting = game:GetService("Lighting")
-    local Workspace = game:GetService("Workspace")
+-- ===== Fitur Script =====
+local character = Player.Character or Player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
+local rootPart = character:WaitForChild("HumanoidRootPart")
 
-    local character = Player.Character or Player.CharacterAdded:Wait()
-    local humanoid = character:WaitForChild("Humanoid")
-    local rootPart = character:WaitForChild("HumanoidRootPart")
+local WalkSpeed = 500
+local JumpPower = 300
+local FlySpeed = 200
 
-    local WalkSpeed = 500
-    local JumpPower = 300
-    local FlySpeed = 200
+local features = {
+    InfinityJump = true,
+    NoClip = true,
+    Fly = true,
+    FullBright = true,
+    NoFallDamage = true,
+    AutoJump = true,
+    AntiStun = true,
+    SuperSpin = true,
+    SpinTool = true,
+    Floating = true,
+    RainbowChar = false,
+}
 
-    local features = {
-        InfinityJump = true,
-        NoClip = true,
-        Fly = true,
-        FullBright = true,
-        NoFallDamage = true,
-        AutoJump = true,
-        AntiStun = true,
-        SpeedBoost = false,
-        Invisible = false,
-        SuperSpin = true,
-        TinyChar = false,
-        BigChar = false,
-        SpinTool = true,
-        Floating = true,
-        ESP = true,
-        RainbowChar = false,
-        BouncePad = false,
-        FastAnim = false,
-        TinyHead = false,
-        AntiGravity = false,
-        DrunkMode = false,
-        TrailEffect = false,
-        JumpBoost = false,
-        SpinCamera = false,
-        InvisibleTool = false,
-        BouncyHead = false,
-        RainbowTrail = false,
-    }
+humanoid.WalkSpeed = WalkSpeed
+humanoid.JumpPower = JumpPower
 
-    humanoid.WalkSpeed = WalkSpeed
-    humanoid.JumpPower = JumpPower
+-- Membuat tombol toggle untuk tiap fitur
+local UIList = Instance.new("UIListLayout")
+UIList.Parent = frame
+UIList.SortOrder = Enum.SortOrder.LayoutOrder
+UIList.Padding = UDim.new(0,5)
 
-    -- Infinity Jump
-    UserInputService.JumpRequest:Connect(function()
-        if features.InfinityJump then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
-
-    -- No Clip
-    RunService.RenderStepped:Connect(function()
-        if features.NoClip then
-            for _, part in pairs(character:GetChildren()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
+for name,_ in pairs(features) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1,0,0,35)
+    btn.Text = name .. ": " .. (features[name] and "ON" or "OFF")
+    btn.BackgroundColor3 = Color3.fromRGB(200,200,200)
+    btn.TextColor3 = Color3.fromRGB(0,0,0)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 16
+    btn.Parent = frame
+    
+    btn.MouseButton1Click:Connect(function()
+        features[name] = not features[name]
+        btn.Text = name .. ": " .. (features[name] and "ON" or "OFF")
+        
+        -- Behavior khusus fitur
+        if name == "FullBright" then
+            if features[name] then
+                Lighting.Ambient = Color3.new(1,1,1)
+                Lighting.Brightness = 2
+                Lighting.FogEnd = 100000
             end
         end
-    end)
-
-    -- Fly
-    local flying = false
-    local flyVelocity = Instance.new("BodyVelocity")
-    flyVelocity.MaxForce = Vector3.new(1e5,1e5,1e5)
-    flyVelocity.Velocity = Vector3.new(0,0,0)
-    flyVelocity.Parent = rootPart
-
-    UserInputService.InputBegan:Connect(function(input)
-        if input.KeyCode == Enum.KeyCode.F then
-            flying = not flying
-            if not flying then
-                flyVelocity.Velocity = Vector3.new(0,0,0)
-            end
-        end
-    end)
-
-    RunService.RenderStepped:Connect(function()
-        if flying and features.Fly then
-            local cam = Workspace.CurrentCamera
-            local dir = Vector3.new(0,0,0)
-            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
-            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
-            flyVelocity.Velocity = dir.Unit * FlySpeed
-        end
-    end)
-
-    -- Full Bright
-    if features.FullBright then
-        Lighting.Ambient = Color3.new(1,1,1)
-        Lighting.Brightness = 2
-        Lighting.FogEnd = 100000
-    end
-
-    -- No Fall Damage
-    humanoid.StateChanged:Connect(function(_, newState)
-        if features.NoFallDamage and newState == Enum.HumanoidStateType.Freefall then
-            humanoid.Health = humanoid.Health
-        end
-    end)
-
-    -- Auto Jump
-    RunService.RenderStepped:Connect(function()
-        if features.AutoJump and humanoid.FloorMaterial ~= Enum.Material.Air then
-            humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-        end
-    end)
-
-    -- Anti Stun
-    RunService.Stepped:Connect(function()
-        if features.AntiStun then
-            rootPart.Velocity = Vector3.new(rootPart.Velocity.X, rootPart.Velocity.Y, rootPart.Velocity.Z)
-        end
-    end)
-
-    -- Super Spin
-    RunService.RenderStepped:Connect(function()
-        if features.SuperSpin then
-            rootPart.CFrame = rootPart.CFrame * CFrame.Angles(0, math.rad(10), 0)
-        end
-    end)
-
-    -- Spin Tool
-    RunService.RenderStepped:Connect(function()
-        if features.SpinTool then
-            for _, tool in pairs(character:GetChildren()) do
-                if tool:IsA("Tool") and tool:FindFirstChild("Handle") then
-                    tool.Handle.CFrame = tool.Handle.CFrame * CFrame.Angles(0, math.rad(20), 0)
-                end
-            end
-        end
-    end)
-
-    -- Floating
-    RunService.RenderStepped:Connect(function()
-        if features.Floating then
-            rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 0.05, 0)
-        end
-    end)
-
-    -- Rainbow Character
-    spawn(function()
-        while wait(0.2) do
-            if features.RainbowChar then
-                for _, part in pairs(character:GetChildren()) do
-                    if part:IsA("BasePart") then
-                        part.Color = Color3.fromHSV(math.random(),1,1)
-                    end
-                end
-            end
-        end
-    end)
-
-    -- Reset ketika respawn
-    Player.CharacterAdded:Connect(function(char)
-        character = char
-        humanoid = character:WaitForChild("Humanoid")
-        rootPart = character:WaitForChild("HumanoidRootPart")
-        humanoid.WalkSpeed = WalkSpeed
-        humanoid.JumpPower = JumpPower
     end)
 end
 
--- Tombol menjalankan script
-runButton.MouseButton1Click:Connect(runScript)
+-- ===== Core Functionalities =====
+-- Infinity Jump
+UserInputService.JumpRequest:Connect(function()
+    if features.InfinityJump then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- No Clip
+RunService.RenderStepped:Connect(function()
+    if features.NoClip then
+        for _, part in pairs(character:GetChildren()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- Fly
+local flying = false
+local flyVelocity = Instance.new("BodyVelocity")
+flyVelocity.MaxForce = Vector3.new(1e5,1e5,1e5)
+flyVelocity.Velocity = Vector3.new(0,0,0)
+flyVelocity.Parent = rootPart
+
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.F then
+        flying = not flying
+        if not flying then
+            flyVelocity.Velocity = Vector3.new(0,0,0)
+        end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if flying and features.Fly then
+        local cam = Workspace.CurrentCamera
+        local dir = Vector3.new(0,0,0)
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
+        flyVelocity.Velocity = dir.Unit * FlySpeed
+    end
+end)
+
+-- Auto Jump
+RunService.RenderStepped:Connect(function()
+    if features.AutoJump and humanoid.FloorMaterial ~= Enum.Material.Air then
+        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- Anti Stun
+RunService.Stepped:Connect(function()
+    if features.AntiStun then
+        rootPart.Velocity = Vector3.new(rootPart.Velocity.X, rootPart.Velocity.Y, rootPart.Velocity.Z)
+    end
+end)
+
+-- Super Spin
+RunService.RenderStepped:Connect(function()
+    if features.SuperSpin then
+        rootPart.CFrame = rootPart.CFrame * CFrame.Angles(0, math.rad(10), 0)
+    end
+end)
+
+-- Spin Tool
+RunService.RenderStepped:Connect(function()
+    if features.SpinTool then
+        for _, tool in pairs(character:GetChildren()) do
+            if tool:IsA("Tool") and tool:FindFirstChild("Handle") then
+                tool.Handle.CFrame = tool.Handle.CFrame * CFrame.Angles(0, math.rad(20), 0)
+            end
+        end
+    end
+end)
+
+-- Floating
+RunService.RenderStepped:Connect(function()
+    if features.Floating then
+        rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 0.05, 0)
+    end
+end)
+
+-- Rainbow Character
+spawn(function()
+    while wait(0.2) do
+        if features.RainbowChar then
+            for _, part in pairs(character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.Color = Color3.fromHSV(math.random(),1,1)
+                end
+            end
+        end
+    end
+end)
