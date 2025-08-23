@@ -1,50 +1,102 @@
--- LocalScript (StarterPlayerScripts)
+-- LocalScript di StarterPlayerScripts
+-- OVERPOWERED TELEKINESIS (Mobile Android)
+-- Bisa ambil objek jauh, lempar keras, rotasi super cepat
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local player = game.Players.LocalPlayer
+local uis = game:GetService("UserInputService")
+local runService = game:GetService("RunService")
+local camera = workspace.CurrentCamera
 
--- GUI fling power
-local flingPower = 50000 -- default super overpower
+local selectedPart = nil
+local bodyPosition = nil
+local bodyGyro = nil
+local distance = 12 -- jarak default
+local rotationY = 0 
+local heightOffset = 0 
 
--- GUI optional (kalo mau atur manual pakai TextBox seperti sebelumnya)
+-- GUI tombol
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Fungsi fling target
-local function flingTarget(otherHRP)
-    local randomDirection = Vector3.new(
-        math.random(-flingPower, flingPower),
-        math.random(flingPower, flingPower * 2),
-        math.random(-flingPower, flingPower)
-    )
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 180, 0, 60)
+button.Position = UDim2.new(0.5, -90, 1, -90)
+button.Text = "⚡ Telekinesis ⚡"
+button.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+button.TextColor3 = Color3.fromRGB(255,255,255)
+button.TextScaled = true
+button.Font = Enum.Font.SourceSansBold
+button.Parent = screenGui
 
-    local bv = Instance.new("BodyVelocity")
-    bv.Velocity = randomDirection
-    bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-    bv.P = 1e9
-    bv.Parent = otherHRP
+-- Ambil / Lepas
+button.MouseButton1Click:Connect(function()
+	if selectedPart then
+		if bodyPosition then bodyPosition:Destroy() end
+		if bodyGyro then bodyGyro:Destroy() end
+		selectedPart = nil
+		button.Text = "⚡ Telekinesis ⚡"
+	else
+		-- Bisa ambil objek dari jarak super jauh
+		local ray = Ray.new(camera.CFrame.Position, camera.CFrame.LookVector * 200)
+		local part, pos = workspace:FindPartOnRay(ray, player.Character, false, true)
+		if part and part:IsA("Part") then
+			selectedPart = part
 
-    game:GetService("Debris"):AddItem(bv, 0.3)
-end
+			bodyPosition = Instance.new("BodyPosition")
+			bodyPosition.MaxForce = Vector3.new(9999999, 9999999, 9999999) -- super force
+			bodyPosition.P = 100000 -- power sangat tinggi
+			bodyPosition.D = 1000
+			bodyPosition.Parent = part
 
--- Setup karakter
-local function setupChar(char)
-    local hrp = char:WaitForChild("HumanoidRootPart")
+			bodyGyro = Instance.new("BodyGyro")
+			bodyGyro.MaxTorque = Vector3.new(9999999, 9999999, 9999999)
+			bodyGyro.P = 100000
+			bodyGyro.D = 1000
+			bodyGyro.Parent = part
 
-    hrp.Touched:Connect(function(hit)
-        local otherChar = hit.Parent
-        local otherPlayer = Players:GetPlayerFromCharacter(otherChar)
+			button.Text = "Lepaskan"
+			distance = 12
+			rotationY = 0
+			heightOffset = 0
+		end
+	end
+end)
 
-        -- pastikan ini player lain
-        if otherPlayer and otherPlayer ~= LocalPlayer then
-            local otherHRP = otherChar:FindFirstChild("HumanoidRootPart")
-            if otherHRP then
-                flingTarget(otherHRP)
-                print("💥 " .. otherPlayer.Name .. " kena fling overpower!")
-            end
-        end
-    end)
-end
+-- Kontrol swipe
+uis.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Touch and selectedPart then
+		if math.abs(input.Delta.Y) > math.abs(input.Delta.X) then
+			if input.Delta.Y < 0 then
+				distance = distance + 2 -- dorong cepat
+			else
+				distance = math.max(3, distance - 2) -- tarik cepat
+			end
+		else
+			if input.Delta.X > 0 then
+				rotationY = rotationY + 10 -- rotasi super cepat kanan
+			else
+				rotationY = rotationY - 10 -- rotasi super cepat kiri
+			end
+		end
+	end
+end)
 
-LocalPlayer.CharacterAdded:Connect(setupChar)
-if LocalPlayer.Character then
-    setupChar(LocalPlayer.Character)
-end
+-- Update posisi
+runService.RenderStepped:Connect(function()
+	if selectedPart and bodyPosition and bodyGyro then
+		local basePos = camera.CFrame.Position + camera.CFrame.LookVector * distance
+		local targetPos = basePos + Vector3.new(0, heightOffset, 0)
+		bodyPosition.Position = targetPos
+		bodyGyro.CFrame = CFrame.new(selectedPart.Position) * CFrame.Angles(0, math.rad(rotationY), 0)
+	end
+end)
+
+-- Naik / Turun dengan tap dua jari
+uis.TouchEnded:Connect(function(input, processed)
+	if selectedPart and input.UserInputType == Enum.UserInputType.Touch then
+		-- kalau tap dengan dua jari sekaligus, objek meluncur ke atas
+		if #uis:GetTouches() >= 2 then
+			heightOffset = heightOffset + 20 -- langsung melesat ke atas
+		end
+	end
+end)
