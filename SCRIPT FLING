@@ -1,163 +1,114 @@
--- 📌 LocalScript : Fling Hub Android (Toggle + Minimize + Warna Aktif)
--- Taruh di StarterPlayerScripts
-
+-- LocalScript: Extreme Overpower Fling GUI Android Friendly
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
-local Player = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local flingEnabled = false
+local guiVisible = true
+local flingPower = 2000 -- power default sangat tinggi
 
 -- ===== GUI =====
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "FlingHub"
-ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+local ScreenGui = Instance.new("ScreenGui", PlayerGui)
+ScreenGui.Name = "ExtremeFlingGUI"
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 180, 0, 260)
-Frame.Position = UDim2.new(0.05, 0, 0.25, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-Frame.BackgroundTransparency = 0.2
-Frame.BorderSizePixel = 0
-Frame.Active = true
-Frame.Draggable = true
+Frame.Size = UDim2.new(0, 250, 0, 150)
+Frame.Position = UDim2.new(0.5, -125, 0.5, -75)
+Frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 Frame.Parent = ScreenGui
 
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.Padding = UDim.new(0, 5)
-UIListLayout.FillDirection = Enum.FillDirection.Vertical
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
-UIListLayout.Parent = Frame
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(1, -20, 0, 40)
+ToggleButton.Position = UDim2.new(0, 10, 0, 10)
+ToggleButton.Text = "Fling OFF"
+ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.Parent = Frame
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "⚡ Fling Hub"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 18
-Title.Parent = Frame
-
--- ===== MINIMIZE =====
 local MinimizeButton = Instance.new("TextButton")
-MinimizeButton.Size = UDim2.new(0.9, 0, 0, 25)
-MinimizeButton.Text = "🔽 Minimize"
-MinimizeButton.Font = Enum.Font.SourceSansBold
-MinimizeButton.TextSize = 14
+MinimizeButton.Size = UDim2.new(0, 40, 0, 20)
+MinimizeButton.Position = UDim2.new(1, -45, 0, 5)
+MinimizeButton.Text = "-"
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
 MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeButton.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-MinimizeButton.BorderSizePixel = 0
 MinimizeButton.Parent = Frame
 
-local MiniButton = Instance.new("TextButton")
-MiniButton.Size = UDim2.new(0, 100, 0, 35)
-MiniButton.Position = UDim2.new(0.05, 0, 0.05, 0)
-MiniButton.Text = "⚡ Fling Hub"
-MiniButton.Font = Enum.Font.SourceSansBold
-MiniButton.TextSize = 16
-MiniButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-MiniButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-MiniButton.BorderSizePixel = 0
-MiniButton.Active = true
-MiniButton.Draggable = true
-MiniButton.Visible = false
-MiniButton.Parent = ScreenGui
+local PowerSlider = Instance.new("TextButton") -- sederhana untuk slider
+PowerSlider.Size = UDim2.new(1, -20, 0, 20)
+PowerSlider.Position = UDim2.new(0, 10, 0, 70)
+PowerSlider.Text = "Power: "..flingPower
+PowerSlider.BackgroundColor3 = Color3.fromRGB(100, 100, 200)
+PowerSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
+PowerSlider.Parent = Frame
 
-MinimizeButton.MouseButton1Click:Connect(function()
-    Frame.Visible = false
-    MiniButton.Visible = true
-end)
-
-MiniButton.MouseButton1Click:Connect(function()
-    Frame.Visible = true
-    MiniButton.Visible = false
-end)
-
--- ===== BUTTON MAKER (TOGGLE) =====
-local function makeToggle(name, onStart, onStop)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.9, 0, 0, 35)
-    btn.Text = "▶ " .. name
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 16
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50) -- Default OFF (abu)
-    btn.BorderSizePixel = 0
-    btn.Parent = Frame
-
-    local active = false
-    local conn
-
-    btn.MouseButton1Click:Connect(function()
-        if not active then
-            -- ON
-            active = true
-            btn.Text = "⏸ " .. name
-            btn.BackgroundColor3 = Color3.fromRGB(0, 170, 0) -- hijau saat ON
-            conn = onStart()
-        else
-            -- OFF
-            active = false
-            btn.Text = "▶ " .. name
-            btn.BackgroundColor3 = Color3.fromRGB(50, 50, 50) -- balik abu
-            if conn then conn:Disconnect() end
-            if onStop then onStop() end
-        end
-    end)
-end
-
--- ===== FLING MODES =====
-
--- Spin Fling
-makeToggle("Spin Fling", function()
-    return RunService.RenderStepped:Connect(function()
-        if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = Player.Character.HumanoidRootPart
-            hrp.CFrame = hrp.CFrame * CFrame.Angles(0, math.rad(50), 0)
-        end
-    end)
-end)
-
--- Bump Fling
-makeToggle("Bump Fling", function()
-    local hrp = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-    if hrp then
-        return hrp.Touched:Connect(function(hit)
-            local humanoid = hit.Parent:FindFirstChildOfClass("Humanoid")
-            if humanoid and humanoid.Parent ~= Player.Character then
-                local targetHRP = humanoid.Parent:FindFirstChild("HumanoidRootPart")
-                if targetHRP then
-                    targetHRP.Velocity = Vector3.new(math.random(-150,150), 100, math.random(-150,150))
-                end
+-- Dragable GUI
+local dragging, dragInput, dragStart, startPos
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
             end
         end)
     end
 end)
 
--- Push Fling
-makeToggle("Push Fling", function()
-    return RunService.RenderStepped:Connect(function()
-        for _, plr in pairs(Players:GetPlayers()) do
-            if plr ~= Player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                local hrp = plr.Character.HumanoidRootPart
-                local myhrp = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-                if myhrp and (hrp.Position - myhrp.Position).Magnitude < 10 then
-                    hrp.Velocity = Vector3.new(math.random(-200,200), 200, math.random(-200,200))
-                end
-            end
-        end
-    end)
+Frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
 end)
 
--- Blackhole Fling
-makeToggle("Blackhole Fling", function()
-    return RunService.RenderStepped:Connect(function()
-        for _, plr in pairs(Players:GetPlayers()) do
-            if plr ~= Player and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
-                local hrp = plr.Character.HumanoidRootPart
-                local myhrp = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
-                if myhrp and (hrp.Position - myhrp.Position).Magnitude < 20 then
-                    hrp.Velocity = (myhrp.Position - hrp.Position).Unit * 200
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    end
+end)
+
+-- Klik slider untuk ubah power
+PowerSlider.MouseButton1Click:Connect(function()
+    flingPower = flingPower + 1000
+    if flingPower > 10000 then flingPower = 1000 end -- loop max/min
+    PowerSlider.Text = "Power: "..flingPower
+end)
+
+-- Toggle fling
+ToggleButton.MouseButton1Click:Connect(function()
+    flingEnabled = not flingEnabled
+    ToggleButton.Text = flingEnabled and "Fling ON" or "Fling OFF"
+end)
+
+-- Minimize/maximize GUI
+MinimizeButton.MouseButton1Click:Connect(function()
+    guiVisible = not guiVisible
+    Frame.Size = guiVisible and UDim2.new(0, 250, 0, 150) or UDim2.new(0, 60, 0, 30)
+    MinimizeButton.Text = guiVisible and "-" or "+"
+end)
+
+-- ===== Extreme Fling Logic =====
+RunService.Heartbeat:Connect(function()
+    if flingEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local targetHRP = player.Character.HumanoidRootPart
+                -- Multi-hit super overpower dengan arah random
+                for i = 1, 5 do
+                    local dir = (targetHRP.Position - hrp.Position).unit
+                    local randomOffset = Vector3.new(
+                        math.random(-50,50),
+                        math.random(20,100),
+                        math.random(-50,50)
+                    )
+                    hrp.Velocity = dir * flingPower + randomOffset
                 end
             end
         end
-    end)
+    end
 end)
