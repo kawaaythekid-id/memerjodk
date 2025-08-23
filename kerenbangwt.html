@@ -1,4 +1,4 @@
--- FINAL ULTRA BROKEN CLIENT SCRIPT ANDROID + MODERN GUI
+-- SIMPLE CLIENT-SIDE GUI ANDROID + MINIMIZE/HIDE
 -- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -12,14 +12,8 @@ local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 local rootPart = character:WaitForChild("HumanoidRootPart")
 
--- ===== Variabel =====
-local WalkSpeed = 500
-local JumpPower = 300
-local FlySpeed = 200
-
--- ===== Fitur Client-side =====
+-- ===== Fitur =====
 local features = {
-    -- Movement
     InfinityJump = true,
     NoClip = true,
     Fly = true,
@@ -28,26 +22,11 @@ local features = {
     AutoJump = true,
     AntiStun = true,
     Floating = true,
-    -- Visual
     FullBright = true,
     Invisible = false,
     RainbowChar = false,
-    TinyChar = false,
-    BigChar = false,
-    TinyHead = false,
-    SpinCamera = false,
-    -- Fun
     SuperSpin = true,
     SpinTool = true,
-    BouncyHead = false,
-    DrunkMode = false,
-    TrailEffect = false,
-    RainbowTrail = false,
-    -- Misc
-    ESP = true,
-    InvisibleTool = false,
-    BouncePad = false,
-    FastAnim = false,
     NoFallDamage = true
 }
 
@@ -57,9 +36,9 @@ screenGui.Parent = player:WaitForChild("PlayerGui")
 screenGui.ResetOnSpawn = false
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0,220,0,420)
+mainFrame.Size = UDim2.new(0,220,0,400)
 mainFrame.Position = UDim2.new(0,10,0,50)
-mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+mainFrame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 mainFrame.BorderSizePixel = 0
 mainFrame.Parent = screenGui
 
@@ -90,9 +69,9 @@ local scroll = Instance.new("ScrollingFrame")
 scroll.Size = UDim2.new(1,0,1,-30)
 scroll.Position = UDim2.new(0,0,0,30)
 scroll.BackgroundTransparency = 1
-scroll.ScrollBarThickness = 10
 scroll.Active = true
 scroll.ScrollingEnabled = true
+scroll.ScrollBarThickness = 10
 scroll.Parent = mainFrame
 
 local uiList = Instance.new("UIListLayout")
@@ -101,73 +80,32 @@ uiList.SortOrder = Enum.SortOrder.LayoutOrder
 uiList.Padding = UDim.new(0,5)
 uiList.AutomaticSize = Enum.AutomaticSize.Y
 
--- Warna per kategori
-local categoryColors = {
-    Movement = Color3.fromRGB(0,150,255),
-    Visual = Color3.fromRGB(255,100,0),
-    Fun = Color3.fromRGB(0,200,0),
-    Misc = Color3.fromRGB(200,0,200)
-}
-
--- Kategori mapping
-local categories = {
-    InfinityJump = "Movement",
-    NoClip = "Movement",
-    Fly = "Movement",
-    WalkSpeedBoost = "Movement",
-    JumpBoost = "Movement",
-    AutoJump = "Movement",
-    AntiStun = "Movement",
-    Floating = "Movement",
-
-    FullBright = "Visual",
-    Invisible = "Visual",
-    RainbowChar = "Visual",
-    TinyChar = "Visual",
-    BigChar = "Visual",
-    TinyHead = "Visual",
-    SpinCamera = "Visual",
-
-    SuperSpin = "Fun",
-    SpinTool = "Fun",
-    BouncyHead = "Fun",
-    DrunkMode = "Fun",
-    TrailEffect = "Fun",
-    RainbowTrail = "Fun",
-
-    ESP = "Misc",
-    InvisibleTool = "Misc",
-    BouncePad = "Misc",
-    FastAnim = "Misc",
-    NoFallDamage = "Misc"
-}
+-- Update CanvasSize agar scroll berfungsi
+local function updateCanvas()
+    scroll.CanvasSize = UDim2.new(0,0,0, #features*45)
+end
 
 -- ===== Buat Tombol Fitur =====
 for name,_ in pairs(features) do
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1,0,0,40)
-    btn.BackgroundColor3 = features[name] and categoryColors[categories[name]] or Color3.fromRGB(100,100,100)
+    btn.BackgroundColor3 = features[name] and Color3.fromRGB(0,200,0) or Color3.fromRGB(200,0,0)
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.Text = name
     btn.Font = Enum.Font.SourceSansBold
     btn.TextScaled = true
     btn.Parent = scroll
     
-    -- Animasi touch
-    btn.MouseEnter:Connect(function()
-        btn.BackgroundColor3 = btn.BackgroundColor3:Lerp(Color3.fromRGB(255,255,255),0.2)
-    end)
-    btn.MouseLeave:Connect(function()
-        btn.BackgroundColor3 = features[name] and categoryColors[categories[name]] or Color3.fromRGB(100,100,100)
-    end)
-    
     btn.MouseButton1Click:Connect(function()
         features[name] = not features[name]
-        btn.BackgroundColor3 = features[name] and categoryColors[categories[name]] or Color3.fromRGB(100,100,100)
+        btn.BackgroundColor3 = features[name] and Color3.fromRGB(0,200,0) or Color3.fromRGB(200,0,0)
+        updateCanvas()
     end)
 end
 
--- ===== Fitur Minimize & Hide =====
+updateCanvas() -- awal
+
+-- ===== Minimize & Hide =====
 local minimized = false
 minimizeBtn.MouseButton1Click:Connect(function()
     minimized = not minimized
@@ -176,7 +114,7 @@ minimizeBtn.MouseButton1Click:Connect(function()
         mainFrame.Size = UDim2.new(0,220,0,30)
     else
         scroll.Visible = true
-        mainFrame.Size = UDim2.new(0,220,0,420)
+        mainFrame.Size = UDim2.new(0,220,0,400)
     end
 end)
 
@@ -185,8 +123,8 @@ hideBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ===== Core Functionalities =====
-humanoid.WalkSpeed = WalkSpeed
-humanoid.JumpPower = JumpPower
+humanoid.WalkSpeed = 500
+humanoid.JumpPower = 300
 
 -- Infinity Jump
 UserInputService.JumpRequest:Connect(function()
@@ -230,7 +168,7 @@ RunService.RenderStepped:Connect(function()
         if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
         if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
-        flyVelocity.Velocity = dir.Unit * FlySpeed
+        flyVelocity.Velocity = dir.Unit * 200
     end
 end)
 
@@ -241,12 +179,19 @@ if features.FullBright then
     Lighting.FogEnd = 100000
 end
 
+-- No Fall Damage
+humanoid.StateChanged:Connect(function(_, newState)
+    if features.NoFallDamage and newState == Enum.HumanoidStateType.Freefall then
+        humanoid.Health = humanoid.Health
+    end
+end)
+
 -- Reset ketika respawn
 player.CharacterAdded:Connect(function(char)
     character = char
     humanoid = character:WaitForChild("Humanoid")
     rootPart = character:WaitForChild("HumanoidRootPart")
     
-    humanoid.WalkSpeed = WalkSpeed
-    humanoid.JumpPower = JumpPower
+    humanoid.WalkSpeed = 500
+    humanoid.JumpPower = 300
 end)
