@@ -1,169 +1,200 @@
--- LocalScript: Ultimate Extreme Fling GUI Android
+-- Auto Fling GUI dengan Radius (slider), Power (1-5000), ON/OFF, Drag, dan Minimize
 local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- ===== Variables =====
-local flingEnabled = false
-local guiVisible = true
-local flingPower = 3000
-local targetMode = "All" -- "All" atau "Selected"
-local flingDirection = "Random" -- "Random", "Vertical", "Horizontal"
-local selectedTarget = nil
-
--- ===== GUI =====
-local ScreenGui = Instance.new("ScreenGui", PlayerGui)
-ScreenGui.Name = "UltimateExtremeFlingGUI"
+-- ===== GUI Utama =====
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "FlingGUI"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 280, 0, 220)
-Frame.Position = UDim2.new(0.5, -140, 0.5, -110)
-Frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Frame.Size = UDim2.new(0, 240, 0, 180)
+Frame.Position = UDim2.new(0.5, -120, 0.7, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.BackgroundTransparency = 0.2
+Frame.Active = true
+Frame.Draggable = true
 Frame.Parent = ScreenGui
 
--- Toggle Button
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+Title.Text = "⚡ Auto Fling GUI"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextSize = 20
+Title.Parent = Frame
+
+-- Tombol minimize
+local MinButton = Instance.new("TextButton")
+MinButton.Size = UDim2.new(0, 30, 0, 30)
+MinButton.Position = UDim2.new(1, -35, 0, 0)
+MinButton.Text = "-"
+MinButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+MinButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinButton.Font = Enum.Font.SourceSansBold
+MinButton.TextSize = 20
+MinButton.Parent = Frame
+
+-- GUI saat minimize
+local MiniFrame = Instance.new("TextButton")
+MiniFrame.Size = UDim2.new(0, 120, 0, 40)
+MiniFrame.Position = UDim2.new(0.5, -60, 0.85, 0)
+MiniFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+MiniFrame.TextColor3 = Color3.fromRGB(255, 255, 255)
+MiniFrame.Text = "⚡ Fling GUI"
+MiniFrame.Font = Enum.Font.SourceSansBold
+MiniFrame.TextSize = 18
+MiniFrame.Visible = false
+MiniFrame.Active = true
+MiniFrame.Draggable = true
+MiniFrame.Parent = ScreenGui
+
+-- ===== Radius Slider =====
+local SliderBack = Instance.new("Frame")
+SliderBack.Size = UDim2.new(1, -20, 0, 10)
+SliderBack.Position = UDim2.new(0, 10, 0.25, -5)
+SliderBack.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+SliderBack.Parent = Frame
+
+local SliderButton = Instance.new("TextButton")
+SliderButton.Size = UDim2.new(0, 20, 0, 20)
+SliderButton.Position = UDim2.new(0, 0, -0.5, 0)
+SliderButton.Text = ""
+SliderButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+SliderButton.Parent = SliderBack
+
+local RadiusLabel = Instance.new("TextLabel")
+RadiusLabel.Size = UDim2.new(1, 0, 0, 30)
+RadiusLabel.Position = UDim2.new(0, 0, 0.32, 0)
+RadiusLabel.BackgroundTransparency = 1
+RadiusLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+RadiusLabel.Text = "Radius: 10"
+RadiusLabel.Parent = Frame
+
+-- ===== Power Input =====
+local PowerLabel = Instance.new("TextLabel")
+PowerLabel.Size = UDim2.new(0.5, 0, 0, 30)
+PowerLabel.Position = UDim2.new(0, 10, 0.5, 0)
+PowerLabel.BackgroundTransparency = 1
+PowerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+PowerLabel.Text = "Power (1-5000):"
+PowerLabel.TextXAlignment = Enum.TextXAlignment.Left
+PowerLabel.Parent = Frame
+
+local PowerBox = Instance.new("TextBox")
+PowerBox.Size = UDim2.new(0.4, 0, 0, 30)
+PowerBox.Position = UDim2.new(0.55, 0, 0.5, 0)
+PowerBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+PowerBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+PowerBox.PlaceholderText = "200"
+PowerBox.Text = "200"
+PowerBox.ClearTextOnFocus = false
+PowerBox.Parent = Frame
+
+-- ===== ON/OFF Toggle =====
 local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(1, -20, 0, 40)
-ToggleButton.Position = UDim2.new(0, 10, 0, 10)
-ToggleButton.Text = "Fling OFF"
-ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+ToggleButton.Size = UDim2.new(0.6, 0, 0, 30)
+ToggleButton.Position = UDim2.new(0.2, 0, 0.8, 0)
+ToggleButton.Text = "Fling: ON"
+ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
 ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleButton.Font = Enum.Font.SourceSansBold
+ToggleButton.TextSize = 18
 ToggleButton.Parent = Frame
 
--- Minimize Button
-local MinimizeButton = Instance.new("TextButton")
-MinimizeButton.Size = UDim2.new(0, 40, 0, 20)
-MinimizeButton.Position = UDim2.new(1, -45, 0, 5)
-MinimizeButton.Text = "-"
-MinimizeButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeButton.Parent = Frame
+-- ===== Logic =====
+local radius = 10
+local flingPower = 200
+local dragging = false
+local flingEnabled = true
 
--- Power Slider
-local PowerSlider = Instance.new("TextButton")
-PowerSlider.Size = UDim2.new(1, -20, 0, 20)
-PowerSlider.Position = UDim2.new(0, 10, 0, 60)
-PowerSlider.Text = "Power: "..flingPower
-PowerSlider.BackgroundColor3 = Color3.fromRGB(100, 100, 200)
-PowerSlider.TextColor3 = Color3.fromRGB(255, 255, 255)
-PowerSlider.Parent = Frame
+-- Update radius via slider
+local function updateRadius(x)
+    local relativeX = math.clamp((x - SliderBack.AbsolutePosition.X) / SliderBack.AbsoluteSize.X, 0, 1)
+    local value = math.floor(relativeX * 100)
+    if value < 1 then value = 1 end
+    radius = value
+    SliderButton.Position = UDim2.new(relativeX, -10, -0.5, 0)
+    RadiusLabel.Text = "Radius: " .. tostring(radius)
+end
 
--- Target Mode Button
-local TargetButton = Instance.new("TextButton")
-TargetButton.Size = UDim2.new(1, -20, 0, 20)
-TargetButton.Position = UDim2.new(0, 10, 0, 90)
-TargetButton.Text = "Target: All"
-TargetButton.BackgroundColor3 = Color3.fromRGB(100, 200, 100)
-TargetButton.TextColor3 = Color3.fromRGB(255,255,255)
-TargetButton.Parent = Frame
+SliderButton.MouseButton1Down:Connect(function()
+    dragging = true
+end)
 
--- Direction Button
-local DirectionButton = Instance.new("TextButton")
-DirectionButton.Size = UDim2.new(1, -20, 0, 20)
-DirectionButton.Position = UDim2.new(0, 10, 0, 120)
-DirectionButton.Text = "Direction: Random"
-DirectionButton.BackgroundColor3 = Color3.fromRGB(200, 200, 50)
-DirectionButton.TextColor3 = Color3.fromRGB(0,0,0)
-DirectionButton.Parent = Frame
-
--- Drag GUI
-local dragging, dragInput, dragStart, startPos
-Frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = Frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
     end
 end)
-Frame.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
+
 UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        updateRadius(input.Position.X)
     end
 end)
 
--- ===== Button Actions =====
+-- Power input manual
+PowerBox.FocusLost:Connect(function()
+    local val = tonumber(PowerBox.Text)
+    if val and val >= 1 and val <= 5000 then
+        flingPower = val
+    else
+        PowerBox.Text = tostring(flingPower) -- reset kalau salah input
+    end
+end)
+
+-- Toggle ON/OFF
 ToggleButton.MouseButton1Click:Connect(function()
     flingEnabled = not flingEnabled
-    ToggleButton.Text = flingEnabled and "Fling ON" or "Fling OFF"
-end)
-
-MinimizeButton.MouseButton1Click:Connect(function()
-    guiVisible = not guiVisible
-    Frame.Size = guiVisible and UDim2.new(0, 280, 0, 220) or UDim2.new(0, 60, 0, 30)
-    MinimizeButton.Text = guiVisible and "-" or "+"
-end)
-
-PowerSlider.MouseButton1Click:Connect(function()
-    flingPower = flingPower + 1000
-    if flingPower > 20000 then flingPower = 1000 end
-    PowerSlider.Text = "Power: "..flingPower
-end)
-
-TargetButton.MouseButton1Click:Connect(function()
-    if targetMode == "All" then
-        targetMode = "Selected"
-        TargetButton.Text = "Target: Selected"
+    if flingEnabled then
+        ToggleButton.Text = "Fling: ON"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
     else
-        targetMode = "All"
-        TargetButton.Text = "Target: All"
+        ToggleButton.Text = "Fling: OFF"
+        ToggleButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
     end
 end)
 
-DirectionButton.MouseButton1Click:Connect(function()
-    if flingDirection == "Random" then
-        flingDirection = "Vertical"
-        DirectionButton.Text = "Direction: Vertical"
-    elseif flingDirection == "Vertical" then
-        flingDirection = "Horizontal"
-        DirectionButton.Text = "Direction: Horizontal"
-    else
-        flingDirection = "Random"
-        DirectionButton.Text = "Direction: Random"
-    end
+-- Minimize/Restore
+MinButton.MouseButton1Click:Connect(function()
+    Frame.Visible = false
+    MiniFrame.Visible = true
 end)
 
--- ===== Extreme Fling Logic =====
+MiniFrame.MouseButton1Click:Connect(function()
+    Frame.Visible = true
+    MiniFrame.Visible = false
+end)
+
+-- ===== Fling Function =====
+local function flingTarget(targetHRP, fromHRP)
+    local bv = Instance.new("BodyVelocity")
+    bv.Velocity = (targetHRP.Position - fromHRP.Position).Unit * flingPower
+    bv.MaxForce = Vector3.new(100000, 100000, 100000)
+    bv.Parent = targetHRP
+    game.Debris:AddItem(bv, 0.2)
+end
+
 RunService.Heartbeat:Connect(function()
-    if flingEnabled and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local hrp = LocalPlayer.Character.HumanoidRootPart
-        local targets = {}
-        if targetMode == "All" then
-            for _, player in pairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    table.insert(targets, player.Character.HumanoidRootPart)
-                end
-            end
-        elseif targetMode == "Selected" and selectedTarget and selectedTarget.Character and selectedTarget.Character:FindFirstChild("HumanoidRootPart") then
-            table.insert(targets, selectedTarget.Character.HumanoidRootPart)
-        end
+    if not flingEnabled then return end
 
-        for _, targetHRP in pairs(targets) do
-            for i = 1, 5 do -- multi-hit
-                local dir
-                if flingDirection == "Random" then
-                    dir = (targetHRP.Position - hrp.Position).unit + Vector3.new(math.random(-50,50), math.random(20,100), math.random(-50,50))
-                elseif flingDirection == "Vertical" then
-                    dir = Vector3.new(0,1,0)
-                else -- Horizontal
-                    local horizontal = (targetHRP.Position - hrp.Position)
-                    horizontal = Vector3.new(horizontal.X,0,horizontal.Z).unit
-                    dir = horizontal
-                end
-                hrp.Velocity = dir * flingPower
+    local char = LocalPlayer.Character
+    if not char then return end
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+            local targetHRP = plr.Character.HumanoidRootPart
+            local dist = (targetHRP.Position - hrp.Position).Magnitude
+
+            if dist < radius then
+                flingTarget(targetHRP, hrp)
             end
         end
     end
