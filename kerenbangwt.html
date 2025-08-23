@@ -1,4 +1,4 @@
--- Ultimate Mobile GUI with Drag & Minimize (LocalScript)
+-- Ultimate Mobile GUI Simplified Walk On Air + Infinity Jump (LocalScript)
 -- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -9,8 +9,6 @@ local Player = Players.LocalPlayer
 
 -- ===== Variabel =====
 local WalkOnAirEnabled = false
-local moveDirection = Vector3.new(0,0,0)
-local verticalDirection = 0
 local WalkSpeed = 16
 local FullBrightEnabled = false
 local InfinityJumpEnabled = true
@@ -20,7 +18,8 @@ local OriginalLighting = {
     Brightness = Lighting.Brightness,
     ClockTime = Lighting.ClockTime,
     FogEnd = Lighting.FogEnd,
-    GlobalShadows = Lighting.GlobalShadows
+    GlobalShadows = Lighting.GlobalShadows,
+    OutdoorAmbient = Lighting.OutdoorAmbient
 }
 
 -- ===== GUI =====
@@ -31,13 +30,13 @@ local function createGUI()
     screenGui.Parent = Player:WaitForChild("PlayerGui")
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0,200,0,300)
+    frame.Size = UDim2.new(0,200,0,220)
     frame.Position = UDim2.new(0,20,0,20)
     frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
     frame.Parent = screenGui
 
     local title = Instance.new("TextLabel")
-    title.Text = "Ultimate Compact GUI"
+    title.Text = "Ultimate GUI"
     title.Size = UDim2.new(1,0,0,25)
     title.BackgroundTransparency = 1
     title.TextColor3 = Color3.fromRGB(255,255,255)
@@ -64,7 +63,7 @@ local function createGUI()
                 v.Visible = not minimized
             end
         end
-        frame.Size = minimized and UDim2.new(0,200,0,30) or UDim2.new(0,200,0,300)
+        frame.Size = minimized and UDim2.new(0,200,0,30) or UDim2.new(0,200,0,220)
     end)
 
     -- ===== WalkSpeed =====
@@ -124,74 +123,54 @@ local function createGUI()
     btnBright.TextSize = 16
     btnBright.Parent = frame
 
+    local function enableFullBright()
+        FullBrightEnabled = true
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.GlobalShadows = false
+        Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
+    end
+
+    local function disableFullBright()
+        FullBrightEnabled = false
+        Lighting.Brightness = OriginalLighting.Brightness
+        Lighting.ClockTime = OriginalLighting.ClockTime
+        Lighting.FogEnd = OriginalLighting.FogEnd
+        Lighting.GlobalShadows = OriginalLighting.GlobalShadows
+        Lighting.OutdoorAmbient = OriginalLighting.OutdoorAmbient or Color3.fromRGB(128,128,128)
+    end
+
     btnBright.MouseButton1Click:Connect(function()
         if FullBrightEnabled then
-            FullBrightEnabled = false
-            Lighting.Brightness = OriginalLighting.Brightness
-            Lighting.ClockTime = OriginalLighting.ClockTime
-            Lighting.FogEnd = OriginalLighting.FogEnd
-            Lighting.GlobalShadows = OriginalLighting.GlobalShadows
+            disableFullBright()
             btnBright.Text = "Enable Full Bright"
         else
-            FullBrightEnabled = true
-            Lighting.Brightness = 2
-            Lighting.ClockTime = 14
-            Lighting.FogEnd = 100000
-            Lighting.GlobalShadows = false
+            enableFullBright()
             btnBright.Text = "Disable Full Bright"
         end
     end)
 
-    -- ===== Tombol arah Walk On Air =====
-    local function createButton(text,pos)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(0,40,0,40)
-        btn.Position = pos
-        btn.BackgroundTransparency = 0.5
-        btn.BackgroundColor3 = Color3.fromRGB(0,0,0)
-        btn.TextColor3 = Color3.fromRGB(255,255,255)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 20
-        btn.Text = text
-        btn.Parent = screenGui
-        return btn
-    end
+    -- ===== Infinity Jump toggle =====
+    local toggleJump = Instance.new("TextButton")
+    toggleJump.Text = "Disable Infinity Jump"
+    toggleJump.Size = UDim2.new(1,-20,0,30)
+    toggleJump.Position = UDim2.new(0,10,0,165)
+    toggleJump.BackgroundColor3 = Color3.fromRGB(0,0,0)
+    toggleJump.TextColor3 = Color3.fromRGB(255,255,255)
+    toggleJump.Font = Enum.Font.GothamBold
+    toggleJump.TextSize = 16
+    toggleJump.Parent = frame
 
-    local btnUp = createButton("▲", UDim2.new(0.85,0,0.7,0))
-    local btnDown = createButton("▼", UDim2.new(0.85,0,0.8,0))
-    local btnLeft = createButton("◀", UDim2.new(0.8,0,0.75,0))
-    local btnRight = createButton("▶", UDim2.new(0.9,0,0.75,0))
-    local btnRise = createButton("⬆", UDim2.new(0.05,0,0.7,0))
-    local btnFall = createButton("⬇", UDim2.new(0.05,0,0.8,0))
-
-    local function setupButton(btn,dir)
-        btn.MouseButton1Down:Connect(function()
-            if dir.Y ~= 0 then
-                verticalDirection = dir.Y
-            else
-                moveDirection = dir
-            end
-        end)
-        btn.MouseButton1Up:Connect(function()
-            if dir.Y ~= 0 then
-                verticalDirection = 0
-            else
-                moveDirection = Vector3.new(0,0,0)
-            end
-        end)
-    end
-
-    setupButton(btnUp, Vector3.new(0,0,-1))
-    setupButton(btnDown, Vector3.new(0,0,1))
-    setupButton(btnLeft, Vector3.new(-1,0,0))
-    setupButton(btnRight, Vector3.new(1,0,0))
-    setupButton(btnRise, Vector3.new(0,5,0))
-    setupButton(btnFall, Vector3.new(0,-5,0))
+    toggleJump.MouseButton1Click:Connect(function()
+        InfinityJumpEnabled = not InfinityJumpEnabled
+        toggleJump.Text = InfinityJumpEnabled and "Disable Infinity Jump" or "Enable Infinity Jump"
+    end)
 
     -- ===== Drag GUI =====
     local dragging, dragInput, dragStart, startPos
     title.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType.Touch then
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
             dragging = true
             dragStart = input.Position
             startPos = frame.Position
@@ -221,7 +200,7 @@ end
 createGUI()
 
 -- ===== Loop utama =====
-RunService.RenderStepped:Connect(function(dt)
+RunService.RenderStepped:Connect(function()
     local char = Player.Character
     if char then
         local humanoid = char:FindFirstChild("Humanoid")
@@ -230,14 +209,6 @@ RunService.RenderStepped:Connect(function(dt)
             humanoid.WalkSpeed = WalkSpeed
             if WalkOnAirEnabled then
                 humanoid.PlatformStand = true
-                local cam = workspace.CurrentCamera.CFrame
-                local move = (cam.RightVector*moveDirection.X + cam.LookVector*moveDirection.Z)
-                move = Vector3.new(move.X, verticalDirection, move.Z)
-                if move.Magnitude > 0 then
-                    root.Velocity = move.Unit * 50
-                else
-                    root.Velocity = Vector3.new(0, verticalDirection,0)
-                end
             else
                 humanoid.PlatformStand = false
             end
