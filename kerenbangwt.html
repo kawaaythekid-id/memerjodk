@@ -1,4 +1,4 @@
--- Ultimate Minimal GUI + Infinity Jump + Full Bright (LocalScript)
+-- Ultimate GUI + Infinity Jump + FullBright + WalkSpeed + Ultra Super Brutal Lag (LocalScript)
 -- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -7,12 +7,12 @@ local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local Player = Players.LocalPlayer
 
--- ===== Variabel =====
+-- ===== Variabel GUI =====
 local WalkSpeed = 16
 local InfinityJumpEnabled = true
 local FullBrightEnabled = false
 
--- Simpan pengaturan asli Lighting
+-- Lighting asli
 local OriginalLighting = {
     Brightness = Lighting.Brightness,
     ClockTime = Lighting.ClockTime,
@@ -21,15 +21,15 @@ local OriginalLighting = {
     OutdoorAmbient = Lighting.OutdoorAmbient
 }
 
--- ===== GUI =====
+-- ===== GUI Utama =====
 local function createGUI()
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "MinimalGUI"
+    screenGui.Name = "UltimateGUI"
     screenGui.ResetOnSpawn = false
     screenGui.Parent = Player:WaitForChild("PlayerGui")
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0,150,0,110)
+    frame.Size = UDim2.new(0,180,0,130)
     frame.Position = UDim2.new(0,20,0,20)
     frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
     frame.Parent = screenGui
@@ -40,10 +40,10 @@ local function createGUI()
     title.BackgroundTransparency = 1
     title.TextColor3 = Color3.fromRGB(255,255,255)
     title.Font = Enum.Font.GothamBold
-    title.TextSize = 14
+    title.TextSize = 16
     title.Parent = frame
 
-    -- Minimize button
+    -- Minimize
     local btnMin = Instance.new("TextButton")
     btnMin.Text = "_"
     btnMin.Size = UDim2.new(0,20,0,20)
@@ -62,10 +62,10 @@ local function createGUI()
                 v.Visible = not minimized
             end
         end
-        frame.Size = minimized and UDim2.new(0,150,0,20) or UDim2.new(0,150,0,110)
+        frame.Size = minimized and UDim2.new(0,180,0,20) or UDim2.new(0,180,0,130)
     end)
 
-    -- WalkSpeed slider
+    -- WalkSpeed
     local speedBox = Instance.new("TextBox")
     speedBox.PlaceholderText = "WalkSpeed 1-25"
     speedBox.Size = UDim2.new(1,-10,0,20)
@@ -95,7 +95,7 @@ local function createGUI()
         end
     end)
 
-    -- Full Bright toggle
+    -- FullBright toggle
     local btnBright = Instance.new("TextButton")
     btnBright.Text = "Full Bright"
     btnBright.Size = UDim2.new(1,-10,0,20)
@@ -167,7 +167,7 @@ local function createGUI()
     end)
 end
 
--- Buat GUI pertama kali
+-- Buat GUI utama
 createGUI()
 
 -- ===== Loop utama =====
@@ -197,7 +197,81 @@ end)
 -- ===== Respawn =====
 Player.CharacterAdded:Connect(function()
     wait(0.1)
-    if not Player:FindFirstChild("PlayerGui"):FindFirstChild("MinimalGUI") then
+    if not Player:FindFirstChild("PlayerGui"):FindFirstChild("UltimateGUI") then
         createGUI()
+    end
+end)
+
+-- ===== Ultra Super Brutal Lag =====
+local LagEnabled = false
+local ObjectsCount = 3000
+local Objects = {}
+
+local screenGui = Player:WaitForChild("PlayerGui")
+local lagBtn = Instance.new("TextButton")
+lagBtn.Size = UDim2.new(0,200,0,50)
+lagBtn.Position = UDim2.new(0.5,-100,0.75,0)
+lagBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+lagBtn.TextColor3 = Color3.fromRGB(255,255,255)
+lagBtn.Font = Enum.Font.GothamBold
+lagBtn.TextSize = 20
+lagBtn.Text = "Enable Ultra Super Lag"
+lagBtn.Parent = screenGui
+
+local function spawnLag()
+    for i = 1, ObjectsCount do
+        local part = Instance.new("Part")
+        part.Size = Vector3.new(1,1,1)
+        part.Position = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") and
+            Player.Character.HumanoidRootPart.Position + Vector3.new(math.random(-100,100), math.random(5,50), math.random(-100,100)) or
+            Vector3.new(math.random(-100,100), 50, math.random(-100,100))
+        part.Anchored = false
+        part.CanCollide = false
+        part.Material = Enum.Material.Neon
+        part.Color = Color3.fromRGB(math.random(0,255), math.random(0,255), math.random(0,255))
+
+        if math.random() < 0.2 then
+            local particle = Instance.new("ParticleEmitter")
+            particle.Rate = 50
+            particle.Lifetime = NumberRange.new(1)
+            particle.Speed = NumberRange.new(2,5)
+            particle.Size = NumberSequence.new(0.5)
+            particle.Color = ColorSequence.new(Color3.fromRGB(math.random(0,255), math.random(0,255), math.random(0,255)))
+            particle.Parent = part
+        end
+
+        part.Parent = workspace
+        table.insert(Objects, part)
+    end
+end
+
+local function clearLag()
+    for _, obj in pairs(Objects) do
+        if obj and obj.Parent then
+            obj:Destroy()
+        end
+    end
+    Objects = {}
+end
+
+lagBtn.MouseButton1Click:Connect(function()
+    LagEnabled = not LagEnabled
+    if LagEnabled then
+        lagBtn.Text = "Disable Ultra Super Lag"
+        spawnLag()
+    else
+        lagBtn.Text = "Enable Ultra Super Lag"
+        clearLag()
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if LagEnabled then
+        for _, obj in pairs(Objects) do
+            if obj and obj.Parent then
+                obj.Velocity = Vector3.new(math.random(-10,10), math.random(-5,5), math.random(-10,10))
+                obj.RotVelocity = Vector3.new(math.random(-10,10), math.random(-10,10), math.random(-10,10))
+            end
+        end
     end
 end)
