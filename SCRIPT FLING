@@ -2,169 +2,48 @@
 
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
 
--- ====== GUI ======
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "FlingGUI"
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+-- GUI fling power
+local flingPower = 50000 -- default super overpower
 
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 250, 0, 160)
-Frame.Position = UDim2.new(0.35, 0, 0.7, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-Frame.BorderSizePixel = 0
-Frame.Active = true  -- penting supaya bisa digeser
-Frame.Draggable = false -- kita bikin manual drag biar smooth
-Frame.Parent = ScreenGui
+-- GUI optional (kalo mau atur manual pakai TextBox seperti sebelumnya)
 
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(0.8, 0, 0.25, 0)
-Title.Text = "🔥 Super Fling Control"
-Title.TextColor3 = Color3.new(1,1,1)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.SourceSansBold
-Title.TextSize = 20
-Title.Parent = Frame
-
-local MinButton = Instance.new("TextButton")
-MinButton.Size = UDim2.new(0.2, -5, 0.25, -5)
-MinButton.Position = UDim2.new(0.8, 5, 0, 0)
-MinButton.Text = "-"
-MinButton.BackgroundColor3 = Color3.fromRGB(60,60,60)
-MinButton.TextColor3 = Color3.new(1,1,1)
-MinButton.Font = Enum.Font.SourceSansBold
-MinButton.TextSize = 20
-MinButton.Parent = Frame
-
-local TextBox = Instance.new("TextBox")
-TextBox.Size = UDim2.new(1, -10, 0.25, -5)
-TextBox.Position = UDim2.new(0, 5, 0.25, 0)
-TextBox.Text = "20000"
-TextBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
-TextBox.TextColor3 = Color3.new(1,1,1)
-TextBox.ClearTextOnFocus = false
-TextBox.Font = Enum.Font.SourceSans
-TextBox.TextSize = 18
-TextBox.Parent = Frame
-
-local ToggleButton = Instance.new("TextButton")
-ToggleButton.Size = UDim2.new(1, -10, 0.25, -5)
-ToggleButton.Position = UDim2.new(0, 5, 0.5, 0)
-ToggleButton.Text = "Fling: ON"
-ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-ToggleButton.TextColor3 = Color3.new(1,1,1)
-ToggleButton.Font = Enum.Font.SourceSansBold
-ToggleButton.TextSize = 18
-ToggleButton.Parent = Frame
-
--- ====== Variabel ======
-local flingEnabled = true
-local minimized = false
-
--- Tombol ON/OFF fling
-ToggleButton.MouseButton1Click:Connect(function()
-    flingEnabled = not flingEnabled
-    if flingEnabled then
-        ToggleButton.Text = "Fling: ON"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-    else
-        ToggleButton.Text = "Fling: OFF"
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-    end
-end)
-
--- Tombol Minimize/Maximize
-MinButton.MouseButton1Click:Connect(function()
-    minimized = not minimized
-    if minimized then
-        Frame.Size = UDim2.new(0, 250, 0, 30)
-        TextBox.Visible = false
-        ToggleButton.Visible = false
-        MinButton.Text = "+"
-    else
-        Frame.Size = UDim2.new(0, 250, 0, 160)
-        TextBox.Visible = true
-        ToggleButton.Visible = true
-        MinButton.Text = "-"
-    end
-end)
-
--- ====== Fitur Drag GUI ======
-local dragging, dragInput, dragStart, startPos
-
-local function update(input)
-    local delta = input.Position - dragStart
-    Frame.Position = UDim2.new(
-        startPos.X.Scale, startPos.X.Offset + delta.X,
-        startPos.Y.Scale, startPos.Y.Offset + delta.Y
+-- Fungsi fling target
+local function flingTarget(otherHRP)
+    local randomDirection = Vector3.new(
+        math.random(-flingPower, flingPower),
+        math.random(flingPower, flingPower * 2),
+        math.random(-flingPower, flingPower)
     )
+
+    local bv = Instance.new("BodyVelocity")
+    bv.Velocity = randomDirection
+    bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
+    bv.P = 1e9
+    bv.Parent = otherHRP
+
+    game:GetService("Debris"):AddItem(bv, 0.3)
 end
 
-Frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 
-    or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = Frame.Position
-
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-Frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement 
-    or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    if dragging and dragInput then
-        update(dragInput)
-    end
-end)
-
--- ====== FUNGSI FLING ======
+-- Setup karakter
 local function setupChar(char)
     local hrp = char:WaitForChild("HumanoidRootPart")
 
     hrp.Touched:Connect(function(hit)
-        if not flingEnabled then return end
-
         local otherChar = hit.Parent
         local otherPlayer = Players:GetPlayerFromCharacter(otherChar)
 
+        -- pastikan ini player lain
         if otherPlayer and otherPlayer ~= LocalPlayer then
             local otherHRP = otherChar:FindFirstChild("HumanoidRootPart")
             if otherHRP then
-                local flingPower = tonumber(TextBox.Text) or 20000
-
-                local randomDirection = Vector3.new(
-                    math.random(-flingPower, flingPower),
-                    math.random(flingPower, flingPower * 2),
-                    math.random(-flingPower, flingPower)
-                )
-
-                local bv = Instance.new("BodyVelocity")
-                bv.Velocity = randomDirection
-                bv.MaxForce = Vector3.new(1e9, 1e9, 1e9)
-                bv.P = 1e9
-                bv.Parent = otherHRP
-
-                game:GetService("Debris"):AddItem(bv, 0.3)
-                print("💥 " .. otherPlayer.Name .. " ter-fling dengan power " .. flingPower)
+                flingTarget(otherHRP)
+                print("💥 " .. otherPlayer.Name .. " kena fling overpower!")
             end
         end
     end)
 end
 
--- Jalankan saat karakter muncul / respawn
 LocalPlayer.CharacterAdded:Connect(setupChar)
 if LocalPlayer.Character then
     setupChar(LocalPlayer.Character)
