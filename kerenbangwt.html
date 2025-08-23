@@ -1,4 +1,4 @@
--- Ultimate Compact GUI Minimal + Stable No Fall Damage (LocalScript)
+-- Ultimate Minimal GUI + Stable No Fall Damage (LocalScript)
 -- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -9,8 +9,8 @@ local Player = Players.LocalPlayer
 
 -- ===== Variabel =====
 local WalkSpeed = 16
-local FullBrightEnabled = false
 local InfinityJumpEnabled = true
+local FullBrightEnabled = false
 
 -- Simpan pengaturan asli Lighting
 local OriginalLighting = {
@@ -24,12 +24,12 @@ local OriginalLighting = {
 -- ===== GUI =====
 local function createGUI()
     local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "CompactGUI"
+    screenGui.Name = "MinimalGUI"
     screenGui.ResetOnSpawn = false
     screenGui.Parent = Player:WaitForChild("PlayerGui")
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0,150,0,160)
+    frame.Size = UDim2.new(0,150,0,110)
     frame.Position = UDim2.new(0,20,0,20)
     frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
     frame.Parent = screenGui
@@ -43,7 +43,7 @@ local function createGUI()
     title.TextSize = 14
     title.Parent = frame
 
-    -- Minimize Button
+    -- Minimize button
     local btnMin = Instance.new("TextButton")
     btnMin.Text = "_"
     btnMin.Size = UDim2.new(0,20,0,20)
@@ -62,10 +62,10 @@ local function createGUI()
                 v.Visible = not minimized
             end
         end
-        frame.Size = minimized and UDim2.new(0,150,0,20) or UDim2.new(0,150,0,160)
+        frame.Size = minimized and UDim2.new(0,150,0,20) or UDim2.new(0,150,0,110)
     end)
 
-    -- WalkSpeed Input
+    -- WalkSpeed slider
     local speedBox = Instance.new("TextBox")
     speedBox.PlaceholderText = "WalkSpeed 1-25"
     speedBox.Size = UDim2.new(1,-10,0,20)
@@ -95,7 +95,7 @@ local function createGUI()
         end
     end)
 
-    -- Full Bright Toggle
+    -- Full Bright toggle
     local btnBright = Instance.new("TextButton")
     btnBright.Text = "Full Bright"
     btnBright.Size = UDim2.new(1,-10,0,20)
@@ -124,11 +124,11 @@ local function createGUI()
         end
     end)
 
-    -- Infinity Jump Toggle
+    -- Infinity Jump toggle
     local btnJump = Instance.new("TextButton")
     btnJump.Text = "Infinity Jump"
     btnJump.Size = UDim2.new(1,-10,0,20)
-    btnJump.Position = UDim2.new(0,5,0,100)
+    btnJump.Position = UDim2.new(0,5,0,95)
     btnJump.BackgroundColor3 = Color3.fromRGB(0,0,0)
     btnJump.TextColor3 = Color3.fromRGB(255,255,255)
     btnJump.Font = Enum.Font.GothamBold
@@ -178,11 +178,11 @@ RunService.RenderStepped:Connect(function()
         if humanoid then
             -- WalkSpeed
             humanoid.WalkSpeed = WalkSpeed
-
-            -- No Fall Damage Stabil
+            -- Stable No Fall Damage
             pcall(function()
-                humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, false)
-                humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+                if humanoid.FloorMaterial == Enum.Material.Air and humanoid.Health < humanoid.MaxHealth then
+                    humanoid.Health = humanoid.MaxHealth
+                end
             end)
         end
     end
@@ -204,7 +204,7 @@ end)
 -- ===== Respawn =====
 Player.CharacterAdded:Connect(function()
     wait(0.1)
-    if not Player:FindFirstChild("PlayerGui"):FindFirstChild("CompactGUI") then
+    if not Player:FindFirstChild("PlayerGui"):FindFirstChild("MinimalGUI") then
         createGUI()
     end
 end)
