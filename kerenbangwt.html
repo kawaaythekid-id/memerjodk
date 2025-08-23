@@ -1,4 +1,4 @@
--- Ultimate Mobile GUI Simplified + Auto Regen HP (LocalScript)
+-- Ultimate Mobile GUI Simplified + Stable Auto Regen HP (LocalScript)
 -- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -12,9 +12,9 @@ local WalkSpeed = 16
 local FullBrightEnabled = false
 local InfinityJumpEnabled = true
 
+-- Auto Regen HP
 local RegenAmount = 2       -- HP per update
-local AutoRegenEnabled = true
-local RegenInterval = 0.1   -- detik per regen
+local RegenInterval = 0.2   -- detik per regen
 
 -- Simpan pengaturan asli Lighting
 local OriginalLighting = {
@@ -194,11 +194,6 @@ RunService.RenderStepped:Connect(function()
         if humanoid then
             -- WalkSpeed
             humanoid.WalkSpeed = WalkSpeed
-
-            -- Auto Regen HP
-            if AutoRegenEnabled and humanoid.Health < humanoid.MaxHealth then
-                humanoid.Health = math.min(humanoid.Health + RegenAmount, humanoid.MaxHealth)
-            end
         end
     end
 end)
@@ -213,6 +208,20 @@ UserInputService.JumpRequest:Connect(function()
                 humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
             end
         end
+    end
+end)
+
+-- ===== Stable Auto Regen HP =====
+spawn(function()
+    while true do
+        local char = Player.Character
+        if char then
+            local humanoid = char:FindFirstChild("Humanoid")
+            if humanoid and humanoid.Health < humanoid.MaxHealth then
+                humanoid.Health = math.min(humanoid.Health + RegenAmount, humanoid.MaxHealth)
+            end
+        end
+        wait(RegenInterval)
     end
 end)
 
