@@ -1,194 +1,239 @@
--- Ultimate 30-in-1 LocalScript (Android Friendly, Updated)
+-- LocalScript: Ultimate Player Enhancer Compact v1
+-- Compact GUI, semua fitur tetap aktif
+-- Tempatkan di StarterPlayerScripts
+
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
-local RunService = game:GetService("RunService")
-local UIS = game:GetService("UserInputService")
+local PlayerGui = Player:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
-local Workspace = game:GetService("Workspace")
+local RunService = game:GetService("RunService")
 
--- ===== GUI =====
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "UltimateScriptsGUI"
-ScreenGui.Parent = Player:WaitForChild("PlayerGui")
+-- ===== Variabel Fitur =====
+local DefaultWalkSpeed = 16
+local WalkSpeed = 50
+local WalkSpeedEnabled = false
+local InfinityJumpEnabled = true
+local FullBrightEnabled = true
+local NoClipEnabled = false
+local AutoHealEnabled = false
+local GuiVisible = true
 
-local scrollingFrame = Instance.new("ScrollingFrame")
-scrollingFrame.Size = UDim2.new(0, 220, 0, 600)
-scrollingFrame.Position = UDim2.new(0, 10, 0, 10)
-scrollingFrame.CanvasSize = UDim2.new(0,0,0,0)
-scrollingFrame.ScrollBarThickness = 10
-scrollingFrame.Parent = ScreenGui
-
--- ===== Daftar Fungsi =====
-local connections = {} -- Untuk menyimpan RenderStepped connections
-local scriptList = {
-    {Name="WalkSpeed", Action=function(state)
-        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-            Player.Character.Humanoid.WalkSpeed = state and 50 or 16
-        end
-    end},
-    {Name="JumpBoost", Action=function(state)
-        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-            Player.Character.Humanoid.JumpPower = state and 100 or 50
-        end
-    end},
-    {Name="Fly", Action=function(state)
-        local char = Player.Character
-        if not char then return end
-        local hrp = char:FindFirstChild("HumanoidRootPart")
-        if not hrp then return end
-        if state then
-            -- Buat Fly dengan BodyVelocity
-            local bv = Instance.new("BodyVelocity")
-            bv.Velocity = Vector3.new(0,0,0)
-            bv.MaxForce = Vector3.new(0,0,0)
-            bv.Name = "FlyVelocity"
-            bv.Parent = hrp
-            bv.MaxForce = Vector3.new(400000,400000,400000)
-        else
-            local bv = hrp:FindFirstChild("FlyVelocity")
-            if bv then bv:Destroy() end
-        end
-    end},
-    {Name="NoClip", Action=function(state)
-        local function noclipChar(char)
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = not state
-                end
-            end
-        end
-        if Player.Character then noclipChar(Player.Character) end
-        Player.CharacterAdded:Connect(function(char)
-            noclipChar(char)
-        end)
-    end},
-    {Name="InfiniteJump", Action=function(state)
-        -- Event khusus handled di bawah
-    end},
-    {Name="FullBright", Action=function(state)
-        Lighting.Brightness = state and 2 or 1
-    end},
-    {Name="AntiFallDamage", Action=function(state)
-        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-            Player.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, not state)
-        end
-    end},
-    {Name="ESP", Action=function(state)
-        for _, plr in pairs(Players:GetPlayers()) do
-            if plr ~= Player then
-                if state and plr.Character then
-                    local highlight = Instance.new("Highlight")
-                    highlight.Name = "ESPHighlight"
-                    highlight.Adornee = plr.Character
-                    highlight.Parent = plr.Character
-                else
-                    local h = plr.Character and plr.Character:FindFirstChild("ESPHighlight")
-                    if h then h:Destroy() end
-                end
-            end
-        end
-    end},
-    {Name="AutoCollectItems", Action=function(state)
-        if connections["AutoCollectItems"] then connections["AutoCollectItems"]:Disconnect() end
-        if state then
-            connections["AutoCollectItems"] = RunService.RenderStepped:Connect(function()
-                if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-                    local hrp = Player.Character.HumanoidRootPart
-                    for _, item in pairs(Workspace:GetChildren()) do
-                        if item:IsA("BasePart") and (item.Position - hrp.Position).Magnitude < 20 then
-                            item.CFrame = hrp.CFrame
-                        end
-                    end
-                end
-            end)
-        end
-    end},
-    {Name="AutoHeal", Action=function(state)
-        if connections["AutoHeal"] then connections["AutoHeal"]:Disconnect() end
-        if state then
-            connections["AutoHeal"] = RunService.RenderStepped:Connect(function()
-                if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-                    Player.Character.Humanoid.Health = Player.Character.Humanoid.MaxHealth
-                end
-            end)
-        end
-    end},
-    {Name="WalkOnAir", Action=function(state)
-        if connections["WalkOnAir"] then connections["WalkOnAir"]:Disconnect() end
-        if state then
-            connections["WalkOnAir"] = RunService.RenderStepped:Connect(function()
-                if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
-                    local hrp = Player.Character.HumanoidRootPart
-                    hrp.Velocity = Vector3.new(hrp.Velocity.X,0,hrp.Velocity.Z)
-                    hrp.Position = Vector3.new(hrp.Position.X, 5, hrp.Position.Z)
-                end
-            end)
-        end
-    end},
-    {Name="Invisibility", Action=function(state)
-        local function invisChar(char)
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.Transparency = state and 1 or 0
-                end
-            end
-        end
-        if Player.Character then invisChar(Player.Character) end
-        Player.CharacterAdded:Connect(function(char)
-            invisChar(char)
-        end)
-    end},
-    {Name="SpeedHack", Action=function(state)
-        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
-            Player.Character.Humanoid.WalkSpeed = state and 100 or 16
-        end
-    end},
+local DefaultLighting = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    GlobalShadows = Lighting.GlobalShadows
 }
 
--- ===== Create GUI per Script =====
-local frameHeight = 70
-for i, data in ipairs(scriptList) do
-    local Frame = Instance.new("Frame", scrollingFrame)
-    Frame.Size = UDim2.new(0,200,0,frameHeight)
-    Frame.Position = UDim2.new(0,10,0,(i-1)*(frameHeight+5))
-    Frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+-- ===== GUI =====
+if PlayerGui:FindFirstChild("UltimateGUI") then
+    PlayerGui.UltimateGUI:Destroy()
+end
 
-    local Title = Instance.new("TextLabel", Frame)
-    Title.Size = UDim2.new(1,-60,0,25)
-    Title.Position = UDim2.new(0,0,0,0)
-    Title.BackgroundTransparency = 1
-    Title.Text = data.Name
-    Title.TextColor3 = Color3.new(1,1,1)
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UltimateGUI"
+ScreenGui.Parent = PlayerGui
 
-    local MinimizeButton = Instance.new("TextButton", Frame)
-    MinimizeButton.Size = UDim2.new(0,50,0,25)
-    MinimizeButton.Position = UDim2.new(1,-50,0,0)
-    MinimizeButton.Text = "_"
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 150, 0, 220) -- compact
+Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Frame.BorderSizePixel = 0
+Frame.Parent = ScreenGui
 
-    local ToggleButton = Instance.new("TextButton", Frame)
-    ToggleButton.Size = UDim2.new(1,-20,0,35)
-    ToggleButton.Position = UDim2.new(0,10,0,30)
-    ToggleButton.Text = "OFF"
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Size = UDim2.new(0, 40, 0, 25)
+MinimizeButton.Position = UDim2.new(1, -45, 0, 5)
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+MinimizeButton.TextColor3 = Color3.fromRGB(0,0,0)
+MinimizeButton.Text = "-"
+MinimizeButton.Parent = Frame
 
-    local enabled = false
-    MinimizeButton.MouseButton1Click:Connect(function()
-        Frame.Size = UDim2.new(0,200,0,25)
-    end)
-    ToggleButton.MouseButton1Click:Connect(function()
-        enabled = not enabled
-        ToggleButton.Text = enabled and "ON" or "OFF"
-        data.Action(enabled)
-    end)
+-- Fungsi buat tombol
+local function CreateButton(name, yPos)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 130, 0, 30)
+    btn.Position = UDim2.new(0.5, -65, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(255,0,0)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Text = name..": OFF"
+    btn.Parent = Frame
+    return btn
+end
 
-    -- Event khusus InfiniteJump
-    if data.Name == "InfiniteJump" then
-        UIS.JumpRequest:Connect(function()
-            if enabled and Player.Character then
-                Player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+local WalkSpeedButton = CreateButton("WalkSpeed", 40)
+local SpeedLabel = Instance.new("TextLabel")
+SpeedLabel.Size = UDim2.new(0,130,0,20)
+SpeedLabel.Position = UDim2.new(0.5,-65,0,75)
+SpeedLabel.BackgroundTransparency = 1
+SpeedLabel.TextColor3 = Color3.fromRGB(255,255,255)
+SpeedLabel.Text = "Speed: "..WalkSpeed
+SpeedLabel.Parent = Frame
+
+local InfinityJumpButton = CreateButton("Infinity Jump", 100)
+local FullBrightButton = CreateButton("Full Bright", 135)
+local NoClipButton = CreateButton("No Clip", 170)
+local AutoHealButton = CreateButton("AutoHeal", 205)
+
+-- ===== Variabel karakter =====
+local Humanoid
+local Character = Player.Character
+
+local function UpdateCharacterRefs(char)
+    Character = char
+    Humanoid = char:WaitForChild("Humanoid")
+end
+
+-- ===== Fungsi update tombol =====
+local function UpdateButtonColor(button, enabled)
+    button.BackgroundColor3 = enabled and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
+    button.Text = button.Text:match("^(.-):") .. ": " .. (enabled and "ON" or "OFF")
+end
+
+-- ===== Fitur =====
+local AutoHealConnection
+
+local function SetWalkSpeed(enabled)
+    if Humanoid then
+        Humanoid.WalkSpeed = enabled and WalkSpeed or DefaultWalkSpeed
+    end
+    UpdateButtonColor(WalkSpeedButton, enabled)
+end
+
+local function SetInfinityJump(enabled)
+    InfinityJumpEnabled = enabled
+    UpdateButtonColor(InfinityJumpButton, enabled)
+end
+
+local function SetFullBright(enabled)
+    if enabled then
+        Lighting.Brightness = 2
+        Lighting.ClockTime = 14
+        Lighting.FogEnd = 100000
+        Lighting.GlobalShadows = false
+    else
+        Lighting.Brightness = DefaultLighting.Brightness
+        Lighting.ClockTime = DefaultLighting.ClockTime
+        Lighting.FogEnd = DefaultLighting.FogEnd
+        Lighting.GlobalShadows = DefaultLighting.GlobalShadows
+    end
+    UpdateButtonColor(FullBrightButton, enabled)
+end
+
+local function SetNoClip(enabled)
+    NoClipEnabled = enabled
+    UpdateButtonColor(NoClipButton, enabled)
+end
+
+local function SetAutoHeal(enabled)
+    AutoHealEnabled = enabled
+    UpdateButtonColor(AutoHealButton, enabled)
+    if AutoHealConnection then AutoHealConnection:Disconnect() end
+    if enabled and Character and Humanoid then
+        AutoHealConnection = RunService.RenderStepped:Connect(function()
+            if Character and Humanoid then
+                Humanoid.Health = Humanoid.MaxHealth
             end
         end)
     end
 end
 
--- Update CanvasSize agar scrollable
-scrollingFrame.CanvasSize = UDim2.new(0,0,#scriptList*(frameHeight+5))
+local function ToggleGUI()
+    GuiVisible = not GuiVisible
+    Frame.Visible = GuiVisible
+end
+
+-- ===== Tombol Event =====
+WalkSpeedButton.MouseButton1Click:Connect(function()
+    WalkSpeedEnabled = not WalkSpeedEnabled
+    SetWalkSpeed(WalkSpeedEnabled)
+end)
+
+InfinityJumpButton.MouseButton1Click:Connect(function()
+    SetInfinityJump(not InfinityJumpEnabled)
+end)
+
+FullBrightButton.MouseButton1Click:Connect(function()
+    SetFullBright(not FullBrightEnabled)
+end)
+
+NoClipButton.MouseButton1Click:Connect(function()
+    SetNoClip(not NoClipEnabled)
+end)
+
+AutoHealButton.MouseButton1Click:Connect(function()
+    SetAutoHeal(not AutoHealEnabled)
+end)
+
+MinimizeButton.MouseButton1Click:Connect(ToggleGUI)
+
+-- ===== Infinity Jump =====
+UserInputService.JumpRequest:Connect(function()
+    if InfinityJumpEnabled and Humanoid then
+        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- ===== No Clip =====
+RunService.Stepped:Connect(function()
+    if NoClipEnabled and Character then
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+    end
+end)
+
+-- ===== Respawn handling =====
+Player.CharacterAdded:Connect(function(char)
+    UpdateCharacterRefs(char)
+    SetWalkSpeed(WalkSpeedEnabled)
+    SetFullBright(FullBrightEnabled)
+    if AutoHealEnabled then SetAutoHeal(true) end
+end)
+
+-- ===== Drag GUI =====
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+
+local function update(input)
+    local delta = input.Position - dragStart
+    Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        update(input)
+    end
+end)
+
+-- ===== Inisialisasi =====
+UpdateCharacterRefs(Player.Character)
+SetWalkSpeed(WalkSpeedEnabled)
+SetInfinityJump(InfinityJumpEnabled)
+SetFullBright(FullBrightEnabled)
+SetNoClip(NoClipEnabled)
+SetAutoHeal(AutoHealEnabled)
