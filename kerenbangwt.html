@@ -1,4 +1,4 @@
--- Ultimate Minimal GUI + Infinity Jump + Full Bright (LocalScript)
+-- Ultimate Minimal GUI + Infinity Jump + Full Bright + No Clip (Estetik, LocalScript)
 -- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -11,6 +11,8 @@ local Player = Players.LocalPlayer
 local WalkSpeed = 16
 local InfinityJumpEnabled = true
 local FullBrightEnabled = false
+local NoClipEnabled = false
+local character = Player.Character or Player.CharacterAdded:Wait()
 
 -- Simpan pengaturan asli Lighting
 local OriginalLighting = {
@@ -29,9 +31,10 @@ local function createGUI()
     screenGui.Parent = Player:WaitForChild("PlayerGui")
 
     local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0,150,0,110)
+    frame.Size = UDim2.new(0,160,0,150)
     frame.Position = UDim2.new(0,20,0,20)
     frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    frame.BorderSizePixel = 0
     frame.Parent = screenGui
 
     local title = Instance.new("TextLabel")
@@ -62,13 +65,33 @@ local function createGUI()
                 v.Visible = not minimized
             end
         end
-        frame.Size = minimized and UDim2.new(0,150,0,20) or UDim2.new(0,150,0,110)
+        frame.Size = minimized and UDim2.new(0,160,0,20) or UDim2.new(0,160,0,150)
     end)
 
-    -- WalkSpeed slider
+    -- Fungsi untuk tombol toggle estetik
+    local function createToggleButton(text, posY, initialState, callback)
+        local btn = Instance.new("TextButton")
+        btn.Size = UDim2.new(1,-10,0,25)
+        btn.Position = UDim2.new(0,5,0,posY)
+        btn.BackgroundColor3 = initialState and Color3.fromRGB(0,200,0) or Color3.fromRGB(200,0,0)
+        btn.TextColor3 = Color3.fromRGB(255,255,255)
+        btn.Font = Enum.Font.GothamBold
+        btn.TextSize = 14
+        btn.Text = text
+        btn.Parent = frame
+
+        btn.MouseButton1Click:Connect(function()
+            initialState = not initialState
+            btn.BackgroundColor3 = initialState and Color3.fromRGB(0,200,0) or Color3.fromRGB(200,0,0)
+            callback(initialState)
+        end)
+        return btn
+    end
+
+    -- WalkSpeed
     local speedBox = Instance.new("TextBox")
     speedBox.PlaceholderText = "WalkSpeed 1-25"
-    speedBox.Size = UDim2.new(1,-10,0,20)
+    speedBox.Size = UDim2.new(1,-10,0,25)
     speedBox.Position = UDim2.new(0,5,0,25)
     speedBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
     speedBox.TextColor3 = Color3.fromRGB(255,255,255)
@@ -78,8 +101,8 @@ local function createGUI()
 
     local btnSpeed = Instance.new("TextButton")
     btnSpeed.Text = "Set Speed"
-    btnSpeed.Size = UDim2.new(1,-10,0,20)
-    btnSpeed.Position = UDim2.new(0,5,0,50)
+    btnSpeed.Size = UDim2.new(1,-10,0,25)
+    btnSpeed.Position = UDim2.new(0,5,0,55)
     btnSpeed.BackgroundColor3 = Color3.fromRGB(70,70,70)
     btnSpeed.TextColor3 = Color3.fromRGB(255,255,255)
     btnSpeed.Font = Enum.Font.GothamBold
@@ -95,49 +118,32 @@ local function createGUI()
         end
     end)
 
-    -- Full Bright toggle
-    local btnBright = Instance.new("TextButton")
-    btnBright.Text = "Full Bright"
-    btnBright.Size = UDim2.new(1,-10,0,20)
-    btnBright.Position = UDim2.new(0,5,0,75)
-    btnBright.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    btnBright.TextColor3 = Color3.fromRGB(255,255,255)
-    btnBright.Font = Enum.Font.GothamBold
-    btnBright.TextSize = 14
-    btnBright.Parent = frame
-
-    btnBright.MouseButton1Click:Connect(function()
-        if FullBrightEnabled then
-            FullBrightEnabled = false
-            Lighting.Brightness = OriginalLighting.Brightness
-            Lighting.ClockTime = OriginalLighting.ClockTime
-            Lighting.FogEnd = OriginalLighting.FogEnd
-            Lighting.GlobalShadows = OriginalLighting.GlobalShadows
-            Lighting.OutdoorAmbient = OriginalLighting.OutdoorAmbient
-        else
-            FullBrightEnabled = true
+    -- Full Bright
+    createToggleButton("Full Bright", 85, FullBrightEnabled, function(state)
+        FullBrightEnabled = state
+        if state then
             Lighting.Brightness = 2
             Lighting.ClockTime = 14
             Lighting.FogEnd = 100000
             Lighting.GlobalShadows = false
             Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
+        else
+            Lighting.Brightness = OriginalLighting.Brightness
+            Lighting.ClockTime = OriginalLighting.ClockTime
+            Lighting.FogEnd = OriginalLighting.FogEnd
+            Lighting.GlobalShadows = OriginalLighting.GlobalShadows
+            Lighting.OutdoorAmbient = OriginalLighting.OutdoorAmbient
         end
     end)
 
-    -- Infinity Jump toggle
-    local btnJump = Instance.new("TextButton")
-    btnJump.Text = "Infinity Jump"
-    btnJump.Size = UDim2.new(1,-10,0,20)
-    btnJump.Position = UDim2.new(0,5,0,95)
-    btnJump.BackgroundColor3 = Color3.fromRGB(0,0,0)
-    btnJump.TextColor3 = Color3.fromRGB(255,255,255)
-    btnJump.Font = Enum.Font.GothamBold
-    btnJump.TextSize = 14
-    btnJump.Parent = frame
+    -- Infinity Jump
+    createToggleButton("Infinity Jump", 115, InfinityJumpEnabled, function(state)
+        InfinityJumpEnabled = state
+    end)
 
-    btnJump.MouseButton1Click:Connect(function()
-        InfinityJumpEnabled = not InfinityJumpEnabled
-        btnJump.Text = InfinityJumpEnabled and "Infinity Jump" or "Disable Jump"
+    -- No Clip
+    createToggleButton("No Clip", 145, NoClipEnabled, function(state)
+        NoClipEnabled = state
     end)
 
     -- Drag GUI
@@ -178,6 +184,15 @@ RunService.RenderStepped:Connect(function()
         if humanoid then
             humanoid.WalkSpeed = WalkSpeed
         end
+
+        -- No Clip
+        if NoClipEnabled then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = false
+                end
+            end
+        end
     end
 end)
 
@@ -195,7 +210,8 @@ UserInputService.JumpRequest:Connect(function()
 end)
 
 -- ===== Respawn =====
-Player.CharacterAdded:Connect(function()
+Player.CharacterAdded:Connect(function(char)
+    character = char
     wait(0.1)
     if not Player:FindFirstChild("PlayerGui"):FindFirstChild("MinimalGUI") then
         createGUI()
