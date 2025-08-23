@@ -1,252 +1,40 @@
--- Ultimate Minimal GUI + Infinity Jump + Full Bright + No Clip + Hapus Objek
--- Tempatkan di StarterPlayerScripts
-
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
-local Lighting = game:GetService("Lighting")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Player = Players.LocalPlayer
 
--- ===== Variabel =====
-local WalkSpeed = 16
-local InfinityJumpEnabled = true
-local FullBrightEnabled = false
-local NoClipEnabled = false
-local DeleteEnabled = false  -- untuk toggle hapus objek
-local character = Player.Character or Player.CharacterAdded:Wait()
+local Remote = ReplicatedStorage:WaitForChild("HapusObjekEvent")
 
--- Daftar nama Part yang ingin dihapus
-local objectNames = {"Part1","Part2","Part3"} -- ganti sesuai nama Part di Workspace
-
--- Simpan pengaturan asli Lighting
-local OriginalLighting = {
-    Brightness = Lighting.Brightness,
-    ClockTime = Lighting.ClockTime,
-    FogEnd = Lighting.FogEnd,
-    GlobalShadows = Lighting.GlobalShadows,
-    OutdoorAmbient = Lighting.OutdoorAmbient
-}
-
--- ===== GUI =====
-local function createGUI()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "MinimalGUI"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = Player:WaitForChild("PlayerGui")
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0,160,0,180)
-    frame.Position = UDim2.new(0,20,0,20)
-    frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
-    frame.BorderSizePixel = 0
-    frame.Parent = screenGui
-
-    local title = Instance.new("TextLabel")
-    title.Text = "Ultimate GUI"
-    title.Size = UDim2.new(1,0,0,20)
-    title.BackgroundTransparency = 1
-    title.TextColor3 = Color3.fromRGB(255,255,255)
-    title.Font = Enum.Font.GothamBold
-    title.TextSize = 14
-    title.Parent = frame
-
-    -- Minimize button
-    local btnMin = Instance.new("TextButton")
-    btnMin.Text = "_"
-    btnMin.Size = UDim2.new(0,20,0,20)
-    btnMin.Position = UDim2.new(1,-22,0,0)
-    btnMin.BackgroundColor3 = Color3.fromRGB(50,50,50)
-    btnMin.TextColor3 = Color3.fromRGB(255,255,255)
-    btnMin.Font = Enum.Font.GothamBold
-    btnMin.TextSize = 14
-    btnMin.Parent = frame
-
-    local minimized = false
-    btnMin.MouseButton1Click:Connect(function()
-        minimized = not minimized
-        for _,v in pairs(frame:GetChildren()) do
-            if v:IsA("GuiObject") and v ~= title and v ~= btnMin then
-                v.Visible = not minimized
-            end
-        end
-        frame.Size = minimized and UDim2.new(0,160,0,20) or UDim2.new(0,160,0,180)
-    end)
-
-    -- Fungsi untuk tombol toggle estetik
-    local function createToggleButton(text, posY, initialState, callback)
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1,-10,0,25)
-        btn.Position = UDim2.new(0,5,0,posY)
-        btn.BackgroundColor3 = initialState and Color3.fromRGB(0,200,0) or Color3.fromRGB(200,0,0)
-        btn.TextColor3 = Color3.fromRGB(255,255,255)
-        btn.Font = Enum.Font.GothamBold
-        btn.TextSize = 14
-        btn.Text = text
-        btn.Parent = frame
-
-        btn.MouseButton1Click:Connect(function()
-            initialState = not initialState
-            btn.BackgroundColor3 = initialState and Color3.fromRGB(0,200,0) or Color3.fromRGB(200,0,0)
-            callback(initialState)
-        end)
-        return btn
-    end
-
-    -- WalkSpeed
-    local speedBox = Instance.new("TextBox")
-    speedBox.PlaceholderText = "WalkSpeed 1-25"
-    speedBox.Size = UDim2.new(1,-10,0,25)
-    speedBox.Position = UDim2.new(0,5,0,25)
-    speedBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
-    speedBox.TextColor3 = Color3.fromRGB(255,255,255)
-    speedBox.Font = Enum.Font.Gotham
-    speedBox.TextSize = 14
-    speedBox.Parent = frame
-
-    local btnSpeed = Instance.new("TextButton")
-    btnSpeed.Text = "Set Speed"
-    btnSpeed.Size = UDim2.new(1,-10,0,25)
-    btnSpeed.Position = UDim2.new(0,5,0,55)
-    btnSpeed.BackgroundColor3 = Color3.fromRGB(70,70,70)
-    btnSpeed.TextColor3 = Color3.fromRGB(255,255,255)
-    btnSpeed.Font = Enum.Font.GothamBold
-    btnSpeed.TextSize = 14
-    btnSpeed.Parent = frame
-
-    btnSpeed.MouseButton1Click:Connect(function()
-        local val = tonumber(speedBox.Text)
-        if val and val >=1 and val <=25 then
-            WalkSpeed = val
-        else
-            warn("Masukkan angka antara 1-25!")
-        end
-    end)
-
-    -- Full Bright
-    createToggleButton("Full Bright", 85, FullBrightEnabled, function(state)
-        FullBrightEnabled = state
-        if state then
-            Lighting.Brightness = 2
-            Lighting.ClockTime = 14
-            Lighting.FogEnd = 100000
-            Lighting.GlobalShadows = false
-            Lighting.OutdoorAmbient = Color3.fromRGB(255,255,255)
-        else
-            Lighting.Brightness = OriginalLighting.Brightness
-            Lighting.ClockTime = OriginalLighting.ClockTime
-            Lighting.FogEnd = OriginalLighting.FogEnd
-            Lighting.GlobalShadows = OriginalLighting.GlobalShadows
-            Lighting.OutdoorAmbient = OriginalLighting.OutdoorAmbient
-        end
-    end)
-
-    -- Infinity Jump
-    createToggleButton("Infinity Jump", 115, InfinityJumpEnabled, function(state)
-        InfinityJumpEnabled = state
-    end)
-
-    -- No Clip
-    createToggleButton("No Clip", 145, NoClipEnabled, function(state)
-        NoClipEnabled = state
-    end)
-
-    -- Delete Objects
-    createToggleButton("Delete Objects", 175, DeleteEnabled, function(state)
-        DeleteEnabled = state
-    end)
-
-    -- Drag GUI
-    local dragging, dragInput, dragStart, startPos
-    title.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-            dragging = true
-            dragStart = input.Position
-            startPos = frame.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
-            end)
-        end
-    end)
-    title.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-            dragInput = input
-        end
-    end)
-    UserInputService.InputChanged:Connect(function(input)
-        if input == dragInput and dragging then
-            local delta = input.Position - dragStart
-            frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-        end
-    end)
+-- Hapus GUI lama jika ada
+if Player:FindFirstChild("PlayerGui") then
+    local oldGui = Player.PlayerGui:FindFirstChild("HapusObjekGUI")
+    if oldGui then oldGui:Destroy() end
 end
 
--- Buat GUI pertama kali
-createGUI()
+-- GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "HapusObjekGUI"
+ScreenGui.Parent = Player.PlayerGui
 
--- ===== Loop utama =====
-RunService.RenderStepped:Connect(function()
-    local char = Player.Character
-    if char then
-        local humanoid = char:FindFirstChild("Humanoid")
-        if humanoid then
-            humanoid.WalkSpeed = WalkSpeed
-        end
+local tombol = Instance.new("TextButton")
+tombol.Size = UDim2.new(0, 250, 0, 80)
+tombol.Position = UDim2.new(0.5, -125, 0.85, 0)
+tombol.Text = "Hapus Objek: OFF"
+tombol.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- merah saat OFF
+tombol.TextColor3 = Color3.fromRGB(255,255,255)
+tombol.Font = Enum.Font.SourceSansBold
+tombol.TextScaled = true
+tombol.Parent = ScreenGui
 
-        -- No Clip
-        if NoClipEnabled then
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    part.CanCollide = false
-                end
-            end
-        end
+local aktif = false -- toggle lokal
+
+tombol.MouseButton1Click:Connect(function()
+    aktif = not aktif
+    if aktif then
+        tombol.Text = "Hapus Objek: ON"
+        tombol.BackgroundColor3 = Color3.fromRGB(0, 255, 0) -- hijau saat ON
+    else
+        tombol.Text = "Hapus Objek: OFF"
+        tombol.BackgroundColor3 = Color3.fromRGB(255, 0, 0) -- merah saat OFF
     end
-end)
-
--- ===== Infinity Jump =====
-UserInputService.JumpRequest:Connect(function()
-    if InfinityJumpEnabled then
-        local char = Player.Character
-        if char then
-            local humanoid = char:FindFirstChild("Humanoid")
-            if humanoid then
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-            end
-        end
-    end
-end)
-
--- ===== Delete Objects saat disentuh =====
-local function onPartTouched(hit)
-    if not DeleteEnabled then return end
-    local characterHit = hit.Parent
-    local player = game.Players:GetPlayerFromCharacter(characterHit)
-    if player then
-        for _, objName in ipairs(objectNames) do
-            local obj = workspace:FindFirstChild(objName)
-            if obj and obj:IsA("BasePart") then
-                obj:Destroy()
-                print(objName .. " berhasil dihapus oleh " .. player.Name)
-            end
-        end
-    end
-end
-
--- Sambungkan fungsi ke setiap Part di daftar
-for _, objName in ipairs(objectNames) do
-    local obj = workspace:FindFirstChild(objName)
-    if obj and obj:IsA("BasePart") then
-        obj.Touched:Connect(onPartTouched)
-    end
-end
-
--- ===== Respawn =====
-Player.CharacterAdded:Connect(function(char)
-    character = char
-    wait(0.1)
-    if not Player:FindFirstChild("PlayerGui"):FindFirstChild("MinimalGUI") then
-        createGUI()
-    end
+    Remote:FireServer("toggle")
 end)
