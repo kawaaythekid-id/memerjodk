@@ -1,4 +1,4 @@
--- SIMPLE CLIENT-SIDE GUI ANDROID + MINIMIZE/HIDE
+-- FINAL SIMPLE CLIENT GUI ANDROID + MINIMIZE/HIDE + SCROLLABLE
 -- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -30,7 +30,7 @@ local features = {
     NoFallDamage = true
 }
 
--- ===== GUI Setup =====
+-- ===== GUI =====
 local screenGui = Instance.new("ScreenGui")
 screenGui.Parent = player:WaitForChild("PlayerGui")
 screenGui.ResetOnSpawn = false
@@ -64,7 +64,7 @@ hideBtn.Font = Enum.Font.SourceSansBold
 hideBtn.TextScaled = true
 hideBtn.Parent = mainFrame
 
--- Scrolling Frame
+-- ScrollFrame
 local scroll = Instance.new("ScrollingFrame")
 scroll.Size = UDim2.new(1,0,1,-30)
 scroll.Position = UDim2.new(0,0,0,30)
@@ -78,17 +78,14 @@ local uiList = Instance.new("UIListLayout")
 uiList.Parent = scroll
 uiList.SortOrder = Enum.SortOrder.LayoutOrder
 uiList.Padding = UDim.new(0,5)
-uiList.AutomaticSize = Enum.AutomaticSize.Y
-
--- Update CanvasSize agar scroll berfungsi
-local function updateCanvas()
-    scroll.CanvasSize = UDim2.new(0,0,0, #features*45)
-end
 
 -- ===== Buat Tombol Fitur =====
+local index = 0
 for name,_ in pairs(features) do
+    index = index + 1
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(1,0,0,40)
+    btn.Position = UDim2.new(0,0,0,(index-1)*45)
     btn.BackgroundColor3 = features[name] and Color3.fromRGB(0,200,0) or Color3.fromRGB(200,0,0)
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.Text = name
@@ -99,11 +96,11 @@ for name,_ in pairs(features) do
     btn.MouseButton1Click:Connect(function()
         features[name] = not features[name]
         btn.BackgroundColor3 = features[name] and Color3.fromRGB(0,200,0) or Color3.fromRGB(200,0,0)
-        updateCanvas()
     end)
 end
 
-updateCanvas() -- awal
+-- Update CanvasSize agar scrollable
+scroll.CanvasSize = UDim2.new(0,0,index*45)
 
 -- ===== Minimize & Hide =====
 local minimized = false
