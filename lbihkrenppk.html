@@ -1,12 +1,13 @@
--- LocalScript: Ultimate GUI + Manual WalkSpeed
+-- LocalScript: Ultimate GUI Respawn-Safe v1
+-- WalkSpeed manual, Infinity Jump, Full Bright, No Clip, AutoHeal
 -- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
 local PlayerGui = Player:WaitForChild("PlayerGui")
 local UserInputService = game:GetService("UserInputService")
-local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
 
 -- ===== Variabel =====
 local DefaultWalkSpeed = 16
@@ -16,7 +17,6 @@ local InfinityJumpEnabled = true
 local FullBrightEnabled = true
 local NoClipEnabled = false
 local AutoHealEnabled = false
-local GuiVisible = true
 
 local DefaultLighting = {
     Brightness = Lighting.Brightness,
@@ -89,7 +89,7 @@ local function UpdateCharacterRefs(char)
     Humanoid = char:WaitForChild("Humanoid")
 end
 
--- ===== Fungsi fitur =====
+-- ===== Fitur =====
 local AutoHealConnection
 
 local function UpdateButtonColor(button,enabled)
@@ -201,7 +201,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ===== Respawn =====
+-- ===== Respawn handling (GUI tetap ada) =====
 Player.CharacterAdded:Connect(function(char)
     UpdateCharacterRefs(char)
     SetWalkSpeed(WalkSpeedEnabled)
