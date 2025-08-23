@@ -1,4 +1,4 @@
--- Ultimate Minimal GUI + Stable No Fall Damage (LocalScript)
+-- Ultimate Minimal GUI + Infinity Jump + Full Bright (LocalScript)
 -- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -176,14 +176,7 @@ RunService.RenderStepped:Connect(function()
     if char then
         local humanoid = char:FindFirstChild("Humanoid")
         if humanoid then
-            -- WalkSpeed
             humanoid.WalkSpeed = WalkSpeed
-            -- Stable No Fall Damage
-            pcall(function()
-                if humanoid.FloorMaterial == Enum.Material.Air and humanoid.Health < humanoid.MaxHealth then
-                    humanoid.Health = humanoid.MaxHealth
-                end
-            end)
         end
     end
 end)
