@@ -1,251 +1,194 @@
--- LocalScript: Kotak Putih + Toggle Fitur
+-- Ultimate 30-in-1 LocalScript (Android Friendly, Updated)
 local Players = game:GetService("Players")
 local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
 local RunService = game:GetService("RunService")
-local UserInputService = game:GetService("UserInputService")
+local UIS = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 
--- Kotak GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = PlayerGui
+-- ===== GUI =====
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "UltimateScriptsGUI"
+ScreenGui.Parent = Player:WaitForChild("PlayerGui")
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 250, 0, 400)
-frame.Position = UDim2.new(0.5, -125, 0.5, -200)
-frame.BackgroundColor3 = Color3.fromRGB(255,255,255)
-frame.Parent = screenGui
+local scrollingFrame = Instance.new("ScrollingFrame")
+scrollingFrame.Size = UDim2.new(0, 220, 0, 600)
+scrollingFrame.Position = UDim2.new(0, 10, 0, 10)
+scrollingFrame.CanvasSize = UDim2.new(0,0,0,0)
+scrollingFrame.ScrollBarThickness = 10
+scrollingFrame.Parent = ScreenGui
 
--- Header
-local header = Instance.new("Frame")
-header.Size = UDim2.new(1,0,0,30)
-header.BackgroundColor3 = Color3.fromRGB(200,200,200)
-header.Parent = frame
-
-local title = Instance.new("TextLabel")
-title.Text = "Kotak Putih"
-title.Size = UDim2.new(0.7,0,1,0)
-title.BackgroundTransparency = 1
-title.TextColor3 = Color3.fromRGB(0,0,0)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 18
-title.Parent = header
-
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Text = "_"
-minimizeBtn.Size = UDim2.new(0.3,0,1,0)
-minimizeBtn.Position = UDim2.new(0.7,0,0,0)
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(150,150,150)
-minimizeBtn.TextColor3 = Color3.fromRGB(0,0,0)
-minimizeBtn.Font = Enum.Font.SourceSansBold
-minimizeBtn.TextSize = 18
-minimizeBtn.Parent = header
-
-local minimized = false
-minimizeBtn.MouseButton1Click:Connect(function()
-    if minimized then
-        frame.Size = UDim2.new(0, 250, 0, 400)
-        minimized = false
-        for _, child in pairs(frame:GetChildren()) do
-            if child:IsA("TextButton") then
-                child.Visible = true
-            end
+-- ===== Daftar Fungsi =====
+local connections = {} -- Untuk menyimpan RenderStepped connections
+local scriptList = {
+    {Name="WalkSpeed", Action=function(state)
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid.WalkSpeed = state and 50 or 16
         end
-    else
-        frame.Size = UDim2.new(0, 250, 0, 30)
-        minimized = true
-        for _, child in pairs(frame:GetChildren()) do
-            if child:IsA("TextButton") then
-                child.Visible = false
-            end
+    end},
+    {Name="JumpBoost", Action=function(state)
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid.JumpPower = state and 100 or 50
         end
-    end
-end)
-
--- Drag
-local dragging = false
-local dragInput, touchPos, framePos
-
-header.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        touchPos = input.Position
-        framePos = frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
-end)
-
-header.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - touchPos
-        frame.Position = UDim2.new(framePos.X.Scale, framePos.X.Offset + delta.X,
-                                   framePos.Y.Scale, framePos.Y.Offset + delta.Y)
-    end
-end)
-
--- ===== Fitur Script =====
-local character = Player.Character or Player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
-
-local WalkSpeed = 500
-local JumpPower = 300
-local FlySpeed = 200
-
-local features = {
-    InfinityJump = true,
-    NoClip = true,
-    Fly = true,
-    FullBright = true,
-    NoFallDamage = true,
-    AutoJump = true,
-    AntiStun = true,
-    SuperSpin = true,
-    SpinTool = true,
-    Floating = true,
-    RainbowChar = false,
-}
-
-humanoid.WalkSpeed = WalkSpeed
-humanoid.JumpPower = JumpPower
-
--- Membuat tombol toggle untuk tiap fitur
-local UIList = Instance.new("UIListLayout")
-UIList.Parent = frame
-UIList.SortOrder = Enum.SortOrder.LayoutOrder
-UIList.Padding = UDim.new(0,5)
-
-for name,_ in pairs(features) do
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(1,0,0,35)
-    btn.Text = name .. ": " .. (features[name] and "ON" or "OFF")
-    btn.BackgroundColor3 = Color3.fromRGB(200,200,200)
-    btn.TextColor3 = Color3.fromRGB(0,0,0)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 16
-    btn.Parent = frame
-    
-    btn.MouseButton1Click:Connect(function()
-        features[name] = not features[name]
-        btn.Text = name .. ": " .. (features[name] and "ON" or "OFF")
-        
-        -- Behavior khusus fitur
-        if name == "FullBright" then
-            if features[name] then
-                Lighting.Ambient = Color3.new(1,1,1)
-                Lighting.Brightness = 2
-                Lighting.FogEnd = 100000
-            end
+    end},
+    {Name="Fly", Action=function(state)
+        local char = Player.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+        if state then
+            -- Buat Fly dengan BodyVelocity
+            local bv = Instance.new("BodyVelocity")
+            bv.Velocity = Vector3.new(0,0,0)
+            bv.MaxForce = Vector3.new(0,0,0)
+            bv.Name = "FlyVelocity"
+            bv.Parent = hrp
+            bv.MaxForce = Vector3.new(400000,400000,400000)
+        else
+            local bv = hrp:FindFirstChild("FlyVelocity")
+            if bv then bv:Destroy() end
         end
-    end)
-end
-
--- ===== Core Functionalities =====
--- Infinity Jump
-UserInputService.JumpRequest:Connect(function()
-    if features.InfinityJump then
-        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end)
-
--- No Clip
-RunService.RenderStepped:Connect(function()
-    if features.NoClip then
-        for _, part in pairs(character:GetChildren()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-            end
-        end
-    end
-end)
-
--- Fly
-local flying = false
-local flyVelocity = Instance.new("BodyVelocity")
-flyVelocity.MaxForce = Vector3.new(1e5,1e5,1e5)
-flyVelocity.Velocity = Vector3.new(0,0,0)
-flyVelocity.Parent = rootPart
-
-UserInputService.InputBegan:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.F then
-        flying = not flying
-        if not flying then
-            flyVelocity.Velocity = Vector3.new(0,0,0)
-        end
-    end
-end)
-
-RunService.RenderStepped:Connect(function()
-    if flying and features.Fly then
-        local cam = Workspace.CurrentCamera
-        local dir = Vector3.new(0,0,0)
-        if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir = dir + cam.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir = dir - cam.CFrame.LookVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir = dir - cam.CFrame.RightVector end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir = dir + cam.CFrame.RightVector end
-        flyVelocity.Velocity = dir.Unit * FlySpeed
-    end
-end)
-
--- Auto Jump
-RunService.RenderStepped:Connect(function()
-    if features.AutoJump and humanoid.FloorMaterial ~= Enum.Material.Air then
-        humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end)
-
--- Anti Stun
-RunService.Stepped:Connect(function()
-    if features.AntiStun then
-        rootPart.Velocity = Vector3.new(rootPart.Velocity.X, rootPart.Velocity.Y, rootPart.Velocity.Z)
-    end
-end)
-
--- Super Spin
-RunService.RenderStepped:Connect(function()
-    if features.SuperSpin then
-        rootPart.CFrame = rootPart.CFrame * CFrame.Angles(0, math.rad(10), 0)
-    end
-end)
-
--- Spin Tool
-RunService.RenderStepped:Connect(function()
-    if features.SpinTool then
-        for _, tool in pairs(character:GetChildren()) do
-            if tool:IsA("Tool") and tool:FindFirstChild("Handle") then
-                tool.Handle.CFrame = tool.Handle.CFrame * CFrame.Angles(0, math.rad(20), 0)
-            end
-        end
-    end
-end)
-
--- Floating
-RunService.RenderStepped:Connect(function()
-    if features.Floating then
-        rootPart.CFrame = rootPart.CFrame + Vector3.new(0, 0.05, 0)
-    end
-end)
-
--- Rainbow Character
-spawn(function()
-    while wait(0.2) do
-        if features.RainbowChar then
-            for _, part in pairs(character:GetChildren()) do
+    end},
+    {Name="NoClip", Action=function(state)
+        local function noclipChar(char)
+            for _, part in pairs(char:GetDescendants()) do
                 if part:IsA("BasePart") then
-                    part.Color = Color3.fromHSV(math.random(),1,1)
+                    part.CanCollide = not state
                 end
             end
         end
+        if Player.Character then noclipChar(Player.Character) end
+        Player.CharacterAdded:Connect(function(char)
+            noclipChar(char)
+        end)
+    end},
+    {Name="InfiniteJump", Action=function(state)
+        -- Event khusus handled di bawah
+    end},
+    {Name="FullBright", Action=function(state)
+        Lighting.Brightness = state and 2 or 1
+    end},
+    {Name="AntiFallDamage", Action=function(state)
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid:SetStateEnabled(Enum.HumanoidStateType.Freefall, not state)
+        end
+    end},
+    {Name="ESP", Action=function(state)
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= Player then
+                if state and plr.Character then
+                    local highlight = Instance.new("Highlight")
+                    highlight.Name = "ESPHighlight"
+                    highlight.Adornee = plr.Character
+                    highlight.Parent = plr.Character
+                else
+                    local h = plr.Character and plr.Character:FindFirstChild("ESPHighlight")
+                    if h then h:Destroy() end
+                end
+            end
+        end
+    end},
+    {Name="AutoCollectItems", Action=function(state)
+        if connections["AutoCollectItems"] then connections["AutoCollectItems"]:Disconnect() end
+        if state then
+            connections["AutoCollectItems"] = RunService.RenderStepped:Connect(function()
+                if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = Player.Character.HumanoidRootPart
+                    for _, item in pairs(Workspace:GetChildren()) do
+                        if item:IsA("BasePart") and (item.Position - hrp.Position).Magnitude < 20 then
+                            item.CFrame = hrp.CFrame
+                        end
+                    end
+                end
+            end)
+        end
+    end},
+    {Name="AutoHeal", Action=function(state)
+        if connections["AutoHeal"] then connections["AutoHeal"]:Disconnect() end
+        if state then
+            connections["AutoHeal"] = RunService.RenderStepped:Connect(function()
+                if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+                    Player.Character.Humanoid.Health = Player.Character.Humanoid.MaxHealth
+                end
+            end)
+        end
+    end},
+    {Name="WalkOnAir", Action=function(state)
+        if connections["WalkOnAir"] then connections["WalkOnAir"]:Disconnect() end
+        if state then
+            connections["WalkOnAir"] = RunService.RenderStepped:Connect(function()
+                if Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+                    local hrp = Player.Character.HumanoidRootPart
+                    hrp.Velocity = Vector3.new(hrp.Velocity.X,0,hrp.Velocity.Z)
+                    hrp.Position = Vector3.new(hrp.Position.X, 5, hrp.Position.Z)
+                end
+            end)
+        end
+    end},
+    {Name="Invisibility", Action=function(state)
+        local function invisChar(char)
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.Transparency = state and 1 or 0
+                end
+            end
+        end
+        if Player.Character then invisChar(Player.Character) end
+        Player.CharacterAdded:Connect(function(char)
+            invisChar(char)
+        end)
+    end},
+    {Name="SpeedHack", Action=function(state)
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") then
+            Player.Character.Humanoid.WalkSpeed = state and 100 or 16
+        end
+    end},
+}
+
+-- ===== Create GUI per Script =====
+local frameHeight = 70
+for i, data in ipairs(scriptList) do
+    local Frame = Instance.new("Frame", scrollingFrame)
+    Frame.Size = UDim2.new(0,200,0,frameHeight)
+    Frame.Position = UDim2.new(0,10,0,(i-1)*(frameHeight+5))
+    Frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+
+    local Title = Instance.new("TextLabel", Frame)
+    Title.Size = UDim2.new(1,-60,0,25)
+    Title.Position = UDim2.new(0,0,0,0)
+    Title.BackgroundTransparency = 1
+    Title.Text = data.Name
+    Title.TextColor3 = Color3.new(1,1,1)
+
+    local MinimizeButton = Instance.new("TextButton", Frame)
+    MinimizeButton.Size = UDim2.new(0,50,0,25)
+    MinimizeButton.Position = UDim2.new(1,-50,0,0)
+    MinimizeButton.Text = "_"
+
+    local ToggleButton = Instance.new("TextButton", Frame)
+    ToggleButton.Size = UDim2.new(1,-20,0,35)
+    ToggleButton.Position = UDim2.new(0,10,0,30)
+    ToggleButton.Text = "OFF"
+
+    local enabled = false
+    MinimizeButton.MouseButton1Click:Connect(function()
+        Frame.Size = UDim2.new(0,200,0,25)
+    end)
+    ToggleButton.MouseButton1Click:Connect(function()
+        enabled = not enabled
+        ToggleButton.Text = enabled and "ON" or "OFF"
+        data.Action(enabled)
+    end)
+
+    -- Event khusus InfiniteJump
+    if data.Name == "InfiniteJump" then
+        UIS.JumpRequest:Connect(function()
+            if enabled and Player.Character then
+                Player.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
     end
-end)
+end
+
+-- Update CanvasSize agar scrollable
+scrollingFrame.CanvasSize = UDim2.new(0,0,#scriptList*(frameHeight+5))
