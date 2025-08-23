@@ -1,5 +1,4 @@
--- LocalScript: Ultimate GUI Respawn-Safe v1
--- WalkSpeed manual, Infinity Jump, Full Bright, No Clip, AutoHeal
+-- LocalScript: Ultimate GUI Respawn-Safe Final
 -- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
@@ -25,35 +24,31 @@ local DefaultLighting = {
     GlobalShadows = Lighting.GlobalShadows
 }
 
--- ===== GUI =====
-if PlayerGui:FindFirstChild("UltimateGUI") then
-    PlayerGui.UltimateGUI:Destroy()
-end
-
-local ScreenGui = Instance.new("ScreenGui")
+-- ===== GUI: hanya dibuat sekali =====
+local ScreenGui = PlayerGui:FindFirstChild("UltimateGUI") or Instance.new("ScreenGui")
 ScreenGui.Name = "UltimateGUI"
 ScreenGui.Parent = PlayerGui
 
-local Frame = Instance.new("Frame")
+local Frame = ScreenGui:FindFirstChild("Frame") or Instance.new("Frame")
 Frame.Size = UDim2.new(0,200,0,250)
 Frame.Position = UDim2.new(0.05,0,0.05,0)
 Frame.BackgroundColor3 = Color3.fromRGB(40,40,40)
 Frame.Parent = ScreenGui
 
-local MinimizeButton = Instance.new("TextButton")
+local MinimizeButton = Frame:FindFirstChild("MinimizeButton") or Instance.new("TextButton")
 MinimizeButton.Size = UDim2.new(0,40,0,25)
 MinimizeButton.Position = UDim2.new(1,-45,0,5)
 MinimizeButton.Text = "-"
 MinimizeButton.Parent = Frame
 
-local ShowButton = Instance.new("TextButton")
+local ShowButton = ScreenGui:FindFirstChild("ShowButton") or Instance.new("TextButton")
 ShowButton.Size = UDim2.new(0,40,0,25)
 ShowButton.Position = UDim2.new(0.05,0,0.05,0)
 ShowButton.Text = "GUI"
 ShowButton.Visible = false
 ShowButton.Parent = ScreenGui
 
--- Tombol
+-- Tombol helper
 local function CreateButton(name,yPos)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0,180,0,30)
@@ -65,8 +60,8 @@ local function CreateButton(name,yPos)
     return btn
 end
 
-local WalkSpeedButton = CreateButton("WalkSpeed",40)
-local SpeedTextBox = Instance.new("TextBox")
+local WalkSpeedButton = Frame:FindFirstChild("WalkSpeedButton") or CreateButton("WalkSpeed",40)
+local SpeedTextBox = Frame:FindFirstChild("SpeedTextBox") or Instance.new("TextBox")
 SpeedTextBox.Size = UDim2.new(0,180,0,25)
 SpeedTextBox.Position = UDim2.new(0.5,-90,0,75)
 SpeedTextBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
@@ -75,10 +70,10 @@ SpeedTextBox.PlaceholderText = "Masukkan WalkSpeed"
 SpeedTextBox.Text = tostring(WalkSpeed)
 SpeedTextBox.Parent = Frame
 
-local InfinityJumpButton = CreateButton("Infinity Jump",110)
-local FullBrightButton = CreateButton("Full Bright",145)
-local NoClipButton = CreateButton("No Clip",180)
-local AutoHealButton = CreateButton("AutoHeal",215)
+local InfinityJumpButton = Frame:FindFirstChild("InfinityJumpButton") or CreateButton("Infinity Jump",110)
+local FullBrightButton = Frame:FindFirstChild("FullBrightButton") or CreateButton("Full Bright",145)
+local NoClipButton = Frame:FindFirstChild("NoClipButton") or CreateButton("No Clip",180)
+local AutoHealButton = Frame:FindFirstChild("AutoHealButton") or CreateButton("AutoHeal",215)
 
 -- ===== Karakter =====
 local Humanoid
@@ -201,7 +196,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- ===== Respawn handling (GUI tetap ada) =====
+-- ===== Respawn handling =====
 Player.CharacterAdded:Connect(function(char)
     UpdateCharacterRefs(char)
     SetWalkSpeed(WalkSpeedEnabled)
@@ -241,9 +236,11 @@ UserInputService.InputChanged:Connect(function(input)
 end)
 
 -- ===== Inisialisasi =====
-UpdateCharacterRefs(Player.Character)
-SetWalkSpeed(WalkSpeedEnabled)
-SetInfinityJump(InfinityJumpEnabled)
-SetFullBright(FullBrightEnabled)
-SetNoClip(NoClipEnabled)
-SetAutoHeal(AutoHealEnabled)
+if Player.Character then
+    UpdateCharacterRefs(Player.Character)
+    SetWalkSpeed(WalkSpeedEnabled)
+    SetInfinityJump(InfinityJumpEnabled)
+    SetFullBright(FullBrightEnabled)
+    SetNoClip(NoClipEnabled)
+    SetAutoHeal(AutoHealEnabled)
+end
