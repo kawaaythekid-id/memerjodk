@@ -1,89 +1,290 @@
--- LocalScript di StarterPlayerScripts
+-- LocalScript: Ultimate GUI Respawn-Safe Final
+-- Tempatkan di StarterPlayerScripts
 
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local rootPart = character:WaitForChild("HumanoidRootPart")
-local Debris = game:GetService("Debris")
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
 
--- Default
-local flingEnabled = false
-local flingPower = 5000
-local maxSafeVelocity = 500000  -- batas aman untuk physics
-local debounceTime = 0.3
-local lastFling = 0
+-- ===== Variabel =====
+local DefaultWalkSpeed = 16
+local WalkSpeed = 50
+local WalkSpeedEnabled = false
+local InfinityJumpEnabled = true
+local FullBrightEnabled = true
+local NoClipEnabled = false
+local AutoHealEnabled = false
 
--- GUI Setup minimalis
-local screenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
-screenGui.Name = "FlingGUI"
+local DefaultLighting = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    GlobalShadows = Lighting.GlobalShadows
+}
 
-local frame = Instance.new("Frame", screenGui)
-frame.Size = UDim2.new(0, 240, 0, 120)
-frame.Position = UDim2.new(0, 20, 0, 50)
-frame.BackgroundColor3 = Color3.fromRGB(60,60,60)
-frame.Active = true
-frame.Draggable = true
+-- ===== GUI: hanya dibuat sekali =====
+local ScreenGui = PlayerGui:FindFirstChild("UltimateGUI") or Instance.new("ScreenGui")
+ScreenGui.Name = "UltimateGUI"
+ScreenGui.ResetOnSpawn = false  -- Pastikan GUI permanen, tidak hilang saat respawn/mati
+ScreenGui.Parent = PlayerGui
 
--- Tombol Enable/Disable
-local toggleButton = Instance.new("TextButton", frame)
-toggleButton.Size = UDim2.new(1, -20, 0, 50)
-toggleButton.Position = UDim2.new(0, 10, 0, 10)
-toggleButton.Text = "Enable Fling"
-toggleButton.TextColor3 = Color3.new(1,1,1)
-toggleButton.BackgroundColor3 = Color3.fromRGB(100,200,100)
-toggleButton.Font = Enum.Font.SourceSansBold
-toggleButton.TextSize = 20
+local Frame = ScreenGui:FindFirstChild("Frame") or Instance.new("Frame")
+Frame.Size = UDim2.new(0, 200, 0, 250)
+Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+Frame.BackgroundTransparency = 0.2
+Frame.BorderSizePixel = 1
+Frame.BorderColor3 = Color3.fromRGB(255, 255, 255)
+Frame.Parent = ScreenGui
 
-toggleButton.MouseButton1Click:Connect(function()
-    flingEnabled = not flingEnabled
-    toggleButton.Text = flingEnabled and "Disable Fling" or "Enable Fling"
-    toggleButton.BackgroundColor3 = flingEnabled and Color3.fromRGB(200,100,100) or Color3.fromRGB(100,200,100)
-end)
+local MinimizeButton = Frame:FindFirstChild("MinimizeButton") or Instance.new("TextButton")
+MinimizeButton.Size = UDim2.new(0, 40, 0, 25)
+MinimizeButton.Position = UDim2.new(1, -45, 0, 5)
+MinimizeButton.Text = "-"
+MinimizeButton.Parent = Frame
 
--- Textbox untuk atur kekuatan fling
-local powerBox = Instance.new("TextBox", frame)
-powerBox.Size = UDim2.new(1, -20, 0, 40)
-powerBox.Position = UDim2.new(0, 10, 0, 70)
-powerBox.PlaceholderText = "Masukkan kekuatan fling"
-powerBox.Text = tostring(flingPower)
-powerBox.ClearTextOnFocus = false
-powerBox.TextColor3 = Color3.new(0,0,0)
-powerBox.BackgroundColor3 = Color3.fromRGB(220,220,220)
-powerBox.Font = Enum.Font.SourceSansBold
-powerBox.TextSize = 18
+local ShowButton = ScreenGui:FindFirstChild("ShowButton") or Instance.new("TextButton")
+ShowButton.Size = UDim2.new(0, 40, 0, 25)
+ShowButton.Position = UDim2.new(0.05, 0, 0.05, 0)
+ShowButton.Text = "GUI"
+ShowButton.Visible = false
+ShowButton.Parent = ScreenGui
 
--- Update kekuatan dari textbox (tanpa batas maksimal)
-powerBox.FocusLost:Connect(function()
-    local val = tonumber(powerBox.Text)
-    if val and val >= 1 then
-        flingPower = val
+-- Tombol helper
+local function CreateButton(name, yPos)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 180, 0, 30)
+    btn.Position = UDim2.new(0.5, -90, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Text = name .. ": OFF"
+    btn.Parent = Frame
+    return btn
+end
+
+local WalkSpeedButton = Frame:FindFirstChild("WalkSpeedButton") or CreateButton("WalkSpeed", 40)
+local SpeedTextBox = Frame:FindFirstChild("SpeedTextBox") or Instance.new("TextBox")
+SpeedTextBox.Size = UDim2.new(0, 180, 0, 25)
+SpeedTextBox.Position = UDim2.new(0.5, -90, 0, 75)
+SpeedTextBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+SpeedTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedTextBox.PlaceholderText = "Masukkan WalkSpeed"
+SpeedTextBox.Text = tostring(WalkSpeed)
+SpeedTextBox.Parent = Frame
+
+local InfinityJumpButton = Frame:FindFirstChild("InfinityJumpButton") or CreateButton("Infinity Jump", 110)
+local FullBrightButton = Frame:FindFirstChild("FullBrightButton") or CreateButton("Full Bright", 145)
+local NoClipButton = Frame:FindFirstChild("NoClipButton") or CreateButton("No Clip", 180)
+local AutoHealButton = Frame:FindFirstChild("AutoHealButton") or CreateButton("AutoHeal", 215)
+
+-- ===== Karakter =====
+local Humanoid
+local Character = Player.Character
+
+local function UpdateCharacterRefs(char)
+    Character = char
+    Humanoid = char:WaitForChild("Humanoid")
+end
+
+-- ===== Fitur =====
+local AutoHealConnection
+local FullBrightConnection  -- Koneksi untuk FullBright
+
+local function UpdateButtonColor(button, enabled)
+    button.BackgroundColor3 = enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+    button.Text = button.Text:match("^(.-):") .. " : " .. (enabled and "ON" or "OFF")
+end
+
+local function SetWalkSpeed(enabled)
+    if Humanoid and Humanoid:IsDescendantOf(game) then
+        local speed = tonumber(SpeedTextBox.Text) or WalkSpeed
+        Humanoid.WalkSpeed = enabled and math.min(speed, 100) or DefaultWalkSpeed -- Batas maksimum untuk anti-detection
     else
-        powerBox.Text = tostring(flingPower)
+        warn("Humanoid tidak ditemukan!")
     end
-end)
+    UpdateButtonColor(WalkSpeedButton, enabled)
+end
 
--- Fungsi fling aman
-local function fling(otherPlayer)
-    if flingEnabled and otherPlayer and otherPlayer.Character and otherPlayer.Character:FindFirstChild("HumanoidRootPart") then
-        local now = tick()
-        if now - lastFling < debounceTime then return end
-        lastFling = now
+local function SetInfinityJump(enabled)
+    InfinityJumpEnabled = enabled
+    UpdateButtonColor(InfinityJumpButton, enabled)
+end
 
-        local direction = (otherPlayer.Character.HumanoidRootPart.Position - rootPart.Position).unit
-        local velocityMagnitude = math.min(flingPower, maxSafeVelocity)
-        
-        local bv = Instance.new("BodyVelocity")
-        bv.Velocity = direction * velocityMagnitude
-        bv.MaxForce = Vector3.new(1e7, 1e7, 1e7)
-        bv.Parent = otherPlayer.Character.HumanoidRootPart
-        Debris:AddItem(bv, 0.2)
+local function ApplyFullBright()
+    Lighting.Brightness = 2
+    Lighting.ClockTime = 14
+    Lighting.FogEnd = 100000
+    Lighting.GlobalShadows = false
+end
+
+local function SetFullBright(enabled)
+    FullBrightEnabled = enabled
+    if FullBrightConnection then FullBrightConnection:Disconnect() end
+    if enabled then
+        ApplyFullBright()  -- Terapkan segera
+        FullBrightConnection = RunService.RenderStepped:Connect(ApplyFullBright)  -- Terus terapkan setiap frame untuk cegah override
+    else
+        Lighting.Brightness = DefaultLighting.Brightness
+        Lighting.ClockTime = DefaultLighting.ClockTime
+        Lighting.FogEnd = DefaultLighting.FogEnd
+        Lighting.GlobalShadows = DefaultLighting.GlobalShadows
+    end
+    UpdateButtonColor(FullBrightButton, enabled)
+end
+
+local function SetNoClip(enabled)
+    NoClipEnabled = enabled
+    UpdateButtonColor(NoClipButton, enabled)
+    if Character then
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = not enabled
+            end
+        end
     end
 end
 
--- Deteksi sentuhan
-rootPart.Touched:Connect(function(hit)
-    local otherPlayer = Players:GetPlayerFromCharacter(hit.Parent)
-    if otherPlayer and otherPlayer ~= player then
-        fling(otherPlayer)
+local function SetAutoHeal(enabled)
+    AutoHealEnabled = enabled
+    UpdateButtonColor(AutoHealButton, enabled)
+    if AutoHealConnection then AutoHealConnection:Disconnect() AutoHealConnection = nil end
+    if enabled and Character and Humanoid then
+        AutoHealConnection = RunService.RenderStepped:Connect(function()
+            if Humanoid then
+                Humanoid.Health = Humanoid.MaxHealth
+            end
+        end)
+    end
+end
+
+-- ===== Tombol Event =====
+WalkSpeedButton.MouseButton1Click:Connect(function()
+    WalkSpeedEnabled = not WalkSpeedEnabled
+    SetWalkSpeed(WalkSpeedEnabled)
+end)
+
+SpeedTextBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local speed = tonumber(SpeedTextBox.Text)
+        if speed and speed >= 0 then
+            WalkSpeed = speed
+            if WalkSpeedEnabled then
+                SetWalkSpeed(true)
+            end
+        else
+            SpeedTextBox.Text = tostring(WalkSpeed)
+            warn("Masukkan angka valid untuk WalkSpeed!")
+        end
     end
 end)
+
+InfinityJumpButton.MouseButton1Click:Connect(function()
+    SetInfinityJump(not InfinityJumpEnabled)
+end)
+
+FullBrightButton.MouseButton1Click:Connect(function()
+    SetFullBright(not FullBrightEnabled)
+end)
+
+NoClipButton.MouseButton1Click:Connect(function()
+    SetNoClip(not NoClipEnabled)
+end)
+
+AutoHealButton.MouseButton1Click:Connect(function()
+    SetAutoHeal(not AutoHealEnabled)
+end)
+
+-- ===== Minimize / Show dengan Animasi =====
+local tweenInfo = TweenInfo.new(0.3, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
+
+MinimizeButton.MouseButton1Click:Connect(function()
+    local tween = TweenService:Create(Frame, tweenInfo, { Size = UDim2.new(0, 200, 0, 0) })
+    tween:Play()
+    tween.Completed:Wait()
+    Frame.Visible = false
+    ShowButton.Visible = true
+end)
+
+ShowButton.MouseButton1Click:Connect(function()
+    Frame.Visible = true
+    local tween = TweenService:Create(Frame, tweenInfo, { Size = UDim2.new(0, 200, 0, 250) })
+    tween:Play()
+    ShowButton.Visible = false
+end)
+
+-- ===== Infinity Jump =====
+UserInputService.JumpRequest:Connect(function()
+    if InfinityJumpEnabled and Humanoid then
+        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- ===== No Clip =====
+RunService.Stepped:Connect(function()
+    if NoClipEnabled and Character and Humanoid then
+        Humanoid:ChangeState(Enum.HumanoidStateType.Physics)
+    end
+end)
+
+-- ===== Respawn handling =====
+Player.CharacterAdded:Connect(function(char)
+    UpdateCharacterRefs(char)
+    SetWalkSpeed(WalkSpeedEnabled)
+    SetNoClip(NoClipEnabled)
+    if AutoHealEnabled then SetAutoHeal(true) end
+    if FullBrightEnabled then SetFullBright(true) end  -- Reapply FullBright setelah respawn
+end)
+
+-- ===== Drag GUI =====
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+local function update(input)
+    local delta = input.Position - dragStart
+    Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+
+Frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then update(input) end
+end)
+
+-- ===== Inisialisasi Tombol =====
+local function InitializeButtons()
+    UpdateButtonColor(WalkSpeedButton, WalkSpeedEnabled)
+    UpdateButtonColor(InfinityJumpButton, InfinityJumpEnabled)
+    UpdateButtonColor(FullBrightButton, FullBrightEnabled)
+    UpdateButtonColor(NoClipButton, NoClipEnabled)
+    UpdateButtonColor(AutoHealButton, AutoHealEnabled)
+end
+
+-- ===== Inisialisasi =====
+if Player.Character then
+    UpdateCharacterRefs(Player.Character)
+    InitializeButtons()
+    SetWalkSpeed(WalkSpeedEnabled)
+    SetInfinityJump(InfinityJumpEnabled)
+    SetFullBright(FullBrightEnabled)
+    SetNoClip(NoClipEnabled)
+    SetAutoHeal(AutoHealEnabled)
+end
