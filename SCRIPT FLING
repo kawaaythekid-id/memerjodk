@@ -1,88 +1,356 @@
--- Nama: OverpowerFlingScript
--- Lokasi: StarterPlayerScripts
+-- LocalScript: Ultimate GUI Respawn-Safe Final
+-- Tempatkan di StarterPlayerScripts
 
-local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
-local StarterGui = game:GetService("StarterGui")
+local Player = Players.LocalPlayer
+local PlayerGui = Player:WaitForChild("PlayerGui")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local TweenService = game:GetService("TweenService")
 
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+-- ===== Variabel =====
+local DefaultWalkSpeed = 16
+local WalkSpeed = 50
+local WalkSpeedEnabled = false
+local InfinityJumpEnabled = true
+local FullBrightEnabled = true
+local NoClipEnabled = false
+local AutoHealEnabled = false
 
--- Default kekuatan fling (sangat overpower)
-local flingStrength = 500 -- Nilai awal 500 untuk efek overpower
+local DefaultLighting = {
+    Brightness = Lighting.Brightness,
+    ClockTime = Lighting.ClockTime,
+    FogEnd = Lighting.FogEnd,
+    GlobalShadows = Lighting.GlobalShadows
+}
 
--- Membuat UI untuk TextBox
-local function createUI()
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "FlingControlGui"
-    screenGui.Parent = player.PlayerGui
+-- ===== GUI: hanya dibuat sekali =====
+local ScreenGui = PlayerGui:FindFirstChild("UltimateGUI") or Instance.new("ScreenGui")
+ScreenGui.Name = "UltimateGUI"
+ScreenGui.ResetOnSpawn = false  -- Pastikan GUI permanen
+ScreenGui.Parent = PlayerGui
 
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 200, 0, 100)
-    frame.Position = UDim2.new(0.5, -100, 0.1, 0) -- Tengah atas layar
-    frame.BackgroundTransparency = 0.5
-    frame.BackgroundColor3 = Color3.new(0, 0, 0)
-    frame.Parent = screenGui
+local Frame = ScreenGui:FindFirstChild("Frame") or Instance.new("Frame")
+Frame.Size = UDim2.new(0, 220, 0, 280)
+Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) -- Warna dasar hitam elegan
+Frame.BackgroundTransparency = 0.1
+Frame.Parent = ScreenGui
 
-    local textBox = Instance.new("TextBox")
-    textBox.Size = UDim2.new(0, 150, 0, 30)
-    textBox.Position = UDim2.new(0.5, -75, 0.2, 0)
-    textBox.Text = tostring(flingStrength) -- Nilai default
-    textBox.PlaceholderText = "Masukkan kekuatan fling"
-    textBox.TextScaled = true
-    textBox.Parent = frame
+-- Tambahkan UIGradient untuk efek gradien
+local FrameGradient = Instance.new("UIGradient")
+FrameGradient.Color = ColorSequence.new({
+    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 20)),
+    ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 50, 80))
+})
+FrameGradient.Rotation = 45
+FrameGradient.Parent = Frame
 
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0, 150, 0, 20)
-    label.Position = UDim2.new(0.5, -75, 0, 0)
-    label.Text = "Kekuatan Fling"
-    label.TextColor3 = Color3.new(1, 1, 1)
-    label.BackgroundTransparency = 1
-    label.TextScaled = true
-    label.Parent = frame
+-- Tambahkan UICorner untuk sudut membulat
+local FrameCorner = Instance.new("UICorner")
+FrameCorner.CornerRadius = UDim.new(0, 10)
+FrameCorner.Parent = Frame
 
-    -- Update kekuatan fling saat TextBox diubah
-    textBox.FocusLost:Connect(function(enterPressed)
-        if enterPressed then
-            local input = tonumber(textBox.Text)
-            if input and input > 0 then
-                flingStrength = math.min(input, 10000) -- Batas maksimum 10000 agar tidak crash
-                textBox.Text = tostring(flingStrength)
-            else
-                textBox.Text = tostring(flingStrength) -- Kembali ke nilai sebelumnya jika input salah
+-- Tambahkan bayangan (menggunakan UIStroke untuk simulasi)
+local FrameStroke = Instance.new("UIStroke")
+FrameStroke.Thickness = 2
+FrameStroke.Color = Color3.fromRGB(255, 215, 0) -- Aksen emas
+FrameStroke.Transparency = 0.5
+FrameStroke.Parent = Frame
+
+local MinimizeButton = Frame:FindFirstChild("MinimizeButton") or Instance.new("TextButton")
+MinimizeButton.Size = UDim2.new(0, 40, 0, 30)
+MinimizeButton.Position = UDim2.new(1, -45, 0, 5)
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(255, 215, 0) -- Warna emas
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.Text = "-"
+MinimizeButton.Font = Enum.Font.GothamBold
+MinimizeButton.TextSize = 18
+MinimizeButton.Parent = Frame
+
+local MinimizeCorner = Instance.new("UICorner")
+MinimizeCorner.CornerRadius = UDim.new(0, 8)
+MinimizeCorner.Parent = MinimizeButton
+
+local ShowButton = ScreenGui:FindFirstChild("ShowButton") or Instance.new("TextButton")
+ShowButton.Size = UDim2.new(0, 50, 0, 30)
+ShowButton.Position = UDim2.new(0.05, 0, 0.05, 0)
+ShowButton.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
+ShowButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+ShowButton.Text = "GUI"
+ShowButton.Font = Enum.Font.GothamBold
+ShowButton.TextSize = 16
+ShowButton.Visible = false
+ShowButton.Parent = ScreenGui
+
+local ShowButtonCorner = Instance.new("UICorner")
+ShowButtonCorner.CornerRadius = UDim.new(0, 8)
+ShowButtonCorner.Parent = ShowButton
+
+-- Tombol helper dengan efek hover
+local function CreateButton(name, yPos)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 190, 0, 35)
+    btn.Position = UDim2.new(0.5, -95, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Text = name .. ": OFF"
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 14
+    btn.Parent = Frame
+
+    local btnCorner = Instance.new("UICorner")
+    btnCorner.CornerRadius = UDim.new(0, 6)
+    btnCorner.Parent = btn
+
+    local btnStroke = Instance.new("UIStroke")
+    btnStroke.Thickness = 1
+    btnStroke.Color = Color3.fromRGB(255, 215, 0)
+    btnStroke.Transparency = 0.7
+    btnStroke.Parent = btn
+
+    -- Efek hover
+    btn.MouseEnter:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), { BackgroundColor3 = Color3.fromRGB(50, 50, 50) }):Play()
+    end)
+    btn.MouseLeave:Connect(function()
+        TweenService:Create(btn, TweenInfo.new(0.2), { BackgroundColor3 = enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(30, 30, 30) }):Play()
+    end)
+
+    return btn
+end
+
+local WalkSpeedButton = Frame:FindFirstChild("WalkSpeedButton") or CreateButton("WalkSpeed", 40)
+local SpeedTextBox = Frame:FindFirstChild("SpeedTextBox") or Instance.new("TextBox")
+SpeedTextBox.Size = UDim2.new(0, 190, 0, 30)
+SpeedTextBox.Position = UDim2.new(0.5, -95, 0, 80)
+SpeedTextBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+SpeedTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedTextBox.PlaceholderText = "Masukkan WalkSpeed"
+SpeedTextBox.Text = tostring(WalkSpeed)
+SpeedTextBox.Font = Enum.Font.Gotham
+SpeedTextBox.TextSize = 14
+SpeedTextBox.Parent = Frame
+
+local SpeedTextBoxCorner = Instance.new("UICorner")
+SpeedTextBoxCorner.CornerRadius = UDim.new(0, 6)
+SpeedTextBoxCorner.Parent = SpeedTextBox
+
+local InfinityJumpButton = Frame:FindFirstChild("InfinityJumpButton") or CreateButton("Infinity Jump", 120)
+local FullBrightButton = Frame:FindFirstChild("FullBrightButton") or CreateButton("Full Bright", 160)
+local NoClipButton = Frame:FindFirstChild("NoClipButton") or CreateButton("No Clip", 200)
+local AutoHealButton = Frame:FindFirstChild("AutoHealButton") or CreateButton("AutoHeal", 240)
+
+-- ===== Karakter =====
+local Humanoid
+local Character = Player.Character
+
+local function UpdateCharacterRefs(char)
+    Character = char
+    Humanoid = char:WaitForChild("Humanoid")
+end
+
+-- ===== Fitur =====
+local AutoHealConnection
+local FullBrightConnection
+
+local function UpdateButtonColor(button, enabled)
+    button.BackgroundColor3 = enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(30, 30, 30)
+    button.Text = button.Text:match("^(.-):") .. " : " .. (enabled and "ON" or "OFF")
+end
+
+local function SetWalkSpeed(enabled)
+    if Humanoid and Humanoid:IsDescendantOf(game) then
+        local speed = tonumber(SpeedTextBox.Text) or WalkSpeed
+        Humanoid.WalkSpeed = enabled and math.min(speed, 100) or DefaultWalkSpeed
+    else
+        warn("Humanoid tidak ditemukan!")
+    end
+    UpdateButtonColor(WalkSpeedButton, enabled)
+end
+
+local function SetInfinityJump(enabled)
+    InfinityJumpEnabled = enabled
+    UpdateButtonColor(InfinityJumpButton, enabled)
+end
+
+local function ApplyFullBright()
+    Lighting.Brightness = 2
+    Lighting.ClockTime = 14
+    Lighting.FogEnd = 100000
+    Lighting.GlobalShadows = false
+end
+
+local function SetFullBright(enabled)
+    FullBrightEnabled = enabled
+    if FullBrightConnection then FullBrightConnection:Disconnect() end
+    if enabled then
+        ApplyFullBright()
+        FullBrightConnection = RunService.RenderStepped:Connect(ApplyFullBright)
+    else
+        Lighting.Brightness = DefaultLighting.Brightness
+        Lighting.ClockTime = DefaultLighting.ClockTime
+        Lighting.FogEnd = DefaultLighting.FogEnd
+        Lighting.GlobalShadows = DefaultLighting.GlobalShadows
+    end
+    UpdateButtonColor(FullBrightButton, enabled)
+end
+
+local function SetNoClip(enabled)
+    NoClipEnabled = enabled
+    UpdateButtonColor(NoClipButton, enabled)
+    if Character then
+        for _, part in pairs(Character:GetDescendants()) do
+            if part:IsA("BasePart") and part ~= Character:FindFirstChild("HumanoidRootPart") then
+                part.CanCollide = not enabled
             end
         end
-    end)
-end
-
--- Fungsi untuk melakukan fling
-local function fling()
-    if humanoidRootPart then
-        local bodyVelocity = Instance.new("BodyVelocity")
-        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-        bodyVelocity.Velocity = Vector3.new(0, flingStrength, 0) -- Kekuatan sesuai input
-        bodyVelocity.Parent = humanoidRootPart
-        game:GetService("Debris"):AddItem(bodyVelocity, 0.3) -- Durasi sedikit lebih lama untuk efek overpower
     end
 end
 
--- Mendeteksi input keyboard (PC) atau sentuhan (Android)
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if not gameProcessedEvent then
-        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.E then
-            fling()
-        elseif input.UserInputType == Enum.UserInputType.Touch then
-            fling() -- Fling saat layar disentuh
+local function SetAutoHeal(enabled)
+    AutoHealEnabled = enabled
+    UpdateButtonColor(AutoHealButton, enabled)
+    if AutoHealConnection then AutoHealConnection:Disconnect() AutoHealConnection = nil end
+    if enabled and Character and Humanoid then
+        AutoHealConnection = RunService.Heartbeat:Connect(function()
+            if Humanoid and Humanoid:IsDescendantOf(game) then
+                if Humanoid.Health < Humanoid.MaxHealth then
+                    Humanoid.Health = Humanoid.MaxHealth
+                end
+            end
+        end)
+    end
+end
+
+-- ===== Tombol Event =====
+WalkSpeedButton.MouseButton1Click:Connect(function()
+    WalkSpeedEnabled = not WalkSpeedEnabled
+    SetWalkSpeed(WalkSpeedEnabled)
+end)
+
+SpeedTextBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        local speed = tonumber(SpeedTextBox.Text)
+        if speed and speed >= 0 then
+            WalkSpeed = speed
+            if WalkSpeedEnabled then
+                SetWalkSpeed(true)
+            end
+        else
+            SpeedTextBox.Text = tostring(WalkSpeed)
+            warn("Masukkan angka valid untuk WalkSpeed!")
         end
     end
 end)
 
--- Inisialisasi UI saat script dijalankan
-createUI()
-
--- Update karakter jika respawn
-player.CharacterAdded:Connect(function(newCharacter)
-    character = newCharacter
-    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+InfinityJumpButton.MouseButton1Click:Connect(function()
+    SetInfinityJump(not InfinityJumpEnabled)
 end)
+
+FullBrightButton.MouseButton1Click:Connect(function()
+    SetFullBright(not FullBrightEnabled)
+end)
+
+NoClipButton.MouseButton1Click:Connect(function()
+    SetNoClip(not NoClipEnabled)
+end)
+
+AutoHealButton.MouseButton1Click:Connect(function()
+    SetAutoHeal(not AutoHealEnabled)
+end)
+
+-- ===== Minimize / Show dengan Animasi Halus =====
+local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+
+MinimizeButton.MouseButton1Click:Connect(function()
+    local tween = TweenService:Create(Frame, tweenInfo, { Size = UDim2.new(0, 220, 0, 0), BackgroundTransparency = 0.5 })
+    tween:Play()
+    tween.Completed:Wait()
+    Frame.Visible = false
+    ShowButton.Visible = true
+end)
+
+ShowButton.MouseButton1Click:Connect(function()
+    Frame.Visible = true
+    local tween = TweenService:Create(Frame, tweenInfo, { Size = UDim2.new(0, 220, 0, 280), BackgroundTransparency = 0.1 })
+    tween:Play()
+    ShowButton.Visible = false
+end)
+
+-- ===== Infinity Jump =====
+UserInputService.JumpRequest:Connect(function()
+    if InfinityJumpEnabled and Humanoid then
+        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+-- ===== No Clip =====
+RunService.Stepped:Connect(function()
+    if NoClipEnabled and Character and Humanoid then
+        if Humanoid:GetState() ~= Enum.HumanoidStateType.Running then
+            Humanoid:ChangeState(Enum.HumanoidStateType.Running)
+        end
+    end
+end)
+
+-- ===== Respawn handling =====
+Player.CharacterAdded:Connect(function(char)
+    UpdateCharacterRefs(char)
+    SetWalkSpeed(WalkSpeedEnabled)
+    SetNoClip(NoClipEnabled)
+    if AutoHealEnabled then SetAutoHeal(true) end
+    if FullBrightEnabled then SetFullBright(true) end
+end)
+
+-- ===== Drag GUI =====
+local dragging = false
+local dragInput
+local dragStart
+local startPos
+local function update(input)
+    local delta = input.Position - dragStart
+    Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+end
+
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = Frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then dragging = false end
+        end)
+    end
+end)
+
+Frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then update(input) end
+end)
+
+-- ===== Inisialisasi Tombol =====
+local function InitializeButtons()
+    UpdateButtonColor(WalkSpeedButton, WalkSpeedEnabled)
+    UpdateButtonColor(InfinityJumpButton, InfinityJumpEnabled)
+    UpdateButtonColor(FullBrightButton, FullBrightEnabled)
+    UpdateButtonColor(NoClipButton, NoClipEnabled)
+    UpdateButtonColor(AutoHealButton, AutoHealEnabled)
+end
+
+-- ===== Inisialisasi =====
+if Player.Character then
+    UpdateCharacterRefs(Player.Character)
+    InitializeButtons()
+    SetWalkSpeed(WalkSpeedEnabled)
+    SetInfinityJump(InfinityJumpEnabled)
+    SetFullBright(FullBrightEnabled)
+    SetNoClip(NoClipEnabled)
+    SetAutoHeal(AutoHealEnabled)
+end
