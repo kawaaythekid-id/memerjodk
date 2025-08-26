@@ -1,0 +1,175 @@
+-- LocalScript: Antarmuka F3X yang Dioptimalkan untuk Android
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Player = Players.LocalPlayer
+local Mouse = Player:GetMouse()
+
+-- Membuat ScreenGui untuk UI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "F3XControlUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = Player.PlayerGui
+
+-- Membuat Frame utama untuk UI
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0.3, 0, 0.4, 0) -- Skala relatif untuk layar kecil
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+-- Judul UI
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0.15, 0)
+title.Text = "F3X Control Panel"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.BackgroundTransparency = 1
+title.TextScaled = true
+title.Parent = frame
+
+-- Tombol untuk mengaktifkan F3X
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0.9, 0, 0.2, 0)
+toggleButton.Position = UDim2.new(0.05, 0, 0.2, 0)
+toggleButton.Text = "Aktifkan F3X"
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.TextScaled = true
+toggleButton.Active = true -- Penting untuk sentuhan
+toggleButton.Parent = frame
+
+-- Tombol untuk membuat Part
+local createPartButton = Instance.new("TextButton")
+createPartButton.Size = UDim2.new(0.9, 0, 0.2, 0)
+createPartButton.Position = UDim2.new(0.05, 0, 0.45, 0)
+createPartButton.Text = "Buat Part"
+createPartButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+createPartButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+createPartButton.TextScaled = true
+createPartButton.Active = true
+createPartButton.Parent = frame
+
+-- Tombol untuk mengubah warna Part
+local colorPartButton = Instance.new("TextButton")
+colorPartButton.Size = UDim2.new(0.9, 0, 0.2, 0)
+colorPartButton.Position = UDim2.new(0.05, 0, 0.7, 0)
+colorPartButton.Text = "Ubah Warna (Acak)"
+colorPartButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+colorPartButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+colorPartButton.TextScaled = true
+colorPartButton.Active = true
+colorPartButton.Parent = frame
+
+-- Fungsi untuk menemukan alat F3X
+local function findF3XTool()
+    for _, tool in ipairs(Player.Backpack:GetChildren()) do
+        if tool.Name:find("F3X") or tool.Name == "BuildingToolsByF3X" then
+            return tool
+        end
+    end
+    for _, tool in ipairs(Player.Character and Player.Character:GetChildren() or {}) do
+        if tool.Name:find("F3X") or tool.Name == "BuildingToolsByF3X" then
+            return tool
+        end
+    end
+    return nil
+end
+
+-- Fungsi untuk menampilkan notifikasi
+local function showNotification(message, color)
+    local notification = Instance.new("TextLabel")
+    notification.Size = UDim2.new(0.4, 0, 0.1, 0)
+    notification.Position = UDim2.new(0.3, 0, 0.1, 0)
+    notification.Text = message
+    notification.TextColor3 = color or Color3.fromRGB(255, 255, 255)
+    notification.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    notification.TextScaled = true
+    notification.Parent = screenGui
+    wait(3)
+    notification:Destroy()
+end
+
+-- Mendapatkan posisi untuk Part (mendukung sentuhan)
+local function getTargetPosition()
+    if UserInputService.TouchEnabled then
+        local touchInput = UserInputService:GetLastInputType() == Enum.UserInputType.Touch
+        if touchInput then
+            local touchPos = UserInputService:GetMouseLocation()
+            local ray = workspace.CurrentCamera:ScreenPointToRay(touchPos.X, touchPos.Y)
+            local raycastParams = RaycastParams.new()
+            raycastParams.FilterDescendantsInstances = {Player.Character}
+            raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+            local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+            return result and result.Position + Vector3.new(0, 5, 0) or Vector3.new(0, 10, 0)
+        end
+    end
+    return Mouse.Hit.Position + Vector3.new(0, 5, 0)
+end
+
+-- RemoteEvent untuk komunikasi dengan server
+local f3xRemote = ReplicatedStorage:FindFirstChild("F3XRemote") or Instance.new("RemoteEvent")
+f3xRemote.Name = "F3XRemote"
+f3xRemote.Parent = ReplicatedStorage
+
+-- Event untuk mengaktifkan F3X
+toggleButton.MouseButton1Click:Connect(function()
+    local f3xTool = findF3XTool()
+    if f3xTool then
+        if f3xTool.Parent ~= Player.Character then
+            f3xTool.Parent = Player.Character
+            toggleButton.Text = "F3X Aktif"
+            toggleButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+            showNotification("F3X Tool diaktifkan!", Color3.fromRGB(0, 255, 0))
+        else
+            f3xTool.Parent = Player.Backpack
+            toggleButton.Text = "Aktifkan F3X"
+            toggleButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+            showNotification("F3X Tool dinonaktifkan!", Color3.fromRGB(255, 165, 0))
+        end
+    else
+        showNotification("F3X Tool tidak ditemukan!", Color3.fromRGB(255, 0, 0))
+    end
+end)
+
+-- Event untuk membuat Part
+createPartButton.MouseButton1Click:Connect(function()
+    local f3xTool = findF3XTool()
+    if f3xTool then
+        local targetPos = getTargetPosition()
+        f3xRemote:FireServer("CreatePart", targetPos, Vector3.new(5, 5, 5))
+        showNotification("Part dibuat!", Color3.fromRGB(0, 255, 0))
+    else
+        showNotification("F3X Tool tidak ditemukan!", Color3.fromRGB(255, 0, 0))
+    end
+end)
+
+-- Event untuk mengubah warna Part
+colorPartButton.MouseButton1Click:Connect(function()
+    local f3xTool = findF3XTool()
+    local targetPart = Mouse.Target
+    if UserInputService.TouchEnabled then
+        local touchPos = UserInputService:GetMouseLocation()
+        local ray = workspace.CurrentCamera:ScreenPointToRay(touchPos.X, touchPos.Y)
+        local raycastParams = RaycastParams.new()
+        raycastParams.FilterDescendantsInstances = {Player.Character}
+        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+        local result = workspace:Raycast(ray.Origin, ray.Direction * 1000, raycastParams)
+        targetPart = result and result.Instance
+    end
+    if f3xTool and targetPart and targetPart:IsA("BasePart") then
+        local randomColor = Color3.fromRGB(math.random(0, 255), math.random(0, 255), math.random(0, 255))
+        f3xRemote:FireServer("ChangeColor", targetPart, randomColor)
+        showNotification("Warna Part diubah!", Color3.fromRGB(0, 255, 0))
+    else
+        showNotification("Pilih Part atau aktifkan F3X!", Color3.fromRGB(255, 0, 0))
+    end
+end)
+
+-- Membersihkan UI saat pemain keluar
+Player.AncestryChanged:Connect(function()
+    if not Player:IsDescendantOf(game) then
+        screenGui:Destroy()
+    end
+end)
