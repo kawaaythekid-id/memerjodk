@@ -1,72 +1,91 @@
--- Script: Menghentikan Tangga yang Bergoyang di Roblox
--- Letakkan di ServerScriptService
+-- LocalScript Stop Tangga Goyang (tetap bisa dipanjat)
+-- Taruh di StarterPlayerScripts
+local player = game.Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = character:WaitForChild("HumanoidRootPart")
 
-local TweenService = game:GetService("TweenService")
-local Workspace = game:GetService("Workspace")
+-- GUI
+local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+ScreenGui.Name = "LadderFixGUI"
 
--- Cari tangga di Workspace (asumsi nama "Ladder")
-local ladder = Workspace:WaitForChild("Ladder")
-if not ladder:IsA("BasePart") then
-    warn("Ladder harus berupa BasePart!")
-    return
+local Button = Instance.new("TextButton", ScreenGui)
+Button.Size = UDim2.new(0, 220, 0, 50)
+Button.Position = UDim2.new(0.5, -110, 0.85, 0)
+Button.Text = "Stop Ladder Shake"
+Button.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+Button.TextColor3 = Color3.fromRGB(255,255,255)
+Button.TextScaled = true
+Button.Font = Enum.Font.SourceSansBold
+Button.AutoButtonColor = true
+Button.Active = true
+Button.Draggable = true -- Bisa digeser di Android
+
+-- Variabel
+local isStopped = false
+local stoppedParts = {}
+
+-- Fungsi aktifkan
+local function stopLadder()
+	if isStopped then return end
+	isStopped = true
+	Button.Text = "Enable Shake"
+	Button.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+
+	-- Cari tangga di dekat player (radius 20 stud)
+	for _, obj in pairs(workspace:GetDescendants()) do
+		if obj:IsA("Part") and obj.Name:lower():find("ladder") then
+			if (obj.Position - hrp.Position).Magnitude < 20 then
+				obj.Anchored = true -- Hentikan goyang
+				table.insert(stoppedParts, obj)
+			end
+		end
+	end
 end
 
--- Posisi awal tangga (stabil)
-local originalPosition = ladder.Position
-local originalCFrame = ladder.CFrame
+-- Fungsi nonaktifkan
+local function enableShake()
+	if not isStopped then return end
+	isStopped = false
+	Button.Text = "Stop Ladder Shake"
+	Button.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
 
--- Info untuk goyangan (vibrasi kecil, misalnya 0.1 stud ke atas/bawah)
-local shakeDistance = 0.1
-local shakeDuration = 0.5  -- Detik per getar
-local isShaking = true
-
--- Fungsi untuk mulai goyangan (loop tween)
-local function startShaking()
-    if not isShaking then return end
-    
-    local shakeInfo = TweenInfo.new(
-        shakeDuration,
-        Enum.EasingStyle.Sine,
-        Enum.EasingDirection.InOut,
-        0,  -- Repeat count (0 = infinite)
-        true  -- Reverse (naik-turun)
-    )
-    
-    local shakeGoalUp = {Position = originalPosition + Vector3.new(0, shakeDistance, 0)}
-    local shakeGoalDown = {Position = originalPosition}
-    
-    local tweenUp = TweenService:Create(ladder, shakeInfo, shakeGoalUp)
-    local tweenDown = TweenService:Create(ladder, shakeInfo, shakeGoalDown)
-    
-    tweenUp:Play()
-    tweenUp.Completed:Connect(function()
-        if isShaking then
-            tweenDown:Play()
-            tweenDown.Completed:Connect(function()
-                startShaking()  -- Loop ulang
-            end)
-        end
-    end)
+	-- Kembalikan tangga
+	for _, part in ipairs(stoppedParts) do
+		if part and part.Parent then
+			part.Anchored = false
+		end
+	end
+	stoppedParts = {}
 end
 
--- Fungsi untuk hentikan goyangan
-local function stopShaking()
-    isShaking = false
-    TweenService:Create(ladder, TweenInfo.new(0.2), {CFrame = originalCFrame}):Play()
-    print("Tangga berhenti bergoyang!")
-end
-
--- Mulai goyangan saat script dimulai
-startShaking()
-
--- Contoh trigger: Hentikan jika player menyentuh tangga (gunakan Touch event)
-ladder.Touched:Connect(function(hit)
-    local humanoid = hit.Parent:FindFirstChild("Humanoid")
-    if humanoid then  -- Jika disentuh oleh player
-        stopShaking()
-    end
+-- Toggle manual lewat tombol
+Button.MouseButton1Click:Connect(function()
+	if isStopped then
+		enableShake()
+	else
+		stopLadder()
+	end
 end)
 
--- Opsional: Hentikan setelah waktu tertentu (misalnya 10 detik)
-wait(10)
--- stopShaking()  -- Uncomment jika ingin auto-stop
+-- Auto deteksi tangga (opsional)
+task.spawn(function()
+	while true do
+		task.wait(1) -- cek tiap 1 detik
+		local nearLadder = false
+
+		for _, obj in pairs(workspace:GetDescendants()) do
+			if obj:IsA("Part") and obj.Name:lower():find("ladder") then
+				if (obj.Position - hrp.Position).Magnitude < 20 then
+					nearLadder = true
+					break
+				end
+			end
+		end
+
+		if nearLadder and not isStopped then
+			stopLadder()
+		elseif not nearLadder and isStopped then
+			enableShake()
+		end
+	end
+end)
