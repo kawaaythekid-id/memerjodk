@@ -1,73 +1,37 @@
--- LocalScript: Toggle Ladder Mode (Client Only)
 local player = game.Players.LocalPlayer
-local gui = Instance.new("ScreenGui", player.PlayerGui)
-local button = Instance.new("TextButton", gui)
+local ladderFolder = Instance.new("Folder", workspace)
+ladderFolder.Name = "StaticLadders"
 
-button.Size = UDim2.new(0,200,0,50)
-button.Position = UDim2.new(0.5,-100,0.8,0)
-button.Text = "Pakai Tangga Clone"
-button.BackgroundColor3 = Color3.fromRGB(50,200,50)
-button.TextColor3 = Color3.new(1,1,1)
-button.TextScaled = true
-button.Draggable = true
+-- fungsi bikin versi statis
+local function makeStatic(original)
+    if not original:IsA("Model") then return end
 
-local useClone = false
-local ladderFolder = Instance.new("Folder")
-ladderFolder.Name = "ClientLadders"
-ladderFolder.Parent = workspace
+    -- clone model
+    local clone = original:Clone()
+    clone.Parent = ladderFolder
 
--- simpan data
-local originalParts = {}
-local clones = {}
+    -- buang constraint / motor
+    for _, obj in pairs(clone:GetDescendants()) do
+        if obj:IsA("Constraint") or obj:IsA("Motor6D") or obj:IsA("Weld") then
+            obj:Destroy()
+        elseif obj:IsA("BasePart") then
+            obj.Anchored = true
+            obj.CanCollide = true
+        end
+    end
 
--- fungsi buat clone tangga
-local function cloneLadder(part)
-	if clones[part] then return end
-	local clone = part:Clone()
-	clone.Anchored = true
-	clone.CanCollide = true
-	clone.Parent = ladderFolder
-	clone.Transparency = 0
-	originalParts[part] = true
-	clones[part] = clone
+    -- sembunyikan aslinya
+    for _, obj in pairs(original:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            obj.LocalTransparencyModifier = 1
+            obj.CanCollide = false
+        end
+    end
 end
 
--- mode clone ON
-local function enableClone()
-	for _, obj in pairs(workspace:GetDescendants()) do
-		if obj:IsA("BasePart") and obj.Name:lower():find("ladder") then
-			cloneLadder(obj)
-			-- sembunyikan versi asli
-			obj.LocalTransparencyModifier = 1
-			obj.CanCollide = false
-		end
-	end
+-- contoh: cari semua model yg namanya mengandung "Ladder"
+for _, obj in pairs(workspace:GetDescendants()) do
+    if obj:IsA("Model") and obj.Name:lower():find("ladder") then
+        makeStatic(obj)
+    end
 end
-
--- mode clone OFF
-local function disableClone()
-	for part, clone in pairs(clones) do
-		if part and part.Parent then
-			part.LocalTransparencyModifier = 0
-			part.CanCollide = true
-		end
-		if clone then
-			clone:Destroy()
-		end
-	end
-	clones = {}
-end
-
--- toggle tombol
-button.MouseButton1Click:Connect(function()
-	useClone = not useClone
-	if useClone then
-		enableClone()
-		button.Text = "Pakai Tangga Asli"
-		button.BackgroundColor3 = Color3.fromRGB(200,50,50)
-	else
-		disableClone()
-		button.Text = "Pakai Tangga Clone"
-		button.BackgroundColor3 = Color3.fromRGB(50,200,50)
-	end
-end)
