@@ -1,59 +1,48 @@
--- LocalScript (StarterGui) : Anti Goyang Sentuh Objek
+-- LocalScript freeze/unfreeze objek (Android only)
+
 local player = game.Players.LocalPlayer
-local mouse = player:GetMouse()
 
--- GUI
-local gui = Instance.new("ScreenGui", player.PlayerGui)
-gui.Name = "AntiGoyangGUI"
+-- Buat GUI tombol
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FreezeGUI"
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
-local label = Instance.new("TextLabel", gui)
-label.Size = UDim2.new(0, 250, 0, 50)
-label.Position = UDim2.new(0.5, -125, 0.05, 0)
-label.Text = "Sentuh objek untuk toggle goyang"
-label.TextScaled = true
-label.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-label.TextColor3 = Color3.new(1,1,1)
-label.Font = Enum.Font.GothamBold
-Instance.new("UICorner", label)
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 200, 0, 100)
+button.Position = UDim2.new(0.5, -100, 0.8, 0)
+button.Text = "Freeze OFF"
+button.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+button.TextScaled = true
+button.Parent = screenGui
 
--- Data toggle
-local stoppedObjects = {} -- simpan status objek yang sudah di-toggle
+-- Atur target objek (ganti sesuai nama objekmu di workspace)
+local object = workspace:WaitForChild("NamaObjek")
 
--- Fungsi stop goyang
-local function stopWobble(obj)
+local isFrozen = false
+
+-- Fungsi freeze/unfreeze
+local function FreezeObject(obj, freeze)
 	for _, part in pairs(obj:GetDescendants()) do
 		if part:IsA("BasePart") then
-			part.Anchored = true
-			part.Velocity = Vector3.zero
-			part.RotVelocity = Vector3.zero
+			part.Anchored = freeze
+			if freeze then
+				part.Velocity = Vector3.new(0, 0, 0)
+				part.RotVelocity = Vector3.new(0, 0, 0)
+			end
 		end
 	end
 end
 
--- Fungsi hidupkan kembali
-local function startWobble(obj)
-	for _, part in pairs(obj:GetDescendants()) do
-		if part:IsA("BasePart") then
-			part.Anchored = false
-		end
+-- Toggle ketika tombol ditekan
+button.MouseButton1Click:Connect(function()
+	isFrozen = not isFrozen
+	if isFrozen then
+		button.Text = "Freeze ON"
+		button.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+	else
+		button.Text = "Freeze OFF"
+		button.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 	end
-end
 
--- Ketika klik/tap objek
-mouse.Button1Down:Connect(function()
-	local target = mouse.Target
-	if target and target:IsDescendantOf(workspace) then
-		local topModel = target:FindFirstAncestorOfClass("Model") or target
-		if stoppedObjects[topModel] then
-			-- Hidupkan kembali
-			startWobble(topModel)
-			stoppedObjects[topModel] = nil
-			label.Text = "Goyang AKTIF lagi: " .. topModel.Name
-		else
-			-- Hentikan goyang
-			stopWobble(topModel)
-			stoppedObjects[topModel] = true
-			label.Text = "Goyang DIMATIKAN: " .. topModel.Name
-		end
-	end
+	FreezeObject(object, isFrozen)
 end)
