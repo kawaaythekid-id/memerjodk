@@ -1,48 +1,134 @@
--- LocalScript freeze/unfreeze objek (Android only)
+-- LocalScript (StarterPlayerScripts)
 
 local player = game.Players.LocalPlayer
+local mouse = player:GetMouse()
+local UserInputService = game:GetService("UserInputService")
 
--- Buat GUI tombol
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "FreezeGUI"
-screenGui.Parent = player:WaitForChild("PlayerGui")
+-- GUI Utama
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 200, 0, 100)
-button.Position = UDim2.new(0.5, -100, 0.8, 0)
-button.Text = "Freeze OFF"
-button.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-button.TextScaled = true
-button.Parent = screenGui
+-- Tombol toggle mode freeze
+local FreezeButton = Instance.new("TextButton")
+FreezeButton.Size = UDim2.new(0, 160, 0, 50)
+FreezeButton.Position = UDim2.new(0.05, 0, 0.6, 0)
+FreezeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+FreezeButton.TextColor3 = Color3.new(1, 1, 1)
+FreezeButton.TextScaled = true
+FreezeButton.Text = "Freeze Mode: OFF"
+FreezeButton.Parent = ScreenGui
 
--- Atur target objek (ganti sesuai nama objekmu di workspace)
-local object = workspace:WaitForChild("NamaObjek")
+-- TextBox untuk atur radius
+local RadiusBox = Instance.new("TextBox")
+RadiusBox.Size = UDim2.new(0, 160, 0, 40)
+RadiusBox.Position = UDim2.new(0.05, 0, 0.5, 0)
+RadiusBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+RadiusBox.TextColor3 = Color3.new(1, 1, 1)
+RadiusBox.TextScaled = true
+RadiusBox.Text = "20" -- default radius
+RadiusBox.Parent = ScreenGui
 
-local isFrozen = false
+-- Tombol Freeze semua
+local FreezeAllButton = Instance.new("TextButton")
+FreezeAllButton.Size = UDim2.new(0, 160, 0, 50)
+FreezeAllButton.Position = UDim2.new(0.05, 0, 0.7, 0)
+FreezeAllButton.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
+FreezeAllButton.TextColor3 = Color3.new(1, 1, 1)
+FreezeAllButton.TextScaled = true
+FreezeAllButton.Text = "Freeze Semua"
+FreezeAllButton.Parent = ScreenGui
 
--- Fungsi freeze/unfreeze
-local function FreezeObject(obj, freeze)
-	for _, part in pairs(obj:GetDescendants()) do
-		if part:IsA("BasePart") then
-			part.Anchored = freeze
-			if freeze then
-				part.Velocity = Vector3.new(0, 0, 0)
-				part.RotVelocity = Vector3.new(0, 0, 0)
+-- Tombol Unfreeze semua
+local UnfreezeAllButton = Instance.new("TextButton")
+UnfreezeAllButton.Size = UDim2.new(0, 160, 0, 50)
+UnfreezeAllButton.Position = UDim2.new(0.05, 0, 0.8, 0)
+UnfreezeAllButton.BackgroundColor3 = Color3.fromRGB(200, 150, 50)
+UnfreezeAllButton.TextColor3 = Color3.new(1, 1, 1)
+UnfreezeAllButton.TextScaled = true
+UnfreezeAllButton.Text = "Unfreeze Semua"
+UnfreezeAllButton.Parent = ScreenGui
+
+-- Variabel status
+local freezeMode = false
+local frozenParts = {}
+
+-- Toggle freeze mode
+FreezeButton.MouseButton1Click:Connect(function()
+	freezeMode = not freezeMode
+	if freezeMode then
+		FreezeButton.Text = "Freeze Mode: ON"
+		FreezeButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+	else
+		FreezeButton.Text = "Freeze Mode: OFF"
+		FreezeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+	end
+end)
+
+-- Fungsi freeze/unfreeze part (manual tap)
+local function toggleFreeze(part)
+	if not part or not part:IsA("BasePart") then return end
+	
+	if frozenParts[part] then
+		part.Anchored = false
+		frozenParts[part] = nil
+	else
+		part.Anchored = true
+		frozenParts[part] = true
+	end
+end
+
+-- Tap Android (manual freeze mode)
+UserInputService.TouchTap:Connect(function(touchPositions)
+	if not freezeMode then return end
+	local target = mouse.Target
+	if target then
+		toggleFreeze(target)
+	end
+end)
+
+-- Klik kiri PC support
+mouse.Button1Down:Connect(function()
+	if not freezeMode then return end
+	local target = mouse.Target
+	if target then
+		toggleFreeze(target)
+	end
+end)
+
+-- Freeze semua dalam radius
+local function freezeAll(radius)
+	local char = player.Character or player.CharacterAdded:Wait()
+	local root = char:FindFirstChild("HumanoidRootPart")
+	if not root then return end
+
+	for _, obj in pairs(workspace:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			local dist = (obj.Position - root.Position).Magnitude
+			if dist <= radius then
+				obj.Anchored = true
+				frozenParts[obj] = true
 			end
 		end
 	end
 end
 
--- Toggle ketika tombol ditekan
-button.MouseButton1Click:Connect(function()
-	isFrozen = not isFrozen
-	if isFrozen then
-		button.Text = "Freeze ON"
-		button.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-	else
-		button.Text = "Freeze OFF"
-		button.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+-- Unfreeze semua
+local function unfreezeAll()
+	for part, _ in pairs(frozenParts) do
+		if part and part:IsA("BasePart") then
+			part.Anchored = false
+		end
 	end
+	frozenParts = {}
+end
 
-	FreezeObject(object, isFrozen)
+-- Klik tombol Freeze Semua
+FreezeAllButton.MouseButton1Click:Connect(function()
+	local radius = tonumber(RadiusBox.Text) or 20
+	freezeAll(radius)
+end)
+
+-- Klik tombol Unfreeze Semua
+UnfreezeAllButton.MouseButton1Click:Connect(function()
+	unfreezeAll()
 end)
