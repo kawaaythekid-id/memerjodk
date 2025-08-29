@@ -1,5 +1,4 @@
--- LocalScript Stop Tangga Goyang (tetap bisa dipanjat)
--- Taruh di StarterPlayerScripts
+-- LocalScript Stop Tangga Goyang (Anchor semua Part dalam Model + Debug Message)
 local player = game.Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local hrp = character:WaitForChild("HumanoidRootPart")
@@ -22,7 +21,27 @@ Button.Draggable = true -- Bisa digeser di Android
 
 -- Variabel
 local isStopped = false
-local stoppedParts = {}
+local stoppedModels = {}
+
+-- Fungsi untuk menulis pesan debug ke chat
+local function debugMessage(msg, color)
+	game:GetService("StarterGui"):SetCore("ChatMakeSystemMessage", {
+		Text = "[LadderFix] " .. msg,
+		Color = color or Color3.fromRGB(0,255,0),
+		Font = Enum.Font.SourceSansBold,
+		FontSize = Enum.FontSize.Size24
+	})
+	print("[LadderFix] " .. msg)
+end
+
+-- Fungsi Anchor semua Part dalam Model
+local function anchorModel(model, state)
+	for _, obj in pairs(model:GetDescendants()) do
+		if obj:IsA("BasePart") then
+			obj.Anchored = state
+		end
+	end
+end
 
 -- Fungsi aktifkan
 local function stopLadder()
@@ -31,14 +50,29 @@ local function stopLadder()
 	Button.Text = "Enable Shake"
 	Button.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 
-	-- Cari tangga di dekat player (radius 20 stud)
+	local found = 0
+
+	-- Cari Model/Part bernama "ladder" dekat player
 	for _, obj in pairs(workspace:GetDescendants()) do
-		if obj:IsA("Part") and obj.Name:lower():find("ladder") then
+		if obj:IsA("Model") and obj.Name:lower():find("ladder") then
+			if obj.PrimaryPart and (obj.PrimaryPart.Position - hrp.Position).Magnitude < 20 then
+				anchorModel(obj, true)
+				table.insert(stoppedModels, obj)
+				found += 1
+			end
+		elseif obj:IsA("BasePart") and obj.Name:lower():find("ladder") then
 			if (obj.Position - hrp.Position).Magnitude < 20 then
-				obj.Anchored = true -- Hentikan goyang
-				table.insert(stoppedParts, obj)
+				obj.Anchored = true
+				table.insert(stoppedModels, obj)
+				found += 1
 			end
 		end
+	end
+
+	if found > 0 then
+		debugMessage("Tangga berhasil dihentikan ("..found.." part/model).", Color3.fromRGB(0,255,0))
+	else
+		debugMessage("Tidak ada tangga ditemukan di dekatmu.", Color3.fromRGB(255,0,0))
 	end
 end
 
@@ -49,13 +83,26 @@ local function enableShake()
 	Button.Text = "Stop Ladder Shake"
 	Button.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
 
-	-- Kembalikan tangga
-	for _, part in ipairs(stoppedParts) do
-		if part and part.Parent then
-			part.Anchored = false
+	local restored = 0
+
+	for _, obj in ipairs(stoppedModels) do
+		if obj and obj.Parent then
+			if obj:IsA("Model") then
+				anchorModel(obj, false)
+				restored += 1
+			elseif obj:IsA("BasePart") then
+				obj.Anchored = false
+				restored += 1
+			end
 		end
 	end
-	stoppedParts = {}
+	stoppedModels = {}
+
+	if restored > 0 then
+		debugMessage("Tangga dikembalikan normal ("..restored.." part/model).", Color3.fromRGB(255,255,0))
+	else
+		debugMessage("Tidak ada tangga untuk dikembalikan.", Color3.fromRGB(255,0,0))
+	end
 end
 
 -- Toggle manual lewat tombol
@@ -64,28 +111,5 @@ Button.MouseButton1Click:Connect(function()
 		enableShake()
 	else
 		stopLadder()
-	end
-end)
-
--- Auto deteksi tangga (opsional)
-task.spawn(function()
-	while true do
-		task.wait(1) -- cek tiap 1 detik
-		local nearLadder = false
-
-		for _, obj in pairs(workspace:GetDescendants()) do
-			if obj:IsA("Part") and obj.Name:lower():find("ladder") then
-				if (obj.Position - hrp.Position).Magnitude < 20 then
-					nearLadder = true
-					break
-				end
-			end
-		end
-
-		if nearLadder and not isStopped then
-			stopLadder()
-		elseif not nearLadder and isStopped then
-			enableShake()
-		end
 	end
 end)
