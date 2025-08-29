@@ -1,19 +1,73 @@
--- loop paksa full assembly
-runService.Heartbeat:Connect(function()
-	if isStabil then
-		for _, part in ipairs(ladderParts) do
-			if part and part:IsA("BasePart") then
-				-- nol-in velocity total
-				part.Velocity = Vector3.zero
-				part.RotVelocity = Vector3.zero
-				part.AssemblyLinearVelocity = Vector3.zero
-				part.AssemblyAngularVelocity = Vector3.zero
-				
-				-- paksa posisi/rotasi
-				if originalCFrames[part] then
-					part.CFrame = originalCFrames[part]
-				end
-			end
+-- LocalScript: Toggle Ladder Mode (Client Only)
+local player = game.Players.LocalPlayer
+local gui = Instance.new("ScreenGui", player.PlayerGui)
+local button = Instance.new("TextButton", gui)
+
+button.Size = UDim2.new(0,200,0,50)
+button.Position = UDim2.new(0.5,-100,0.8,0)
+button.Text = "Pakai Tangga Clone"
+button.BackgroundColor3 = Color3.fromRGB(50,200,50)
+button.TextColor3 = Color3.new(1,1,1)
+button.TextScaled = true
+button.Draggable = true
+
+local useClone = false
+local ladderFolder = Instance.new("Folder")
+ladderFolder.Name = "ClientLadders"
+ladderFolder.Parent = workspace
+
+-- simpan data
+local originalParts = {}
+local clones = {}
+
+-- fungsi buat clone tangga
+local function cloneLadder(part)
+	if clones[part] then return end
+	local clone = part:Clone()
+	clone.Anchored = true
+	clone.CanCollide = true
+	clone.Parent = ladderFolder
+	clone.Transparency = 0
+	originalParts[part] = true
+	clones[part] = clone
+end
+
+-- mode clone ON
+local function enableClone()
+	for _, obj in pairs(workspace:GetDescendants()) do
+		if obj:IsA("BasePart") and obj.Name:lower():find("ladder") then
+			cloneLadder(obj)
+			-- sembunyikan versi asli
+			obj.LocalTransparencyModifier = 1
+			obj.CanCollide = false
 		end
+	end
+end
+
+-- mode clone OFF
+local function disableClone()
+	for part, clone in pairs(clones) do
+		if part and part.Parent then
+			part.LocalTransparencyModifier = 0
+			part.CanCollide = true
+		end
+		if clone then
+			clone:Destroy()
+		end
+	end
+	clones = {}
+end
+
+-- toggle tombol
+button.MouseButton1Click:Connect(function()
+	useClone = not useClone
+	if useClone then
+		enableClone()
+		button.Text = "Pakai Tangga Asli"
+		button.BackgroundColor3 = Color3.fromRGB(200,50,50)
+	else
+		disableClone()
+		button.Text = "Pakai Tangga Clone"
+		button.BackgroundColor3 = Color3.fromRGB(50,200,50)
 	end
 end)
