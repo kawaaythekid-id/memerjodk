@@ -3,109 +3,116 @@
 local player = game.Players.LocalPlayer
 local mouse = player:GetMouse()
 local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
 
--- GUI Utama
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Tombol toggle mode freeze
+-- Tombol Freeze Mode
 local FreezeButton = Instance.new("TextButton")
 FreezeButton.Size = UDim2.new(0, 160, 0, 50)
-FreezeButton.Position = UDim2.new(0.05, 0, 0.55, 0)
+FreezeButton.Position = UDim2.new(0.05, 0, 0.6, 0)
 FreezeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-FreezeButton.TextColor3 = Color3.new(1, 1, 1)
+FreezeButton.TextColor3 = Color3.new(1,1,1)
 FreezeButton.TextScaled = true
 FreezeButton.Text = "Freeze Mode: OFF"
 FreezeButton.Parent = ScreenGui
 
--- TextBox untuk atur radius
+-- Radius input
 local RadiusBox = Instance.new("TextBox")
 RadiusBox.Size = UDim2.new(0, 160, 0, 40)
-RadiusBox.Position = UDim2.new(0.05, 0, 0.45, 0)
-RadiusBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-RadiusBox.TextColor3 = Color3.new(1, 1, 1)
+RadiusBox.Position = UDim2.new(0.05, 0, 0.5, 0)
+RadiusBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
+RadiusBox.TextColor3 = Color3.new(1,1,1)
 RadiusBox.TextScaled = true
 RadiusBox.Text = "20"
 RadiusBox.Parent = ScreenGui
 
--- Tombol Freeze semua
+-- Freeze semua
 local FreezeAllButton = Instance.new("TextButton")
 FreezeAllButton.Size = UDim2.new(0, 160, 0, 50)
-FreezeAllButton.Position = UDim2.new(0.05, 0, 0.65, 0)
-FreezeAllButton.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
-FreezeAllButton.TextColor3 = Color3.new(1, 1, 1)
+FreezeAllButton.Position = UDim2.new(0.05, 0, 0.7, 0)
+FreezeAllButton.BackgroundColor3 = Color3.fromRGB(50,100,200)
+FreezeAllButton.TextColor3 = Color3.new(1,1,1)
 FreezeAllButton.TextScaled = true
 FreezeAllButton.Text = "Freeze Semua"
 FreezeAllButton.Parent = ScreenGui
 
--- Tombol Unfreeze semua
+-- Unfreeze semua
 local UnfreezeAllButton = Instance.new("TextButton")
 UnfreezeAllButton.Size = UDim2.new(0, 160, 0, 50)
-UnfreezeAllButton.Position = UDim2.new(0.05, 0, 0.75, 0)
-UnfreezeAllButton.BackgroundColor3 = Color3.fromRGB(200, 150, 50)
-UnfreezeAllButton.TextColor3 = Color3.new(1, 1, 1)
+UnfreezeAllButton.Position = UDim2.new(0.05, 0, 0.8, 0)
+UnfreezeAllButton.BackgroundColor3 = Color3.fromRGB(200,150,50)
+UnfreezeAllButton.TextColor3 = Color3.new(1,1,1)
 UnfreezeAllButton.TextScaled = true
 UnfreezeAllButton.Text = "Unfreeze Semua"
 UnfreezeAllButton.Parent = ScreenGui
 
--- Variabel status
+-- Status
 local freezeMode = false
 local frozenParts = {}
 
--- Helper: cek apakah part milik character player
+-- Helper: skip character
 local function isCharacterPart(part)
 	local char = player.Character
 	return char and part:IsDescendantOf(char)
 end
 
--- Helper: cek apakah part sedang bergerak
-local function isMoving(part)
-	if not part:IsA("BasePart") then return false end
-	return part.Velocity.Magnitude > 0.1 -- hanya kalau benar-benar bergerak
-end
-
--- Toggle freeze mode
+-- Toggle mode
 FreezeButton.MouseButton1Click:Connect(function()
 	freezeMode = not freezeMode
 	if freezeMode then
 		FreezeButton.Text = "Freeze Mode: ON"
-		FreezeButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+		FreezeButton.BackgroundColor3 = Color3.fromRGB(0,170,0)
 	else
 		FreezeButton.Text = "Freeze Mode: OFF"
-		FreezeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+		FreezeButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
 	end
 end)
 
--- Fungsi freeze/unfreeze part (manual tap)
-local function toggleFreeze(part)
-	if not part or not part:IsA("BasePart") then return end
-	if isCharacterPart(part) then return end -- 🚫 jangan freeze bagian tubuh player
-	if not isMoving(part) then return end -- 🚫 hanya freeze part yang bergerak
+-- Freeze function (no anchor, just lock)
+local function freezePart(part)
+	if not part:IsA("BasePart") or isCharacterPart(part) then return end
+	if frozenParts[part] then return end
 
+	-- Simpan posisi awal
+	frozenParts[part] = part.CFrame
+
+	-- Hentikan physics visual
+	part.Velocity = Vector3.new(0,0,0)
+	part.RotVelocity = Vector3.new(0,0,0)
+end
+
+-- Unfreeze single
+local function unfreezePart(part)
 	if frozenParts[part] then
-		part.Anchored = false
 		frozenParts[part] = nil
-	else
-		part.Anchored = true
-		frozenParts[part] = true
 	end
 end
 
--- Tap Android (manual freeze mode)
+-- Tap untuk freeze
 UserInputService.TouchTap:Connect(function()
 	if not freezeMode then return end
 	local target = mouse.Target
 	if target then
-		toggleFreeze(target)
+		if frozenParts[target] then
+			unfreezePart(target)
+		else
+			freezePart(target)
+		end
 	end
 end)
 
--- Klik kiri PC support
+-- PC support
 mouse.Button1Down:Connect(function()
 	if not freezeMode then return end
 	local target = mouse.Target
 	if target then
-		toggleFreeze(target)
+		if frozenParts[target] then
+			unfreezePart(target)
+		else
+			freezePart(target)
+		end
 	end
 end)
 
@@ -116,11 +123,10 @@ local function freezeAll(radius)
 	if not root then return end
 
 	for _, obj in pairs(workspace:GetDescendants()) do
-		if obj:IsA("BasePart") and not isCharacterPart(obj) and isMoving(obj) then
+		if obj:IsA("BasePart") and not isCharacterPart(obj) then
 			local dist = (obj.Position - root.Position).Magnitude
 			if dist <= radius then
-				obj.Anchored = true
-				frozenParts[obj] = true
+				freezePart(obj)
 			end
 		end
 	end
@@ -128,21 +134,26 @@ end
 
 -- Unfreeze semua
 local function unfreezeAll()
-	for part, _ in pairs(frozenParts) do
-		if part and part:IsA("BasePart") then
-			part.Anchored = false
-		end
-	end
 	frozenParts = {}
 end
 
--- Klik tombol Freeze Semua
+-- Button connections
 FreezeAllButton.MouseButton1Click:Connect(function()
 	local radius = tonumber(RadiusBox.Text) or 20
 	freezeAll(radius)
 end)
 
--- Klik tombol Unfreeze Semua
 UnfreezeAllButton.MouseButton1Click:Connect(function()
 	unfreezeAll()
+end)
+
+-- Update loop: jaga frozen parts tetap diam
+RunService.RenderStepped:Connect(function()
+	for part, cf in pairs(frozenParts) do
+		if part and part.Parent then
+			part.Velocity = Vector3.new(0,0,0)
+			part.RotVelocity = Vector3.new(0,0,0)
+			part.CFrame = cf -- paksa tetap di posisi awal
+		end
+	end
 end)
