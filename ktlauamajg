@@ -1,37 +1,59 @@
+-- LocalScript (StarterGui) : Anti Goyang Sentuh Objek
 local player = game.Players.LocalPlayer
-local ladderFolder = Instance.new("Folder", workspace)
-ladderFolder.Name = "StaticLadders"
+local mouse = player:GetMouse()
 
--- fungsi bikin versi statis
-local function makeStatic(original)
-    if not original:IsA("Model") then return end
+-- GUI
+local gui = Instance.new("ScreenGui", player.PlayerGui)
+gui.Name = "AntiGoyangGUI"
 
-    -- clone model
-    local clone = original:Clone()
-    clone.Parent = ladderFolder
+local label = Instance.new("TextLabel", gui)
+label.Size = UDim2.new(0, 250, 0, 50)
+label.Position = UDim2.new(0.5, -125, 0.05, 0)
+label.Text = "Sentuh objek untuk toggle goyang"
+label.TextScaled = true
+label.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+label.TextColor3 = Color3.new(1,1,1)
+label.Font = Enum.Font.GothamBold
+Instance.new("UICorner", label)
 
-    -- buang constraint / motor
-    for _, obj in pairs(clone:GetDescendants()) do
-        if obj:IsA("Constraint") or obj:IsA("Motor6D") or obj:IsA("Weld") then
-            obj:Destroy()
-        elseif obj:IsA("BasePart") then
-            obj.Anchored = true
-            obj.CanCollide = true
-        end
-    end
+-- Data toggle
+local stoppedObjects = {} -- simpan status objek yang sudah di-toggle
 
-    -- sembunyikan aslinya
-    for _, obj in pairs(original:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            obj.LocalTransparencyModifier = 1
-            obj.CanCollide = false
-        end
-    end
+-- Fungsi stop goyang
+local function stopWobble(obj)
+	for _, part in pairs(obj:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Anchored = true
+			part.Velocity = Vector3.zero
+			part.RotVelocity = Vector3.zero
+		end
+	end
 end
 
--- contoh: cari semua model yg namanya mengandung "Ladder"
-for _, obj in pairs(workspace:GetDescendants()) do
-    if obj:IsA("Model") and obj.Name:lower():find("ladder") then
-        makeStatic(obj)
-    end
+-- Fungsi hidupkan kembali
+local function startWobble(obj)
+	for _, part in pairs(obj:GetDescendants()) do
+		if part:IsA("BasePart") then
+			part.Anchored = false
+		end
+	end
 end
+
+-- Ketika klik/tap objek
+mouse.Button1Down:Connect(function()
+	local target = mouse.Target
+	if target and target:IsDescendantOf(workspace) then
+		local topModel = target:FindFirstAncestorOfClass("Model") or target
+		if stoppedObjects[topModel] then
+			-- Hidupkan kembali
+			startWobble(topModel)
+			stoppedObjects[topModel] = nil
+			label.Text = "Goyang AKTIF lagi: " .. topModel.Name
+		else
+			-- Hentikan goyang
+			stopWobble(topModel)
+			stoppedObjects[topModel] = true
+			label.Text = "Goyang DIMATIKAN: " .. topModel.Name
+		end
+	end
+end)
