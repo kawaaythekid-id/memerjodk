@@ -1,0 +1,72 @@
+-- Script: Menghentikan Tangga yang Bergoyang di Roblox
+-- Letakkan di ServerScriptService
+
+local TweenService = game:GetService("TweenService")
+local Workspace = game:GetService("Workspace")
+
+-- Cari tangga di Workspace (asumsi nama "Ladder")
+local ladder = Workspace:WaitForChild("Ladder")
+if not ladder:IsA("BasePart") then
+    warn("Ladder harus berupa BasePart!")
+    return
+end
+
+-- Posisi awal tangga (stabil)
+local originalPosition = ladder.Position
+local originalCFrame = ladder.CFrame
+
+-- Info untuk goyangan (vibrasi kecil, misalnya 0.1 stud ke atas/bawah)
+local shakeDistance = 0.1
+local shakeDuration = 0.5  -- Detik per getar
+local isShaking = true
+
+-- Fungsi untuk mulai goyangan (loop tween)
+local function startShaking()
+    if not isShaking then return end
+    
+    local shakeInfo = TweenInfo.new(
+        shakeDuration,
+        Enum.EasingStyle.Sine,
+        Enum.EasingDirection.InOut,
+        0,  -- Repeat count (0 = infinite)
+        true  -- Reverse (naik-turun)
+    )
+    
+    local shakeGoalUp = {Position = originalPosition + Vector3.new(0, shakeDistance, 0)}
+    local shakeGoalDown = {Position = originalPosition}
+    
+    local tweenUp = TweenService:Create(ladder, shakeInfo, shakeGoalUp)
+    local tweenDown = TweenService:Create(ladder, shakeInfo, shakeGoalDown)
+    
+    tweenUp:Play()
+    tweenUp.Completed:Connect(function()
+        if isShaking then
+            tweenDown:Play()
+            tweenDown.Completed:Connect(function()
+                startShaking()  -- Loop ulang
+            end)
+        end
+    end)
+end
+
+-- Fungsi untuk hentikan goyangan
+local function stopShaking()
+    isShaking = false
+    TweenService:Create(ladder, TweenInfo.new(0.2), {CFrame = originalCFrame}):Play()
+    print("Tangga berhenti bergoyang!")
+end
+
+-- Mulai goyangan saat script dimulai
+startShaking()
+
+-- Contoh trigger: Hentikan jika player menyentuh tangga (gunakan Touch event)
+ladder.Touched:Connect(function(hit)
+    local humanoid = hit.Parent:FindFirstChild("Humanoid")
+    if humanoid then  -- Jika disentuh oleh player
+        stopShaking()
+    end
+end)
+
+-- Opsional: Hentikan setelah waktu tertentu (misalnya 10 detik)
+wait(10)
+-- stopShaking()  -- Uncomment jika ingin auto-stop
