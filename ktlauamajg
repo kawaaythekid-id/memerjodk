@@ -1,69 +1,86 @@
--- LocalScript (StarterPlayerScripts)
--- Freeze Visual Script (Client Only, Android Friendly)
+-- Bagian GUI di dalam LocalScript
 
-local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-
-local player = Players.LocalPlayer
-local camera = Workspace.CurrentCamera
-
--- === GUI ===
+local player = game.Players.LocalPlayer
 local gui = Instance.new("ScreenGui")
 gui.ResetOnSpawn = false
 gui.Name = "FreezeUI"
 gui.Parent = player:WaitForChild("PlayerGui")
 
+-- Panel utama
+local panel = Instance.new("Frame")
+panel.Size = UDim2.new(0, 180, 0, 120)
+panel.Position = UDim2.new(0.05, 0, 0.7, 0)
+panel.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+panel.BackgroundTransparency = 0.2
+panel.BorderSizePixel = 0
+panel.Parent = gui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0, 12)
+UICorner.Parent = panel
+
+local UIStroke = Instance.new("UIStroke")
+UIStroke.Color = Color3.fromRGB(0, 170, 255)
+UIStroke.Thickness = 2
+UIStroke.Parent = panel
+
+-- Judul
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 24)
+title.Position = UDim2.new(0, 0, 0, 5)
+title.BackgroundTransparency = 1
+title.Text = "Freeze Tool"
+title.TextColor3 = Color3.fromRGB(0, 255, 255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+title.Parent = panel
+
+-- Tombol toggle
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(0, 140, 0, 48)
-toggleBtn.Position = UDim2.new(0.05, 0, 0.75, 0)
+toggleBtn.Size = UDim2.new(0.9, 0, 0, 40)
+toggleBtn.Position = UDim2.new(0.05, 0, 0.25, 0)
 toggleBtn.Text = "Freeze: OFF"
 toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 toggleBtn.TextColor3 = Color3.new(1, 1, 1)
 toggleBtn.Font = Enum.Font.GothamBold
 toggleBtn.TextSize = 18
-toggleBtn.Parent = gui
+toggleBtn.Parent = panel
 
+local btnCorner = Instance.new("UICorner")
+btnCorner.CornerRadius = UDim.new(0, 8)
+btnCorner.Parent = toggleBtn
+
+-- Label radius
+local radiusLabel = Instance.new("TextLabel")
+radiusLabel.Size = UDim2.new(0.4, 0, 0, 30)
+radiusLabel.Position = UDim2.new(0.05, 0, 0.7, 0)
+radiusLabel.BackgroundTransparency = 1
+radiusLabel.Text = "Radius:"
+radiusLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+radiusLabel.Font = Enum.Font.Gotham
+radiusLabel.TextSize = 16
+radiusLabel.TextXAlignment = Enum.TextXAlignment.Left
+radiusLabel.Parent = panel
+
+-- TextBox radius
 local radiusBox = Instance.new("TextBox")
-radiusBox.Size = UDim2.new(0, 140, 0, 40)
-radiusBox.Position = UDim2.new(0.05, 0, 0.83, 0)
-radiusBox.PlaceholderText = "Radius"
+radiusBox.Size = UDim2.new(0.5, 0, 0, 30)
+radiusBox.Position = UDim2.new(0.45, 0, 0.7, 0)
+radiusBox.PlaceholderText = "12"
 radiusBox.Text = "12"
 radiusBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 radiusBox.TextColor3 = Color3.new(1, 1, 1)
 radiusBox.ClearTextOnFocus = false
 radiusBox.Font = Enum.Font.Gotham
-radiusBox.TextSize = 18
-radiusBox.Parent = gui
+radiusBox.TextSize = 16
+radiusBox.Parent = panel
 
--- === State ===
+local radiusCorner = Instance.new("UICorner")
+radiusCorner.CornerRadius = UDim.new(0, 6)
+radiusCorner.Parent = radiusBox
+
+-- === Animasi tombol saat diaktifkan/nonaktifkan ===
 local enabled = false
-local frozenMap = {} -- originalPart -> clone
-local visualsFolder = Instance.new("Folder")
-visualsFolder.Name = "ClientFreezeVisuals_" .. player.UserId
-visualsFolder.Parent = Workspace
-
--- Preview sphere
-local preview = Instance.new("Part")
-preview.Anchored = true
-preview.CanCollide = false
-preview.Transparency = 0.6
-preview.Material = Enum.Material.ForceField
-preview.Color = Color3.fromRGB(0, 170, 255)
-preview.Shape = Enum.PartType.Ball
-preview.Size = Vector3.new(1, 1, 1)
-preview.Parent = visualsFolder
-preview.Visible = false
-
-local lastWorldPos = nil
-
--- === Helpers ===
-local function parseRadius()
-	local r = tonumber(radiusBox.Text) or 12
-	return math.clamp(r, 2, 100)
-end
-
 local function setEnabled(state)
 	enabled = state
 	if enabled then
@@ -72,7 +89,6 @@ local function setEnabled(state)
 	else
 		toggleBtn.Text = "Freeze: OFF"
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-		preview.Visible = false
 	end
 end
 
@@ -80,128 +96,9 @@ toggleBtn.MouseButton1Click:Connect(function()
 	setEnabled(not enabled)
 end)
 
-radiusBox.FocusLost:Connect(function()
-	radiusBox.Text = tostring(parseRadius())
-end)
-
-local function screenRaycast(screenPos)
-	local r = camera:ViewportPointToRay(screenPos.X, screenPos.Y)
-	local rayParams = RaycastParams.new()
-	rayParams.FilterType = Enum.RaycastFilterType.Exclude
-	rayParams.FilterDescendantsInstances = { player.Character, visualsFolder }
-	local res = Workspace:Raycast(r.Origin, r.Direction * 500, rayParams)
-	if res then
-		return res.Position
-	end
-	return nil
-end
-
-local function getPartsInRadius(center, radius)
-	local overlap = OverlapParams.new()
-	overlap.FilterType = Enum.RaycastFilterType.Exclude
-	overlap.FilterDescendantsInstances = { player.Character, visualsFolder }
-	return Workspace:GetPartBoundsInRadius(center, radius, overlap)
-end
-
-local function isCharacterPart(part)
-	local model = part:FindFirstAncestorOfClass("Model")
-	return model and model:FindFirstChildOfClass("Humanoid") ~= nil
-end
-
--- Freeze Visual
-local function freezePart(p)
-	if frozenMap[p] or not p:IsA("BasePart") then return end
-	if isCharacterPart(p) then return end
-
-	-- sembunyikan asli
-	p.LocalTransparencyModifier = 1
-
-	-- clone visual
-	local c = p:Clone()
-	c.Anchored = true
-	c.CanCollide = false
-	c.Material = Enum.Material.Neon
-	c.Color = Color3.fromRGB(0, 255, 255)
-	c.Parent = visualsFolder
-
-	c.CFrame = p.CFrame
-	c.Size = p.Size
-
-	frozenMap[p] = c
-end
-
-local function unfreezePart(p)
-	local c = frozenMap[p]
-	if c then
-		if p:IsA("BasePart") then
-			p.LocalTransparencyModifier = 0
-		end
-		c:Destroy()
-		frozenMap[p] = nil
-	end
-end
-
-local function toggleFreezeAt(pos, radius)
-	for _, part in ipairs(getPartsInRadius(pos, radius)) do
-		if part:IsA("BasePart") and not isCharacterPart(part) then
-			if frozenMap[part] then
-				unfreezePart(part)
-			else
-				freezePart(part)
-			end
-		end
-	end
-end
-
--- === Input (Android + Desktop) ===
-if UIS.TouchEnabled then
-	-- Preview saat drag
-	UIS.TouchMoved:Connect(function(touch)
-		if not enabled or UIS:GetFocusedTextBox() then return end
-		local pos3d = screenRaycast(touch.Position)
-		if pos3d then
-			lastWorldPos = pos3d
-			local r = parseRadius()
-			preview.Size = Vector3.new(r*2, r*2, r*2)
-			preview.CFrame = CFrame.new(pos3d)
-			preview.Visible = true
-		else
-			preview.Visible = false
-		end
-	end)
-
-	-- Freeze saat lepas jari
-	UIS.TouchEnded:Connect(function()
-		if enabled and lastWorldPos then
-			toggleFreezeAt(lastWorldPos, parseRadius())
-		end
-	end)
-else
-	-- PC fallback
-	RunService.RenderStepped:Connect(function()
-		if not enabled then
-			preview.Visible = false
-			return
-		end
-		local mouse = player:GetMouse()
-		local pos3d = screenRaycast(Vector2.new(mouse.X, mouse.Y))
-		if pos3d then
-			lastWorldPos = pos3d
-			local r = parseRadius()
-			preview.Size = Vector3.new(r*2, r*2, r*2)
-			preview.CFrame = CFrame.new(pos3d)
-			preview.Visible = true
-		else
-			preview.Visible = false
-		end
-	end)
-
-	player:GetMouse().Button1Down:Connect(function()
-		if enabled and lastWorldPos then
-			toggleFreezeAt(lastWorldPos, parseRadius())
-		end
-	end)
-end
-
--- Default OFF
-setEnabled(false)
+-- Export UI elements supaya bisa dipakai di script utama
+return {
+	Enabled = function() return enabled end,
+	SetEnabled = setEnabled,
+	RadiusBox = radiusBox,
+}
