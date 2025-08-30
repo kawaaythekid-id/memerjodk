@@ -1,159 +1,207 @@
 -- LocalScript (StarterPlayerScripts)
+-- Freeze Visual Script (Client Only, Android Friendly)
 
-local player = game.Players.LocalPlayer
-local mouse = player:GetMouse()
-local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = player:WaitForChild("PlayerGui")
+local player = Players.LocalPlayer
+local camera = Workspace.CurrentCamera
 
--- Tombol Freeze Mode
-local FreezeButton = Instance.new("TextButton")
-FreezeButton.Size = UDim2.new(0, 160, 0, 50)
-FreezeButton.Position = UDim2.new(0.05, 0, 0.6, 0)
-FreezeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-FreezeButton.TextColor3 = Color3.new(1,1,1)
-FreezeButton.TextScaled = true
-FreezeButton.Text = "Freeze Mode: OFF"
-FreezeButton.Parent = ScreenGui
+-- === GUI ===
+local gui = Instance.new("ScreenGui")
+gui.ResetOnSpawn = false
+gui.Name = "FreezeUI"
+gui.Parent = player:WaitForChild("PlayerGui")
 
--- Radius input
-local RadiusBox = Instance.new("TextBox")
-RadiusBox.Size = UDim2.new(0, 160, 0, 40)
-RadiusBox.Position = UDim2.new(0.05, 0, 0.5, 0)
-RadiusBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
-RadiusBox.TextColor3 = Color3.new(1,1,1)
-RadiusBox.TextScaled = true
-RadiusBox.Text = "20"
-RadiusBox.Parent = ScreenGui
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 140, 0, 48)
+toggleBtn.Position = UDim2.new(0.05, 0, 0.75, 0)
+toggleBtn.Text = "Freeze: OFF"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 18
+toggleBtn.Parent = gui
 
--- Freeze semua
-local FreezeAllButton = Instance.new("TextButton")
-FreezeAllButton.Size = UDim2.new(0, 160, 0, 50)
-FreezeAllButton.Position = UDim2.new(0.05, 0, 0.7, 0)
-FreezeAllButton.BackgroundColor3 = Color3.fromRGB(50,100,200)
-FreezeAllButton.TextColor3 = Color3.new(1,1,1)
-FreezeAllButton.TextScaled = true
-FreezeAllButton.Text = "Freeze Semua"
-FreezeAllButton.Parent = ScreenGui
+local radiusBox = Instance.new("TextBox")
+radiusBox.Size = UDim2.new(0, 140, 0, 40)
+radiusBox.Position = UDim2.new(0.05, 0, 0.83, 0)
+radiusBox.PlaceholderText = "Radius"
+radiusBox.Text = "12"
+radiusBox.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+radiusBox.TextColor3 = Color3.new(1, 1, 1)
+radiusBox.ClearTextOnFocus = false
+radiusBox.Font = Enum.Font.Gotham
+radiusBox.TextSize = 18
+radiusBox.Parent = gui
 
--- Unfreeze semua
-local UnfreezeAllButton = Instance.new("TextButton")
-UnfreezeAllButton.Size = UDim2.new(0, 160, 0, 50)
-UnfreezeAllButton.Position = UDim2.new(0.05, 0, 0.8, 0)
-UnfreezeAllButton.BackgroundColor3 = Color3.fromRGB(200,150,50)
-UnfreezeAllButton.TextColor3 = Color3.new(1,1,1)
-UnfreezeAllButton.TextScaled = true
-UnfreezeAllButton.Text = "Unfreeze Semua"
-UnfreezeAllButton.Parent = ScreenGui
+-- === State ===
+local enabled = false
+local frozenMap = {} -- originalPart -> clone
+local visualsFolder = Instance.new("Folder")
+visualsFolder.Name = "ClientFreezeVisuals_" .. player.UserId
+visualsFolder.Parent = Workspace
 
--- Status
-local freezeMode = false
-local frozenParts = {}
+-- Preview sphere
+local preview = Instance.new("Part")
+preview.Anchored = true
+preview.CanCollide = false
+preview.Transparency = 0.6
+preview.Material = Enum.Material.ForceField
+preview.Color = Color3.fromRGB(0, 170, 255)
+preview.Shape = Enum.PartType.Ball
+preview.Size = Vector3.new(1, 1, 1)
+preview.Parent = visualsFolder
+preview.Visible = false
 
--- Helper: skip character
-local function isCharacterPart(part)
-	local char = player.Character
-	return char and part:IsDescendantOf(char)
+local lastWorldPos = nil
+
+-- === Helpers ===
+local function parseRadius()
+	local r = tonumber(radiusBox.Text) or 12
+	return math.clamp(r, 2, 100)
 end
 
--- Toggle mode
-FreezeButton.MouseButton1Click:Connect(function()
-	freezeMode = not freezeMode
-	if freezeMode then
-		FreezeButton.Text = "Freeze Mode: ON"
-		FreezeButton.BackgroundColor3 = Color3.fromRGB(0,170,0)
+local function setEnabled(state)
+	enabled = state
+	if enabled then
+		toggleBtn.Text = "Freeze: ON"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
 	else
-		FreezeButton.Text = "Freeze Mode: OFF"
-		FreezeButton.BackgroundColor3 = Color3.fromRGB(200,50,50)
-	end
-end)
-
--- Freeze function (no anchor, just lock)
-local function freezePart(part)
-	if not part:IsA("BasePart") or isCharacterPart(part) then return end
-	if frozenParts[part] then return end
-
-	-- Simpan posisi awal
-	frozenParts[part] = part.CFrame
-
-	-- Hentikan physics visual
-	part.Velocity = Vector3.new(0,0,0)
-	part.RotVelocity = Vector3.new(0,0,0)
-end
-
--- Unfreeze single
-local function unfreezePart(part)
-	if frozenParts[part] then
-		frozenParts[part] = nil
+		toggleBtn.Text = "Freeze: OFF"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		preview.Visible = false
 	end
 end
 
--- Tap untuk freeze
-UserInputService.TouchTap:Connect(function()
-	if not freezeMode then return end
-	local target = mouse.Target
-	if target then
-		if frozenParts[target] then
-			unfreezePart(target)
-		else
-			freezePart(target)
-		end
-	end
+toggleBtn.MouseButton1Click:Connect(function()
+	setEnabled(not enabled)
 end)
 
--- PC support
-mouse.Button1Down:Connect(function()
-	if not freezeMode then return end
-	local target = mouse.Target
-	if target then
-		if frozenParts[target] then
-			unfreezePart(target)
-		else
-			freezePart(target)
-		end
-	end
+radiusBox.FocusLost:Connect(function()
+	radiusBox.Text = tostring(parseRadius())
 end)
 
--- Freeze semua dalam radius
-local function freezeAll(radius)
-	local char = player.Character or player.CharacterAdded:Wait()
-	local root = char:FindFirstChild("HumanoidRootPart")
-	if not root then return end
+local function screenRaycast(screenPos)
+	local r = camera:ViewportPointToRay(screenPos.X, screenPos.Y)
+	local rayParams = RaycastParams.new()
+	rayParams.FilterType = Enum.RaycastFilterType.Exclude
+	rayParams.FilterDescendantsInstances = { player.Character, visualsFolder }
+	local res = Workspace:Raycast(r.Origin, r.Direction * 500, rayParams)
+	if res then
+		return res.Position
+	end
+	return nil
+end
 
-	for _, obj in pairs(workspace:GetDescendants()) do
-		if obj:IsA("BasePart") and not isCharacterPart(obj) then
-			local dist = (obj.Position - root.Position).Magnitude
-			if dist <= radius then
-				freezePart(obj)
+local function getPartsInRadius(center, radius)
+	local overlap = OverlapParams.new()
+	overlap.FilterType = Enum.RaycastFilterType.Exclude
+	overlap.FilterDescendantsInstances = { player.Character, visualsFolder }
+	return Workspace:GetPartBoundsInRadius(center, radius, overlap)
+end
+
+local function isCharacterPart(part)
+	local model = part:FindFirstAncestorOfClass("Model")
+	return model and model:FindFirstChildOfClass("Humanoid") ~= nil
+end
+
+-- Freeze Visual
+local function freezePart(p)
+	if frozenMap[p] or not p:IsA("BasePart") then return end
+	if isCharacterPart(p) then return end
+
+	-- sembunyikan asli
+	p.LocalTransparencyModifier = 1
+
+	-- clone visual
+	local c = p:Clone()
+	c.Anchored = true
+	c.CanCollide = false
+	c.Material = Enum.Material.Neon
+	c.Color = Color3.fromRGB(0, 255, 255)
+	c.Parent = visualsFolder
+
+	c.CFrame = p.CFrame
+	c.Size = p.Size
+
+	frozenMap[p] = c
+end
+
+local function unfreezePart(p)
+	local c = frozenMap[p]
+	if c then
+		if p:IsA("BasePart") then
+			p.LocalTransparencyModifier = 0
+		end
+		c:Destroy()
+		frozenMap[p] = nil
+	end
+end
+
+local function toggleFreezeAt(pos, radius)
+	for _, part in ipairs(getPartsInRadius(pos, radius)) do
+		if part:IsA("BasePart") and not isCharacterPart(part) then
+			if frozenMap[part] then
+				unfreezePart(part)
+			else
+				freezePart(part)
 			end
 		end
 	end
 end
 
--- Unfreeze semua
-local function unfreezeAll()
-	frozenParts = {}
+-- === Input (Android + Desktop) ===
+if UIS.TouchEnabled then
+	-- Preview saat drag
+	UIS.TouchMoved:Connect(function(touch)
+		if not enabled or UIS:GetFocusedTextBox() then return end
+		local pos3d = screenRaycast(touch.Position)
+		if pos3d then
+			lastWorldPos = pos3d
+			local r = parseRadius()
+			preview.Size = Vector3.new(r*2, r*2, r*2)
+			preview.CFrame = CFrame.new(pos3d)
+			preview.Visible = true
+		else
+			preview.Visible = false
+		end
+	end)
+
+	-- Freeze saat lepas jari
+	UIS.TouchEnded:Connect(function()
+		if enabled and lastWorldPos then
+			toggleFreezeAt(lastWorldPos, parseRadius())
+		end
+	end)
+else
+	-- PC fallback
+	RunService.RenderStepped:Connect(function()
+		if not enabled then
+			preview.Visible = false
+			return
+		end
+		local mouse = player:GetMouse()
+		local pos3d = screenRaycast(Vector2.new(mouse.X, mouse.Y))
+		if pos3d then
+			lastWorldPos = pos3d
+			local r = parseRadius()
+			preview.Size = Vector3.new(r*2, r*2, r*2)
+			preview.CFrame = CFrame.new(pos3d)
+			preview.Visible = true
+		else
+			preview.Visible = false
+		end
+	end)
+
+	player:GetMouse().Button1Down:Connect(function()
+		if enabled and lastWorldPos then
+			toggleFreezeAt(lastWorldPos, parseRadius())
+		end
+	end)
 end
 
--- Button connections
-FreezeAllButton.MouseButton1Click:Connect(function()
-	local radius = tonumber(RadiusBox.Text) or 20
-	freezeAll(radius)
-end)
-
-UnfreezeAllButton.MouseButton1Click:Connect(function()
-	unfreezeAll()
-end)
-
--- Update loop: jaga frozen parts tetap diam
-RunService.RenderStepped:Connect(function()
-	for part, cf in pairs(frozenParts) do
-		if part and part.Parent then
-			part.Velocity = Vector3.new(0,0,0)
-			part.RotVelocity = Vector3.new(0,0,0)
-			part.CFrame = cf -- paksa tetap di posisi awal
-		end
-	end
-end)
+-- Default OFF
+setEnabled(false)
