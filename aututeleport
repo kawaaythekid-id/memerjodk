@@ -1,5 +1,4 @@
 -- LocalScript di dalam ScreenGui
--- Script teleport otomatis 1.5 detik sekali, dengan tombol Start (Android friendly)
 
 local Players = game:GetService("Players")
 local player = Players.LocalPlayer
@@ -20,31 +19,69 @@ local points = {
     Vector3.new(-663.5, 61.9, -444.3)
 }
 
--- Buat tombol Start di layar
 local screenGui = script.Parent
-local startButton = Instance.new("TextButton")
-startButton.Size = UDim2.new(0, 200, 0, 100)
-startButton.Position = UDim2.new(0.5, -100, 0.8, 0) -- tengah bawah
-startButton.Text = "START"
-startButton.TextSize = 32
-startButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
-startButton.TextColor3 = Color3.new(1, 1, 1)
-startButton.Parent = screenGui
+
+-- Function untuk bikin tombol dengan style keren
+local function createButton(text, color, posY)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 220, 0, 60)
+    btn.Position = UDim2.new(0.5, -110, posY, 0)
+    btn.Text = text
+    btn.TextSize = 26
+    btn.Font = Enum.Font.GothamBold
+    btn.BackgroundColor3 = color
+    btn.TextColor3 = Color3.new(1, 1, 1)
+    btn.AutoButtonColor = true
+    btn.Parent = screenGui
+
+    -- Rounded corner
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 15)
+    corner.Parent = btn
+
+    -- Shadow effect
+    local shadow = Instance.new("UIStroke")
+    shadow.Thickness = 2
+    shadow.Color = Color3.fromRGB(20,20,20)
+    shadow.Parent = btn
+
+    return btn
+end
+
+-- Buat tombol START & STOP
+local startButton = createButton("▶ START", Color3.fromRGB(0, 170, 255), 0.75)
+local stopButton = createButton("■ STOP", Color3.fromRGB(255, 70, 70), 0.62)
+stopButton.Visible = false
+
+-- Variabel kontrol
+local teleporting = false
 
 -- Fungsi teleport otomatis
 local function startTeleport()
-    startButton.Visible = false -- sembunyikan tombol setelah ditekan
-    while true do
-        for _,pos in ipairs(points) do
+    teleporting = true
+    startButton.Visible = false
+    stopButton.Visible = true
+
+    while teleporting do
+        for _, pos in ipairs(points) do
+            if not teleporting then break end
             if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 player.Character:MoveTo(pos)
             end
-            task.wait(1.5) -- delay 1.5 detik
+            task.wait(1.5)
         end
     end
 end
 
--- Event ketika tombol ditekan
+-- Event tombol
 startButton.MouseButton1Click:Connect(function()
-    startTeleport()
+    if not teleporting then
+        startTeleport()
+    end
+end)
+
+stopButton.MouseButton1Click:Connect(function()
+    teleporting = false
+    stopButton.Visible = false
+    startButton.Visible = true
 end)
