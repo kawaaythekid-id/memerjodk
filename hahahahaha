@@ -7,18 +7,18 @@ local player = Players.LocalPlayer
 local targetPlayer = nil
 local enabled = false
 local followConn
-local positionMode = "Back" -- default posisi
-local distance = 4 -- default jarak (0-10)
+local positionMode = "Back"
+local distance = 4 -- default jarak
 
--- === GUI SETUP ===
+-- === GUI ===
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "StandBehindGUI"
+screenGui.Name = "StandFollowMobile"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 220, 0, 230)
-frame.Position = UDim2.new(1, -230, 0, 50)
+frame.Size = UDim2.new(0, 160, 0, 180)
+frame.Position = UDim2.new(1, -170, 0, 50)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
 frame.Active = true
@@ -26,75 +26,117 @@ frame.Draggable = true
 frame.Parent = screenGui
 
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, 0, 0, 30)
+title.Size = UDim2.new(1, -30, 0, 25)
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-title.Text = "Stand Follow"
+title.Text = "Stand"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.Font = Enum.Font.SourceSansBold
-title.TextSize = 18
+title.TextSize = 16
 title.Parent = frame
 
--- dropdown player
+-- Minimize button
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 25, 0, 25)
+minimizeBtn.Position = UDim2.new(1, -25, 0, 0)
+minimizeBtn.Text = "-"
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
+minimizeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+minimizeBtn.Parent = frame
+
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, 0, 1, -25)
+content.Position = UDim2.new(0,0,0,25)
+content.BackgroundTransparency = 1
+content.Parent = frame
+
+local minimized = false
+minimizeBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	content.Visible = not minimized
+	minimizeBtn.Text = minimized and "+" or "-"
+end)
+
+-- pilih player
 local playerDropdown = Instance.new("TextButton")
-playerDropdown.Size = UDim2.new(1, -20, 0, 30)
-playerDropdown.Position = UDim2.new(0, 10, 0, 40)
+playerDropdown.Size = UDim2.new(1, -10, 0, 25)
+playerDropdown.Position = UDim2.new(0, 5, 0, 5)
 playerDropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 playerDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
 playerDropdown.Text = "Pilih Player"
-playerDropdown.Parent = frame
+playerDropdown.Parent = content
 
--- container daftar player
-local dropdownFrame = Instance.new("Frame")
-dropdownFrame.Size = UDim2.new(1, -20, 0, 80)
-dropdownFrame.Position = UDim2.new(0, 10, 0, 75)
+-- daftar player popup
+local dropdownFrame = Instance.new("ScrollingFrame")
+dropdownFrame.Size = UDim2.new(1, -10, 0, 70)
+dropdownFrame.Position = UDim2.new(0, 5, 0, 35)
 dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 dropdownFrame.Visible = false
-dropdownFrame.ClipsDescendants = true
-dropdownFrame.Parent = frame
+dropdownFrame.BorderSizePixel = 0
+dropdownFrame.CanvasSize = UDim2.new(0,0,0,0)
+dropdownFrame.ScrollBarThickness = 6
+dropdownFrame.Parent = content
 
 local uiList = Instance.new("UIListLayout")
 uiList.Parent = dropdownFrame
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
 
--- posisi tombol (Depan/Belakang/Kanan/Kiri)
-local modes = {"Front", "Back", "Right", "Left"}
+-- tombol posisi (1 baris kecil)
+local posRow = Instance.new("Frame")
+posRow.Size = UDim2.new(1, -10, 0, 25)
+posRow.Position = UDim2.new(0,5,0,110)
+posRow.BackgroundTransparency = 1
+posRow.Parent = content
+
+local modes = {"F","B","L","R"}
+local fullNames = {F="Front",B="Back",L="Left",R="Right"}
 local modeButtons = {}
 for i, name in ipairs(modes) do
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0.5, -15, 0, 25)
-	btn.Position = UDim2.new(((i-1)%2)*0.5, 10 + (((i-1)%2)*5), 0, 160 + (math.floor((i-1)/2) * 30))
+	btn.Size = UDim2.new(0.25, -2, 1, 0)
+	btn.Position = UDim2.new((i-1)*0.25, (i-1)*2, 0, 0)
 	btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 	btn.Text = name
-	btn.Parent = frame
+	btn.Parent = posRow
 	modeButtons[name] = btn
 
 	btn.MouseButton1Click:Connect(function()
-		positionMode = name
+		positionMode = fullNames[name]
 		for _, b in pairs(modeButtons) do
 			b.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 		end
 		btn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 	end)
 end
-modeButtons["Back"].BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+modeButtons["B"].BackgroundColor3 = Color3.fromRGB(0,120,200)
 
--- Slider untuk jarak
+-- slider jarak
 local sliderFrame = Instance.new("Frame")
-sliderFrame.Size = UDim2.new(1, -20, 0, 20)
-sliderFrame.Position = UDim2.new(0, 10, 0, 130)
+sliderFrame.Size = UDim2.new(1, -10, 0, 15)
+sliderFrame.Position = UDim2.new(0,5,0,85)
 sliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-sliderFrame.Parent = frame
+sliderFrame.Parent = content
 
 local sliderBar = Instance.new("Frame")
-sliderBar.Size = UDim2.new(0, 0, 1, 0)
+sliderBar.Size = UDim2.new(0.4, 0, 1, 0)
 sliderBar.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
 sliderBar.Parent = sliderFrame
+
+local sliderLabel = Instance.new("TextLabel")
+sliderLabel.Size = UDim2.new(1, 0, 1, 0)
+sliderLabel.BackgroundTransparency = 1
+sliderLabel.Text = "4"
+sliderLabel.TextColor3 = Color3.fromRGB(255,255,255)
+sliderLabel.Font = Enum.Font.SourceSansBold
+sliderLabel.TextSize = 12
+sliderLabel.Parent = sliderFrame
 
 local dragging = false
 local function updateSlider(inputX)
 	local relative = math.clamp((inputX - sliderFrame.AbsolutePosition.X) / sliderFrame.AbsoluteSize.X, 0, 1)
-	distance = math.floor(relative * 10 * 10) / 10 -- 0.1 step, range 0-10
+	distance = math.floor(relative * 100) / 10
 	sliderBar.Size = UDim2.new(relative, 0, 1, 0)
+	sliderLabel.Text = tostring(distance)
 end
 
 sliderFrame.InputBegan:Connect(function(input)
@@ -103,27 +145,25 @@ sliderFrame.InputBegan:Connect(function(input)
 		updateSlider(input.Position.X)
 	end
 end)
-
 UserInputService.InputChanged:Connect(function(input)
 	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
 		updateSlider(input.Position.X)
 	end
 end)
-
 UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 then
 		dragging = false
 	end
 end)
 
--- tombol toggle
+-- toggle
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(1, -20, 0, 30)
-toggleBtn.Position = UDim2.new(0, 10, 1, -40)
+toggleBtn.Size = UDim2.new(1, -10, 0, 25)
+toggleBtn.Position = UDim2.new(0,5,1,-30)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.Text = "Toggle OFF"
-toggleBtn.Parent = frame
+toggleBtn.Text = "OFF"
+toggleBtn.Parent = content
 
 -- === LOGIC ===
 local function getCharParts(character)
@@ -135,14 +175,14 @@ end
 
 local function followTarget()
 	if followConn then followConn:Disconnect() end
-	followConn = RunService.RenderStepped:Connect(function(dt)
+	followConn = RunService.RenderStepped:Connect(function()
 		if not targetPlayer or not targetPlayer.Character then return end
 		local _, targetHRP = getCharParts(targetPlayer.Character)
 		local myChar = player.Character
 		local _, myHRP = getCharParts(myChar)
 
 		if targetHRP and myHRP then
-			local offset
+			local offset = Vector3.new()
 			if positionMode == "Back" then
 				offset = Vector3.new(0, 0, distance)
 			elseif positionMode == "Front" then
@@ -152,9 +192,8 @@ local function followTarget()
 			elseif positionMode == "Left" then
 				offset = Vector3.new(-distance, 0, 0)
 			end
-
-			local targetPos = targetHRP.CFrame * CFrame.new(offset)
-			myHRP.CFrame = CFrame.new(targetPos.Position, targetHRP.Position)
+			local targetPos = (targetHRP.CFrame * CFrame.new(offset)).Position
+			myChar:MoveTo(targetPos) -- biar tidak getar
 		end
 	end)
 end
@@ -171,19 +210,18 @@ local function toggle()
 	if enabled then
 		if targetPlayer then
 			followTarget()
-			toggleBtn.Text = "Toggle ON"
+			toggleBtn.Text = "ON"
 			toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
 		else
 			enabled = false
-			toggleBtn.Text = "Toggle OFF"
+			toggleBtn.Text = "OFF"
 		end
 	else
 		stopFollow()
-		toggleBtn.Text = "Toggle OFF"
+		toggleBtn.Text = "OFF"
 		toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 	end
 end
-
 toggleBtn.MouseButton1Click:Connect(toggle)
 
 -- === Dropdown logic ===
@@ -191,33 +229,28 @@ local function refreshDropdown()
 	for _, child in ipairs(dropdownFrame:GetChildren()) do
 		if child:IsA("TextButton") then child:Destroy() end
 	end
-
 	for _, plr in pairs(Players:GetPlayers()) do
 		if plr ~= player then
 			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(1, 0, 0, 25)
+			btn.Size = UDim2.new(1, -5, 0, 20)
 			btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
 			btn.Text = plr.Name
 			btn.Parent = dropdownFrame
-
 			btn.MouseButton1Click:Connect(function()
 				targetPlayer = plr
-				playerDropdown.Text = "Target: " .. plr.Name
+				playerDropdown.Text = plr.Name
 				dropdownFrame.Visible = false
-				if enabled then
-					followTarget()
-				end
+				if enabled then followTarget() end
 			end)
 		end
 	end
+	dropdownFrame.CanvasSize = UDim2.new(0,0,0,uiList.AbsoluteContentSize.Y)
 end
 
 playerDropdown.MouseButton1Click:Connect(function()
 	dropdownFrame.Visible = not dropdownFrame.Visible
-	if dropdownFrame.Visible then
-		refreshDropdown()
-	end
+	if dropdownFrame.Visible then refreshDropdown() end
 end)
 
 Players.PlayerAdded:Connect(refreshDropdown)
@@ -228,5 +261,3 @@ Players.PlayerRemoving:Connect(function(rem)
 	end
 	refreshDropdown()
 end)
-
-print("[StandFollowGUI] Pilih player, atur posisi (Depan/Belakang/Kiri/Kanan), slider jarak 0-10.")
