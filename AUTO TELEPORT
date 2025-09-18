@@ -1,0 +1,211 @@
+-- LocalScript: UltimateCoordinateGUI_Android_Final
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local hrp = nil
+
+-- GUI Setup
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "UltimateCoordinateGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0,280,0,240)
+frame.Position = UDim2.new(0.05,0,0.1,0)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+frame.BackgroundTransparency = 0.2
+frame.BorderSizePixel = 0
+frame.AnchorPoint = Vector2.new(0,0)
+frame.Parent = screenGui
+frame.Active = true
+frame.Draggable = true
+
+-- Label koordinat real-time
+local coordsLabel = Instance.new("TextLabel")
+coordsLabel.Size = UDim2.new(1,-10,0,30)
+coordsLabel.Position = UDim2.new(0,5,0,5)
+coordsLabel.BackgroundTransparency = 1
+coordsLabel.TextColor3 = Color3.fromRGB(0,255,0)
+coordsLabel.Font = Enum.Font.Code
+coordsLabel.TextSize = 16
+coordsLabel.TextXAlignment = Enum.TextXAlignment.Left
+coordsLabel.Text = "X: 0 Y: 0 Z: 0"
+coordsLabel.Parent = frame
+
+-- Label preview titik tersimpan
+local savedLabel = Instance.new("TextLabel")
+savedLabel.Size = UDim2.new(1,-10,0,30)
+savedLabel.Position = UDim2.new(0,5,0,40)
+savedLabel.BackgroundTransparency = 1
+savedLabel.TextColor3 = Color3.fromRGB(255,200,0)
+savedLabel.Font = Enum.Font.Code
+savedLabel.TextSize = 14
+savedLabel.TextXAlignment = Enum.TextXAlignment.Left
+savedLabel.Text = "Saved: -"
+savedLabel.Parent = frame
+
+-- Tombol helper
+local function createButton(name,text,pos)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.45,0,0.15,0)
+    btn.Position = pos
+    btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Font = Enum.Font.SourceSansBold
+    btn.TextSize = 14
+    btn.Text = text
+    btn.Name = name
+    btn.Parent = frame
+    return btn
+end
+
+local saveBtn = createButton("SaveBtn","💾 Save",{0.025,0,0.55,0})
+local removeBtn = createButton("RemoveBtn","🗑 Remove",{0.525,0,0.55,0})
+local autoBtn = createButton("AutoBtn","▶ Auto-Teleport",{0.025,0,0.35,0})
+local prevBtn = createButton("PrevBtn","⬅",{0.025,0,0.78,0})
+local nextBtn = createButton("NextBtn","➡",{0.525,0,0.78,0})
+local tpBtn = createButton("TeleportBtn","✈",{0.525,0,0.35,0})
+
+-- TextBox untuk delay teleport
+local delayBox = Instance.new("TextBox")
+delayBox.Size = UDim2.new(0.45,0,0.15,0)
+delayBox.Position = UDim2.new(0.025,0,0.15,0)
+delayBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
+delayBox.TextColor3 = Color3.fromRGB(255,255,255)
+delayBox.Font = Enum.Font.SourceSansBold
+delayBox.TextSize = 14
+delayBox.PlaceholderText = "Delay (s)"
+delayBox.Text = "1.5"
+delayBox.Parent = frame
+
+-- Utility
+local function formatVector3(v)
+    if not v then return "X:- Y:- Z:-" end
+    return string.format("X: %.2f Y: %.2f Z: %.2f",v.X,v.Y,v.Z)
+end
+
+-- Character setup
+local function setCharacter(c)
+    character = c
+    hrp = c:WaitForChild("HumanoidRootPart",5)
+end
+if player.Character then setCharacter(player.Character) end
+player.CharacterAdded:Connect(setCharacter)
+
+-- Update real-time koordinat
+RunService.RenderStepped:Connect(function()
+    if hrp and hrp.Parent then
+        coordsLabel.Text = formatVector3(hrp.Position)
+    else
+        coordsLabel.Text = "X:- Y:- Z:-"
+    end
+end)
+
+-- Data titik tersimpan
+local savedCoords = {}
+local savedNames = {}
+local currentIndex = 1
+local autoTeleporting = false
+local moveDuration = 1.5 -- default
+
+-- Update preview
+local function updatePreview()
+    if #savedCoords == 0 then
+        savedLabel.Text = "Saved: -"
+    else
+        savedLabel.Text = string.format("Saved [%d/%d]: %s",currentIndex,#savedCoords,savedNames[currentIndex])
+    end
+end
+
+-- TextBox untuk delay
+delayBox.FocusLost:Connect(function()
+    local value = tonumber(delayBox.Text)
+    if value and value > 0 then
+        moveDuration = value
+    else
+        delayBox.Text = tostring(moveDuration)
+    end
+end)
+
+-- Tombol Save
+saveBtn.MouseButton1Click:Connect(function()
+    if hrp then
+        local name = "Point"..(#savedCoords+1)
+        table.insert(savedCoords, hrp.Position)
+        table.insert(savedNames, name)
+        currentIndex = #savedCoords
+        saveBtn.Text = "💾✔"
+        updatePreview()
+        task.delay(1,function() saveBtn.Text = "💾 Save" end)
+    end
+end)
+
+-- Tombol Remove
+removeBtn.MouseButton1Click:Connect(function()
+    if #savedCoords==0 then return end
+    table.remove(savedCoords,currentIndex)
+    table.remove(savedNames,currentIndex)
+    if currentIndex>#savedCoords then currentIndex=#savedCoords end
+    updatePreview()
+end)
+
+-- Tombol Next
+nextBtn.MouseButton1Click:Connect(function()
+    if #savedCoords==0 then return end
+    currentIndex = currentIndex+1
+    if currentIndex>#savedCoords then currentIndex=1 end
+    updatePreview()
+end)
+
+-- Tombol Prev
+prevBtn.MouseButton1Click:Connect(function()
+    if #savedCoords==0 then return end
+    currentIndex = currentIndex-1
+    if currentIndex<1 then currentIndex=#savedCoords end
+    updatePreview()
+end)
+
+-- Tombol Teleport
+tpBtn.MouseButton1Click:Connect(function()
+    if hrp and savedCoords[currentIndex] then
+        hrp.CFrame = CFrame.new(savedCoords[currentIndex])
+    end
+end)
+
+-- Tombol Auto-Teleport Smooth
+local function autoTeleportSmooth()
+    if #savedCoords==0 then return end
+    autoTeleporting = true
+    autoBtn.Text = "⏸ Stop Auto"
+    local index = 1
+    while autoTeleporting and #savedCoords>0 do
+        if hrp and hrp.Parent then
+            local startCFrame = hrp.CFrame
+            local endCFrame = CFrame.new(savedCoords[index])
+            local elapsed = 0
+            while elapsed<moveDuration and autoTeleporting do
+                elapsed = elapsed + RunService.RenderStepped:Wait()
+                local alpha = math.clamp(elapsed/moveDuration,0,1)
+                hrp.CFrame = startCFrame:Lerp(endCFrame, alpha)
+            end
+            hrp.CFrame = endCFrame
+        end
+        index = index + 1
+        if index>#savedCoords then index=1 end
+        currentIndex = index
+        updatePreview()
+    end
+    autoBtn.Text = "▶ Auto-Teleport"
+end
+
+autoBtn.MouseButton1Click:Connect(function()
+    if autoTeleporting then
+        autoTeleporting = false
+    else
+        task.spawn(autoTeleportSmooth)
+    end
+end)
+
+updatePreview()
