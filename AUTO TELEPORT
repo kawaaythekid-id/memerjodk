@@ -1,246 +1,46 @@
--- LocalScript: UltimateCoordinateGUI_Android_Final
+-- LocalScript (letakkan di StarterPlayer > StarterPlayerScripts)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 
 -- Tunggu karakter siap
 local character = player.Character or player.CharacterAdded:Wait()
-local hrp = character:WaitForChild("HumanoidRootPart")
-local humanoid = character:WaitForChild("Humanoid")
+repeat task.wait() until character:FindFirstChild("HumanoidRootPart")
+local hrp = character:FindFirstChild("HumanoidRootPart")
 
 -- GUI Setup
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "UltimateCoordinateGUI"
+screenGui.Name = "SimpleCoordGUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0,320,0,360)
+frame.Size = UDim2.new(0,250,0,100)
 frame.Position = UDim2.new(0.05,0,0.05,0)
-frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-frame.BackgroundTransparency = 0.2
-frame.BorderSizePixel = 0
+frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 frame.Active = true
 frame.Draggable = true
 frame.Parent = screenGui
 
--- Labels
 local coordsLabel = Instance.new("TextLabel")
-coordsLabel.Size = UDim2.new(1,-10,0,30)
+coordsLabel.Size = UDim2.new(1,-10,1,-10)
 coordsLabel.Position = UDim2.new(0,5,0,5)
 coordsLabel.BackgroundTransparency = 1
 coordsLabel.TextColor3 = Color3.fromRGB(0,255,0)
 coordsLabel.Font = Enum.Font.Code
-coordsLabel.TextSize = 16
+coordsLabel.TextSize = 18
 coordsLabel.TextXAlignment = Enum.TextXAlignment.Left
+coordsLabel.TextYAlignment = Enum.TextYAlignment.Top
 coordsLabel.Text = "X: 0 Y: 0 Z: 0"
 coordsLabel.Parent = frame
-
-local savedLabel = Instance.new("TextLabel")
-savedLabel.Size = UDim2.new(1,-10,0,30)
-savedLabel.Position = UDim2.new(0,5,0,40)
-savedLabel.BackgroundTransparency = 1
-savedLabel.TextColor3 = Color3.fromRGB(255,200,0)
-savedLabel.Font = Enum.Font.Code
-savedLabel.TextSize = 14
-savedLabel.TextXAlignment = Enum.TextXAlignment.Left
-savedLabel.Text = "Saved: -"
-savedLabel.Parent = frame
-
--- Fungsi buat tombol
-local function createButton(name,text,posX,posY,color)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.4,0,0.12,0)
-    btn.Position = UDim2.new(posX,0,posY,0)
-    btn.BackgroundColor3 = color or Color3.fromRGB(50,50,50)
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 16
-    btn.Text = text
-    btn.Name = name
-    btn.Parent = frame
-    return btn
-end
-
--- Tombol
-local saveBtn = createButton("SaveBtn","💾 Save",0.05,0.55)
-local removeBtn = createButton("RemoveBtn","🗑 Remove",0.55,0.55)
-local deleteAllBtn = createButton("DeleteAllBtn","🗑 Delete All",0.05,0.9,Color3.fromRGB(180,0,0))
-local autoBtn = createButton("AutoBtn","▶ Auto-Teleport",0.05,0.35)
-local tpBtn = createButton("TeleportBtn","✈ Teleport",0.55,0.35)
-local prevBtn = createButton("PrevBtn","⬅ Prev",0.05,0.78)
-local nextBtn = createButton("NextBtn","Next ➡",0.55,0.78)
-local antiDamageBtn = createButton("AntiDamageBtn","💪 Anti-Damage: ON",0.05,0.66,Color3.fromRGB(0,120,255))
-
--- Minimize & Close
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Size = UDim2.new(0.12,0,0.08,0)
-minimizeBtn.Position = UDim2.new(0.75,0,0.01,0)
-minimizeBtn.Text = "—"
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
-minimizeBtn.TextColor3 = Color3.fromRGB(255,255,255)
-minimizeBtn.Font = Enum.Font.SourceSansBold
-minimizeBtn.TextSize = 18
-minimizeBtn.Parent = frame
-
-local closeBtn = Instance.new("TextButton")
-closeBtn.Size = UDim2.new(0.12,0,0.08,0)
-closeBtn.Position = UDim2.new(0.88,0,0.01,0)
-closeBtn.Text = "X"
-closeBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
-closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
-closeBtn.Font = Enum.Font.SourceSansBold
-closeBtn.TextSize = 18
-closeBtn.Parent = frame
-
--- Delay TextBox
-local delayBox = Instance.new("TextBox")
-delayBox.Size = UDim2.new(0.9,0,0.12,0)
-delayBox.Position = UDim2.new(0.05,0,0.22,0)
-delayBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
-delayBox.TextColor3 = Color3.fromRGB(255,255,255)
-delayBox.Font = Enum.Font.SourceSansBold
-delayBox.TextSize = 16
-delayBox.PlaceholderText = "Delay per teleport (s)"
-delayBox.Text = "1.5"
-delayBox.Parent = frame
-
--- Variables
-local savedCoords = {}
-local savedNames = {}
-local currentIndex = 1
-local autoTeleporting = false
-local moveDuration = 1.5
-local antiDamageEnabled = true
-local minimized = false
 
 -- Update koordinat real-time
 RunService.RenderStepped:Connect(function()
     if hrp and hrp.Parent then
-        coordsLabel.Text = string.format("X: %.2f Y: %.2f Z: %.2f",hrp.Position.X,hrp.Position.Y,hrp.Position.Z)
+        coordsLabel.Text = string.format("X: %.2f\nY: %.2f\nZ: %.2f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z)
     else
         coordsLabel.Text = "X:- Y:- Z:-"
     end
 end)
 
--- Update preview
-local function updatePreview()
-    if #savedCoords==0 then
-        savedLabel.Text = "Saved: -"
-    else
-        savedLabel.Text = string.format("Saved [%d/%d]: %s",currentIndex,#savedCoords,savedNames[currentIndex])
-    end
-end
-
--- Delay Box
-delayBox.FocusLost:Connect(function()
-    local val = tonumber(delayBox.Text)
-    if val and val>0 then
-        moveDuration = val
-    else
-        delayBox.Text = tostring(moveDuration)
-    end
-end)
-
--- Safe teleport
-local function safeTeleport(targetPos)
-    if not hrp then return end
-    local currentHealth = humanoid and humanoid.Health or nil
-    if humanoid and antiDamageEnabled then
-        humanoid.Health = humanoid.MaxHealth
-    end
-    hrp.CFrame = CFrame.new(targetPos)
-    if humanoid and antiDamageEnabled and currentHealth then
-        humanoid.Health = math.min(currentHealth,humanoid.MaxHealth)
-    end
-end
-
--- Buttons functionality
-saveBtn.MouseButton1Click:Connect(function()
-    if hrp then
-        local name = "Point"..(#savedCoords+1)
-        table.insert(savedCoords,hrp.Position)
-        table.insert(savedNames,name)
-        currentIndex = #savedCoords
-        saveBtn.Text = "💾✔"
-        updatePreview()
-        task.delay(1,function() saveBtn.Text = "💾 Save" end)
-    end
-end)
-
-removeBtn.MouseButton1Click:Connect(function()
-    if #savedCoords==0 then return end
-    table.remove(savedCoords,currentIndex)
-    table.remove(savedNames,currentIndex)
-    if currentIndex>#savedCoords then currentIndex=#savedCoords end
-    updatePreview()
-end)
-
-deleteAllBtn.MouseButton1Click:Connect(function()
-    savedCoords = {}
-    savedNames = {}
-    currentIndex = 1
-    updatePreview()
-end)
-
-nextBtn.MouseButton1Click:Connect(function()
-    if #savedCoords==0 then return end
-    currentIndex = currentIndex +1
-    if currentIndex>#savedCoords then currentIndex=1 end
-    updatePreview()
-end)
-
-prevBtn.MouseButton1Click:Connect(function()
-    if #savedCoords==0 then return end
-    currentIndex = currentIndex -1
-    if currentIndex<1 then currentIndex=#savedCoords end
-    updatePreview()
-end)
-
-tpBtn.MouseButton1Click:Connect(function()
-    if savedCoords[currentIndex] then
-        safeTeleport(savedCoords[currentIndex])
-    end
-end)
-
--- Anti-Damage toggle
-antiDamageBtn.MouseButton1Click:Connect(function()
-    antiDamageEnabled = not antiDamageEnabled
-    if antiDamageEnabled then
-        antiDamageBtn.Text = "💪 Anti-Damage: ON"
-        antiDamageBtn.BackgroundColor3 = Color3.fromRGB(0,120,255)
-    else
-        antiDamageBtn.Text = "💀 Anti-Damage: OFF"
-        antiDamageBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
-    end
-end)
-
--- Minimize & Close
-minimizeBtn.MouseButton1Click:Connect(function()
-    if not minimized then
-        frame.Size = UDim2.new(0,200,0,50)
-        minimized = true
-    else
-        frame.Size = UDim2.new(0,320,0,360)
-        minimized = false
-    end
-end)
-
-closeBtn.MouseButton1Click:Connect(function()
-    screenGui:Destroy()
-end)
-
--- Auto-Teleport smooth
-local function autoTeleportSmooth()
-    if #savedCoords==0 then return end
-    autoTeleporting = true
-    autoBtn.Text = "⏸ Stop Auto"
-    local index = 1
-    while autoTeleporting and #savedCoords>0 do
-        if hrp and hrp.Parent then
-            local startCFrame = hrp.CFrame
-            local endCFrame = CFrame.new(savedCoords[index])
-            local elapsed = 0
-            while elapsed<moveDuration and autoTeleporting do
-                elapsed = elapsed + RunService.RenderStepped:Wait()
-                hrp.CFrame = startCFrame:Lerp(endCFrame,math.clamp(elapsed/moveDuration,
+print("SimpleCoordGUI loaded and running!")
