@@ -193,7 +193,6 @@ local function followTarget()
 			end
 
 			local targetPos = targetHRP.CFrame * CFrame.new(offset)
-			-- langsung nempel
 			myHRP.CFrame = targetPos
 		end
 	end)
@@ -225,35 +224,72 @@ local function toggle()
 end
 toggleBtn.MouseButton1Click:Connect(toggle)
 
--- === Dropdown logic ===
+-- === Dropdown logic (FINAL) ===
 local function refreshDropdown()
+	-- hapus tombol lama
 	for _, child in ipairs(dropdownFrame:GetChildren()) do
 		if child:IsA("TextButton") then child:Destroy() end
 	end
+
+	-- ambil semua player (kecuali diri sendiri)
+	local playerList = {}
 	for _, plr in pairs(Players:GetPlayers()) do
 		if plr ~= player then
-			local btn = Instance.new("TextButton")
-			btn.Size = UDim2.new(1, -5, 0, 20)
-			btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-			btn.Text = plr.Name
-			btn.Parent = dropdownFrame
-			btn.MouseButton1Click:Connect(function()
-				targetPlayer = plr
-				playerDropdown.Text = plr.Name
-				dropdownFrame.Visible = false
-				if enabled then followTarget() end
-			end)
+			table.insert(playerList, plr)
 		end
 	end
+
+	-- urutkan berdasarkan DisplayName (A-Z)
+	table.sort(playerList, function(a, b)
+		return a.DisplayName:lower() < b.DisplayName:lower()
+	end)
+
+	-- buat tombol sesuai urutan
+	for _, plr in ipairs(playerList) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, -5, 0, 20)
+		btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.Text = plr.DisplayName
+		btn.Parent = dropdownFrame
+		btn.MouseButton1Click:Connect(function()
+			targetPlayer = plr
+			playerDropdown.Text = plr.DisplayName
+			dropdownFrame.Visible = false
+			if enabled then followTarget() end
+		end)
+	end
+
+	-- update teks tombol dropdown dengan jumlah player
+	local count = #playerList
+	if not targetPlayer then
+		if count > 0 then
+			playerDropdown.Text = "Pilih Player (" .. tostring(count) .. ")"
+		else
+			playerDropdown.Text = "Pilih Player"
+		end
+	end
+
+	-- atur scrollbar sesuai jumlah isi
 	dropdownFrame.CanvasSize = UDim2.new(0,0,0,uiList.AbsoluteContentSize.Y)
 end
 
+-- buka dropdown → langsung refresh
 playerDropdown.MouseButton1Click:Connect(function()
 	dropdownFrame.Visible = not dropdownFrame.Visible
-	if dropdownFrame.Visible then refreshDropdown() end
+	if dropdownFrame.Visible then
+		refreshDropdown()
+	end
 end)
 
+-- refresh otomatis tiap 5 detik
+task.spawn(function()
+	while task.wait(5) do
+		refreshDropdown()
+	end
+end)
+
+-- refresh saat player join/keluar
 Players.PlayerAdded:Connect(refreshDropdown)
 Players.PlayerRemoving:Connect(function(rem)
 	if targetPlayer == rem then
