@@ -1,0 +1,163 @@
+-- LocalScript (StarterPlayer > StarterPlayerScripts)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local targetPlayer = nil
+local enabled = false
+local followConn
+
+-- Offset jarak ke belakang
+local BACK_OFFSET = -4
+
+-- === GUI SETUP ===
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "StandBehindGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+-- frame utama
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 150)
+frame.Position = UDim2.new(1, -210, 0, 50)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+-- judul
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.Text = "Stand Behind"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+title.Parent = frame
+
+-- dropdown player
+local playerDropdown = Instance.new("TextButton")
+playerDropdown.Size = UDim2.new(1, -20, 0, 30)
+playerDropdown.Position = UDim2.new(0, 10, 0, 40)
+playerDropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+playerDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+playerDropdown.Text = "Pilih Player"
+playerDropdown.Parent = frame
+
+-- container daftar player
+local dropdownFrame = Instance.new("Frame")
+dropdownFrame.Size = UDim2.new(1, -20, 0, 80)
+dropdownFrame.Position = UDim2.new(0, 10, 0, 75)
+dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+dropdownFrame.Visible = false
+dropdownFrame.ClipsDescendants = true
+dropdownFrame.Parent = frame
+
+local uiList = Instance.new("UIListLayout")
+uiList.Parent = dropdownFrame
+
+-- tombol toggle
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(1, -20, 0, 30)
+toggleBtn.Position = UDim2.new(0, 10, 1, -40)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Text = "Toggle OFF"
+toggleBtn.Parent = frame
+
+-- === LOGIC ===
+local function getCharParts(character)
+	if not character then return end
+	local hrp = character:FindFirstChild("HumanoidRootPart")
+	local humanoid = character:FindFirstChildOfClass("Humanoid")
+	return humanoid, hrp
+end
+
+local function followTarget()
+	if followConn then followConn:Disconnect() end
+	followConn = RunService.RenderStepped:Connect(function()
+		if not targetPlayer or not targetPlayer.Character then return end
+		local _, targetHRP = getCharParts(targetPlayer.Character)
+		local myChar = player.Character
+		local _, myHRP = getCharParts(myChar)
+
+		if targetHRP and myHRP then
+			local backCFrame = targetHRP.CFrame * CFrame.new(0, 0, BACK_OFFSET)
+			myHRP.CFrame = CFrame.new(backCFrame.Position, targetHRP.Position)
+		end
+	end)
+end
+
+local function stopFollow()
+	if followConn then
+		followConn:Disconnect()
+		followConn = nil
+	end
+end
+
+local function toggle()
+	enabled = not enabled
+	if enabled then
+		if targetPlayer then
+			followTarget()
+			toggleBtn.Text = "Toggle ON"
+			toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+		else
+			enabled = false
+			toggleBtn.Text = "Toggle OFF"
+		end
+	else
+		stopFollow()
+		toggleBtn.Text = "Toggle OFF"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+	end
+end
+
+toggleBtn.MouseButton1Click:Connect(toggle)
+
+-- === Dropdown logic ===
+local function refreshDropdown()
+	for _, child in ipairs(dropdownFrame:GetChildren()) do
+		if child:IsA("TextButton") then child:Destroy() end
+	end
+
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= player then
+			local btn = Instance.new("TextButton")
+			btn.Size = UDim2.new(1, 0, 0, 25)
+			btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			btn.Text = plr.Name
+			btn.Parent = dropdownFrame
+
+			btn.MouseButton1Click:Connect(function()
+				targetPlayer = plr
+				playerDropdown.Text = "Target: " .. plr.Name
+				dropdownFrame.Visible = false
+				if enabled then
+					followTarget()
+				end
+			end)
+		end
+	end
+end
+
+playerDropdown.MouseButton1Click:Connect(function()
+	dropdownFrame.Visible = not dropdownFrame.Visible
+	if dropdownFrame.Visible then
+		refreshDropdown()
+	end
+end)
+
+-- Update kalau ada player join/leave
+Players.PlayerAdded:Connect(refreshDropdown)
+Players.PlayerRemoving:Connect(function(rem)
+	if targetPlayer == rem then
+		targetPlayer = nil
+		playerDropdown.Text = "Pilih Player"
+	end
+	refreshDropdown()
+end)
+
+print("[StandBehindGUI] Gunakan GUI untuk pilih player & toggle follow.")
