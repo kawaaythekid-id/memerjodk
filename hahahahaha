@@ -1,0 +1,269 @@
+-- LocalScript: StandBeside/Behind/Front GUI
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- === Variabel ===
+local targetPlayer = nil
+local OFFSET = Vector3.new(0, 0, -4)
+local followActive = false
+
+-- === GUI ===
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "StandBehindGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 240, 0, 320)
+frame.Position = UDim2.new(1, -250, 0, 50)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.Text = "Stand Position"
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+title.Parent = frame
+
+-- Dropdown pilih player
+local dropdownBtn = Instance.new("TextButton")
+dropdownBtn.Size = UDim2.new(1, -20, 0, 30)
+dropdownBtn.Position = UDim2.new(0, 10, 0, 40)
+dropdownBtn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+dropdownBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+dropdownBtn.Text = "Pilih Player"
+dropdownBtn.Parent = frame
+
+local dropdownFrame = Instance.new("ScrollingFrame")
+dropdownFrame.Size = UDim2.new(1, -20, 0, 100)
+dropdownFrame.Position = UDim2.new(0, 10, 0, 75)
+dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+dropdownFrame.ScrollBarThickness = 6
+dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+dropdownFrame.Visible = false
+dropdownFrame.Parent = frame
+
+local uiList = Instance.new("UIListLayout")
+uiList.Parent = dropdownFrame
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+uiList:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
+	dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, uiList.AbsoluteContentSize.Y)
+end)
+
+-- Slider
+local sliderLabel = Instance.new("TextLabel")
+sliderLabel.Size = UDim2.new(1, -20, 0, 20)
+sliderLabel.Position = UDim2.new(0, 10, 0, 180)
+sliderLabel.BackgroundTransparency = 1
+sliderLabel.Text = "Jarak: -4"
+sliderLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+sliderLabel.TextSize = 16
+sliderLabel.Parent = frame
+
+local slider = Instance.new("TextButton")
+slider.Size = UDim2.new(1, -20, 0, 20)
+slider.Position = UDim2.new(0, 10, 0, 200)
+slider.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+slider.Text = ""
+slider.Parent = frame
+
+local knob = Instance.new("Frame")
+knob.Size = UDim2.new(0, 20, 1, 0)
+knob.Position = UDim2.new(0.5, -10, 0, 0)
+knob.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+knob.Parent = slider
+
+-- Tombol posisi (Grid: depan, belakang, kiri, kanan)
+local posFrame = Instance.new("Frame")
+posFrame.Size = UDim2.new(1, -20, 0, 40)
+posFrame.Position = UDim2.new(0, 10, 0, 230)
+posFrame.BackgroundTransparency = 1
+posFrame.Parent = frame
+
+local grid = Instance.new("UIGridLayout")
+grid.CellSize = UDim2.new(0.5, -5, 1, 0)
+grid.CellPadding = UDim2.new(0, 10, 0, 0)
+grid.FillDirectionMaxCells = 2
+grid.Parent = posFrame
+
+local positions = {
+	{Text = "Belakang", Offset = Vector3.new(0,0,-4)},
+	{Text = "Depan",    Offset = Vector3.new(0,0,4)},
+	{Text = "Kiri",     Offset = Vector3.new(-4,0,0)},
+	{Text = "Kanan",    Offset = Vector3.new(4,0,0)},
+}
+
+for _, data in ipairs(positions) do
+	local btn = Instance.new("TextButton")
+	btn.Size = UDim2.new(0, 0, 1, 0)
+	btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.Text = data.Text
+	btn.Parent = posFrame
+	btn.MouseButton1Click:Connect(function()
+		OFFSET = data.Offset
+		sliderLabel.Text = "Jarak: " .. OFFSET.Magnitude
+		if followActive and targetPlayer then
+			attachToTarget()
+		end
+	end)
+end
+
+-- Toggle ON/OFF
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(1, -20, 0, 30)
+toggleBtn.Position = UDim2.new(0, 10, 0, 280)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.Text = "FOLLOW: OFF"
+toggleBtn.Font = Enum.Font.SourceSansBold
+toggleBtn.TextSize = 18
+toggleBtn.Parent = frame
+
+-- === Fungsi align ===
+local function clearAlign()
+	local myChar = player.Character
+	if not myChar then return end
+	local myHRP = myChar:FindFirstChild("HumanoidRootPart")
+	if not myHRP then return end
+	for _, v in ipairs(myHRP:GetChildren()) do
+		if v:IsA("AlignPosition") or v:IsA("AlignOrientation") or v.Name == "Attachment_StandBehind" then
+			v:Destroy()
+		end
+	end
+end
+
+function attachToTarget()
+	clearAlign()
+	if not followActive then return end
+	if not targetPlayer or not targetPlayer.Character then return end
+
+	local targetHRP = targetPlayer.Character:WaitForChild("HumanoidRootPart")
+	local myChar = player.Character or player.CharacterAdded:Wait()
+	local myHRP = myChar:WaitForChild("HumanoidRootPart")
+
+	local attachMe = Instance.new("Attachment")
+	attachMe.Name = "Attachment_StandBehind"
+	attachMe.Parent = myHRP
+
+	local attachTarget = targetHRP:FindFirstChild("Attachment_StandBehind")
+	if not attachTarget then
+		attachTarget = Instance.new("Attachment")
+		attachTarget.Name = "Attachment_StandBehind"
+		attachTarget.Parent = targetHRP
+	end
+	attachTarget.Position = OFFSET
+
+	local alignPos = Instance.new("AlignPosition")
+	alignPos.MaxForce = 1e5
+	alignPos.Responsiveness = 200
+	alignPos.Attachment0 = attachMe
+	alignPos.Attachment1 = attachTarget
+	alignPos.Parent = myHRP
+
+	local alignOri = Instance.new("AlignOrientation")
+	alignOri.MaxTorque = 1e5
+	alignOri.Responsiveness = 200
+	alignOri.Attachment0 = attachMe
+	alignOri.Attachment1 = attachTarget
+	alignOri.Parent = myHRP
+end
+
+-- === Dropdown logic ===
+local function refreshDropdown()
+	for _, child in ipairs(dropdownFrame:GetChildren()) do
+		if child:IsA("TextButton") then child:Destroy() end
+	end
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= player then
+			local btn = Instance.new("TextButton")
+			btn.Size = UDim2.new(1, 0, 0, 30)
+			btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+			btn.Text = plr.Name
+			btn.AutoButtonColor = false
+			btn.Parent = dropdownFrame
+			btn.MouseEnter:Connect(function()
+				btn.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+			end)
+			btn.MouseLeave:Connect(function()
+				btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+			end)
+			btn.MouseButton1Click:Connect(function()
+				targetPlayer = plr
+				dropdownBtn.Text = "Target: " .. plr.Name
+				dropdownFrame.Visible = false
+				if followActive then
+					attachToTarget()
+					plr.CharacterAdded:Connect(function()
+						task.wait(0.5)
+						attachToTarget()
+					end)
+				end
+			end)
+		end
+	end
+end
+
+dropdownBtn.MouseButton1Click:Connect(function()
+	dropdownFrame.Visible = not dropdownFrame.Visible
+	if dropdownFrame.Visible then
+		refreshDropdown()
+	end
+end)
+
+-- === Slider logic ===
+local uis = game:GetService("UserInputService")
+local dragging = false
+
+slider.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+	end
+end)
+
+slider.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = false
+	end
+end)
+
+uis.InputChanged:Connect(function(input)
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+		local relX = math.clamp((input.Position.X - slider.AbsolutePosition.X) / slider.AbsoluteSize.X, 0, 1)
+		knob.Position = UDim2.new(relX, -10, 0, 0)
+		local distance = -10 + (relX * 8)
+		-- kita sesuaikan sesuai arah
+		if math.abs(OFFSET.Z) > 0 then
+			OFFSET = Vector3.new(0, 0, distance * (OFFSET.Z > 0 and 1 or -1))
+		else
+			OFFSET = Vector3.new(distance * (OFFSET.X > 0 and 1 or -1), 0, 0)
+		end
+		sliderLabel.Text = string.format("Jarak: %.1f", distance)
+		if followActive and targetPlayer then
+			attachToTarget()
+		end
+	end
+end)
+
+-- === Toggle ON/OFF ===
+toggleBtn.MouseButton1Click:Connect(function()
+	followActive = not followActive
+	if followActive then
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(50, 150, 50)
+		toggleBtn.Text = "FOLLOW: ON"
+		attachToTarget()
+	else
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(150, 50, 50)
+		toggleBtn.Text = "FOLLOW: OFF"
+		clearAlign()
+	end
+end)
+
+print("[StandGUI] Pilih target, atur posisi (belakang/kiri/kanan/depan), slider jarak, lalu ON/OFF follow.")
