@@ -8,7 +8,7 @@ local targetPlayer = nil
 local enabled = false
 local followConn
 local positionMode = "Back"
-local distance = 4 -- default jarak
+local distance = 0 -- langsung nempel di awal
 
 -- === GUI ===
 local screenGui = Instance.new("ScreenGui")
@@ -120,7 +120,7 @@ sliderFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 sliderFrame.Parent = content
 
 local sliderBar = Instance.new("Frame")
-sliderBar.Size = UDim2.new(0.4, 0, 1, 0)
+sliderBar.Size = UDim2.new(0, 0, 1, 0) -- default 0
 sliderBar.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
 sliderBar.Parent = sliderFrame
 
@@ -141,7 +141,6 @@ local function updateSlider(inputX)
 	sliderLabel.Text = tostring(distance)
 end
 
--- support mouse & touch
 sliderFrame.InputBegan:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 		dragging = true
@@ -171,13 +170,12 @@ toggleBtn.Parent = content
 -- === LOGIC ===
 local function getCharParts(character)
 	if not character then return end
-	local hrp = character:FindFirstChild("HumanoidRootPart")
-	return hrp
+	return character:FindFirstChild("HumanoidRootPart")
 end
 
 local function followTarget()
 	if followConn then followConn:Disconnect() end
-	followConn = RunService.RenderStepped:Connect(function(dt)
+	followConn = RunService.RenderStepped:Connect(function()
 		if not targetPlayer or not targetPlayer.Character then return end
 		local targetHRP = getCharParts(targetPlayer.Character)
 		local myHRP = getCharParts(player.Character)
@@ -194,9 +192,9 @@ local function followTarget()
 				offset = Vector3.new(-distance, 0, 0)
 			end
 
-			local targetPos = (targetHRP.CFrame * CFrame.new(offset))
-			-- Smooth lerp biar tidak getar
-			myHRP.CFrame = myHRP.CFrame:Lerp(targetPos, 0.15)
+			local targetPos = targetHRP.CFrame * CFrame.new(offset)
+			-- langsung nempel
+			myHRP.CFrame = targetPos
 		end
 	end)
 end
