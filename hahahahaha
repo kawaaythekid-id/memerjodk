@@ -50,9 +50,11 @@ content.BackgroundTransparency = 1
 content.Parent = frame
 
 local minimized = false
+local normalSize = frame.Size
 minimizeBtn.MouseButton1Click:Connect(function()
 	minimized = not minimized
 	content.Visible = not minimized
+	frame.Size = minimized and UDim2.new(0,160,0,25) or normalSize
 	minimizeBtn.Text = minimized and "+" or "-"
 end)
 
@@ -80,7 +82,7 @@ local uiList = Instance.new("UIListLayout")
 uiList.Parent = dropdownFrame
 uiList.SortOrder = Enum.SortOrder.LayoutOrder
 
--- tombol posisi (1 baris kecil)
+-- tombol posisi
 local posRow = Instance.new("Frame")
 posRow.Size = UDim2.new(1, -10, 0, 25)
 posRow.Position = UDim2.new(0,5,0,110)
@@ -125,7 +127,7 @@ sliderBar.Parent = sliderFrame
 local sliderLabel = Instance.new("TextLabel")
 sliderLabel.Size = UDim2.new(1, 0, 1, 0)
 sliderLabel.BackgroundTransparency = 1
-sliderLabel.Text = "4"
+sliderLabel.Text = tostring(distance)
 sliderLabel.TextColor3 = Color3.fromRGB(255,255,255)
 sliderLabel.Font = Enum.Font.SourceSansBold
 sliderLabel.TextSize = 12
@@ -139,19 +141,20 @@ local function updateSlider(inputX)
 	sliderLabel.Text = tostring(distance)
 end
 
+-- support mouse & touch
 sliderFrame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 		dragging = true
 		updateSlider(input.Position.X)
 	end
 end)
 UserInputService.InputChanged:Connect(function(input)
-	if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+	if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
 		updateSlider(input.Position.X)
 	end
 end)
 UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 		dragging = false
 	end
 end)
@@ -169,17 +172,15 @@ toggleBtn.Parent = content
 local function getCharParts(character)
 	if not character then return end
 	local hrp = character:FindFirstChild("HumanoidRootPart")
-	local humanoid = character:FindFirstChildOfClass("Humanoid")
-	return humanoid, hrp
+	return hrp
 end
 
 local function followTarget()
 	if followConn then followConn:Disconnect() end
-	followConn = RunService.RenderStepped:Connect(function()
+	followConn = RunService.RenderStepped:Connect(function(dt)
 		if not targetPlayer or not targetPlayer.Character then return end
-		local _, targetHRP = getCharParts(targetPlayer.Character)
-		local myChar = player.Character
-		local _, myHRP = getCharParts(myChar)
+		local targetHRP = getCharParts(targetPlayer.Character)
+		local myHRP = getCharParts(player.Character)
 
 		if targetHRP and myHRP then
 			local offset = Vector3.new()
@@ -192,8 +193,10 @@ local function followTarget()
 			elseif positionMode == "Left" then
 				offset = Vector3.new(-distance, 0, 0)
 			end
-			local targetPos = (targetHRP.CFrame * CFrame.new(offset)).Position
-			myChar:MoveTo(targetPos) -- biar tidak getar
+
+			local targetPos = (targetHRP.CFrame * CFrame.new(offset))
+			-- Smooth lerp biar tidak getar
+			myHRP.CFrame = myHRP.CFrame:Lerp(targetPos, 0.15)
 		end
 	end)
 end
