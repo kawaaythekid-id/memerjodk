@@ -1,274 +1,90 @@
 -- LocalScript (StarterPlayer > StarterPlayerScripts)
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
 local player = Players.LocalPlayer
 
--- Tunggu karakter siap
+-- tunggu karakter siap
 local character = player.Character or player.CharacterAdded:Wait()
-repeat task.wait() until character:FindFirstChild("HumanoidRootPart") and character:FindFirstChild("Humanoid")
-local hrp = character:FindFirstChild("HumanoidRootPart")
-local humanoid = character:FindFirstChild("Humanoid")
+local humanoid = character:WaitForChild("Humanoid")
+local hrp = character:WaitForChild("HumanoidRootPart")
 
--- GUI Setup
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "MiniCoordGUI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+-- pengaturan
+local walkSpeed = 16
+local autoWalk = false
 
--- Frame utama (compact, modern, Android-friendly)
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0,260,0,300)
-frame.Position = UDim2.new(0.05,0,0.05,0)
-frame.BackgroundColor3 = Color3.fromRGB(25,25,30)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Parent = screenGui
-frame.AnchorPoint = Vector2.new(0,0)
+-- BodyVelocity biar bisa jalan di udara
+local bodyVelocity = Instance.new("BodyVelocity")
+bodyVelocity.MaxForce = Vector3.new(100000, 0, 100000) -- hanya XZ
+bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+bodyVelocity.Parent = hrp
 
--- Drag touch friendly
-local dragging = false
-local dragInput, dragStart, startPos
+-- GUI
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "AutoWalkGui"
+ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
-frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
-            end
-        end)
-    end
+-- tombol toggle
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(0, 180, 0, 60)
+ToggleBtn.Position = UDim2.new(0.5, -90, 1, -160)
+ToggleBtn.Text = "Auto Walk: OFF"
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.TextScaled = true
+ToggleBtn.BackgroundTransparency = 0.2
+ToggleBtn.Parent = ScreenGui
+ToggleBtn.BorderSizePixel = 0
+ToggleBtn.TextStrokeTransparency = 0.5
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true
+
+-- text box untuk kecepatan
+local SpeedBox = Instance.new("TextBox")
+SpeedBox.Size = UDim2.new(0, 180, 0, 50)
+SpeedBox.Position = UDim2.new(0.5, -90, 1, -100)
+SpeedBox.Text = tostring(walkSpeed)
+SpeedBox.PlaceholderText = "Masukkan Speed"
+SpeedBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+SpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+SpeedBox.TextScaled = true
+SpeedBox.Parent = ScreenGui
+SpeedBox.BorderSizePixel = 0
+SpeedBox.Font = Enum.Font.GothamBold
+
+-- toggle fungsi
+ToggleBtn.MouseButton1Click:Connect(function()
+	autoWalk = not autoWalk
+	if autoWalk then
+		ToggleBtn.Text = "Auto Walk: ON"
+		ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+	else
+		ToggleBtn.Text = "Auto Walk: OFF"
+		ToggleBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+		bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+	end
 end)
 
-frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
+-- ubah speed lewat text box
+SpeedBox.FocusLost:Connect(function(enterPressed)
+	if enterPressed then
+		local newSpeed = tonumber(SpeedBox.Text)
+		if newSpeed and newSpeed > 0 then
+			walkSpeed = newSpeed
+		else
+			SpeedBox.Text = tostring(walkSpeed) -- reset kalau salah input
+		end
+	end
 end)
 
+-- loop gerak
 RunService.RenderStepped:Connect(function()
-    if dragging and dragInput then
-        local delta = dragInput.Position - dragStart
-        frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-
--- Labels
-local coordsLabel = Instance.new("TextLabel")
-coordsLabel.Size = UDim2.new(1,-20,0,30)
-coordsLabel.Position = UDim2.new(0,10,0,10)
-coordsLabel.BackgroundTransparency = 1
-coordsLabel.TextColor3 = Color3.fromRGB(0,255,180)
-coordsLabel.Font = Enum.Font.Code
-coordsLabel.TextSize = 16
-coordsLabel.TextXAlignment = Enum.TextXAlignment.Left
-coordsLabel.Text = "X: 0 Y: 0 Z: 0"
-coordsLabel.Parent = frame
-
-local savedLabel = Instance.new("TextLabel")
-savedLabel.Size = UDim2.new(1,-20,0,25)
-savedLabel.Position = UDim2.new(0,10,0,45)
-savedLabel.BackgroundTransparency = 1
-savedLabel.TextColor3 = Color3.fromRGB(255,200,0)
-savedLabel.Font = Enum.Font.Code
-savedLabel.TextSize = 14
-savedLabel.TextXAlignment = Enum.TextXAlignment.Left
-savedLabel.Text = "Saved: -"
-savedLabel.Parent = frame
-
--- Tombol helper
-local function createButton(name,text,posX,posY,color)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0.45,0,0.12,0)
-    btn.Position = UDim2.new(posX,0,posY,0)
-    btn.BackgroundColor3 = color or Color3.fromRGB(45,45,55)
-    btn.TextColor3 = Color3.fromRGB(255,255,255)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 16
-    btn.Text = text
-    btn.Name = name
-    btn.Parent = frame
-    btn.AutoButtonColor = true
-    btn.BorderSizePixel = 0
-    btn.TextScaled = true
-    return btn
-end
-
--- Tombol utama, susunan rapi
-local saveBtn = createButton("SaveBtn","💾 Save",0.025,0.55)
-local removeBtn = createButton("RemoveBtn","🗑 Remove",0.525,0.55)
-local deleteAllBtn = createButton("DeleteAllBtn","🗑 All",0.025,0.7,Color3.fromRGB(180,0,0))
-local tpBtn = createButton("TeleportBtn","✈ Teleport",0.525,0.35)
-local prevBtn = createButton("PrevBtn","⬅ Prev",0.025,0.85)
-local nextBtn = createButton("NextBtn","Next ➡",0.525,0.85)
-local autoBtn = createButton("AutoBtn","▶ Auto",0.025,0.35)
-local antiDamageBtn = createButton("AntiDamageBtn","💪 ON",0.525,0.25,Color3.fromRGB(0,120,255))
-
--- Minimize button (lebih besar)
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Size = UDim2.new(0.18,0,0.08,0)
-minimizeBtn.Position = UDim2.new(0.78,0,0.01,0)
-minimizeBtn.Text = "—"
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
-minimizeBtn.TextColor3 = Color3.fromRGB(0,255,180)
-minimizeBtn.Font = Enum.Font.SourceSansBold
-minimizeBtn.TextSize = 22
-minimizeBtn.Parent = frame
-minimizeBtn.AutoButtonColor = true
-minimizeBtn.BorderSizePixel = 0
-
--- Delay TextBox
-local delayBox = Instance.new("TextBox")
-delayBox.Size = UDim2.new(0.9,0,0.12,0)
-delayBox.Position = UDim2.new(0.05,0,0.15,0)
-delayBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
-delayBox.TextColor3 = Color3.fromRGB(0,255,180)
-delayBox.Font = Enum.Font.SourceSansBold
-delayBox.TextSize = 14
-delayBox.PlaceholderText = "Delay (s)"
-delayBox.Text = "1.5"
-delayBox.Parent = frame
-delayBox.ClearTextOnFocus = false
-delayBox.TextScaled = true
-
--- Variabel utama
-local savedCoords = {}
-local savedNames = {}
-local currentIndex = 1
-local autoTeleporting = false
-local moveDuration = 1.5
-local antiDamageEnabled = true
-local minimized = false
-
--- Update koordinat
-RunService.RenderStepped:Connect(function()
-    if hrp and hrp.Parent then
-        coordsLabel.Text = string.format("X: %.2f Y: %.2f Z: %.2f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z)
-    else
-        coordsLabel.Text = "X:- Y:- Z:-"
-    end
-end)
-
--- Update preview
-local function updatePreview()
-    if #savedCoords == 0 then
-        savedLabel.Text = "Saved: -"
-    else
-        savedLabel.Text = string.format("[%d/%d] %s", currentIndex, #savedCoords, savedNames[currentIndex])
-    end
-end
-
--- Delay Box
-delayBox.FocusLost:Connect(function()
-    local val = tonumber(delayBox.Text)
-    if val and val>0 then moveDuration = val else delayBox.Text = tostring(moveDuration) end
-end)
-
--- Safe teleport
-local function safeTeleport(pos)
-    if humanoid and antiDamageEnabled then humanoid.Health = humanoid.MaxHealth end
-    hrp.CFrame = CFrame.new(pos)
-end
-
--- Tombol fungsional
-saveBtn.MouseButton1Click:Connect(function()
-    if hrp then
-        table.insert(savedCoords,hrp.Position)
-        table.insert(savedNames,"Point"..#savedCoords)
-        currentIndex = #savedCoords
-        updatePreview()
-    end
-end)
-removeBtn.MouseButton1Click:Connect(function()
-    if #savedCoords==0 then return end
-    table.remove(savedCoords,currentIndex)
-    table.remove(savedNames,currentIndex)
-    if currentIndex>#savedCoords then currentIndex=#savedCoords end
-    updatePreview()
-end)
-deleteAllBtn.MouseButton1Click:Connect(function()
-    savedCoords = {}
-    savedNames = {}
-    currentIndex=1
-    updatePreview()
-end)
-prevBtn.MouseButton1Click:Connect(function()
-    if #savedCoords==0 then return end
-    currentIndex = currentIndex -1
-    if currentIndex<1 then currentIndex=#savedCoords end
-    updatePreview()
-end)
-nextBtn.MouseButton1Click:Connect(function()
-    if #savedCoords==0 then return end
-    currentIndex = currentIndex +1
-    if currentIndex>#savedCoords then currentIndex=1 end
-    updatePreview()
-end)
-tpBtn.MouseButton1Click:Connect(function()
-    if savedCoords[currentIndex] then safeTeleport(savedCoords[currentIndex]) end
-end)
-antiDamageBtn.MouseButton1Click:Connect(function()
-    antiDamageEnabled = not antiDamageEnabled
-    if antiDamageEnabled then
-        antiDamageBtn.Text = "💪 ON"
-        antiDamageBtn.BackgroundColor3 = Color3.fromRGB(0,120,255)
-    else
-        antiDamageBtn.Text = "💀 OFF"
-        antiDamageBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
-    end
-end)
-
--- Minimize button
-minimizeBtn.MouseButton1Click:Connect(function()
-    if not minimized then
-        frame.Size = UDim2.new(0,120,0,50)
-        minimized=true
-        coordsLabel.Visible=false
-        savedLabel.Visible=false
-        saveBtn.Visible=false
-        removeBtn.Visible=false
-        deleteAllBtn.Visible=false
-        tpBtn.Visible=false
-        prevBtn.Visible=false
-        nextBtn.Visible=false
-        autoBtn.Visible=false
-        antiDamageBtn.Visible=false
-        delayBox.Visible=false
-    else
-        frame.Size = UDim2.new(0,260,0,300)
-        minimized=false
-        coordsLabel.Visible=true
-        savedLabel.Visible=true
-        saveBtn.Visible=true
-        removeBtn.Visible=true
-        deleteAllBtn.Visible=true
-        tpBtn.Visible=true
-        prevBtn.Visible=true
-        nextBtn.Visible=true
-        autoBtn.Visible=true
-        antiDamageBtn.Visible=true
-        delayBox.Visible=true
-    end
-end)
-
--- Auto teleport stabil
-local function autoTeleportLoop()
-    while autoTeleporting and #savedCoords>0 do
-        safeTeleport(savedCoords[currentIndex])
-        currentIndex = currentIndex +1
-        if currentIndex>#savedCoords then currentIndex=1 end
-        updatePreview()
-        task.wait(moveDuration)
-    end
-end
-
-autoBtn.MouseButton1Click:Connect(function()
-    if #savedCoords==0 then return end
-    autoTeleporting = not autoTeleporting
-    autoBtn.Text = autoTeleporting and "⏸ Stop" or "▶ Auto"
-    if autoTeleporting then
-        task.spawn(autoTeleportLoop)
-    end
+	if autoWalk and humanoid.Health > 0 then
+		local camera = Workspace.CurrentCamera
+		local camLook = camera.CFrame.LookVector
+		local moveDir = Vector3.new(camLook.X, 0, camLook.Z).Unit * walkSpeed
+		bodyVelocity.Velocity = moveDir
+	end
 end)
