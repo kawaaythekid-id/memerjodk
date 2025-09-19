@@ -3,88 +3,168 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
 
 -- tunggu karakter siap
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local hrp = character:WaitForChild("HumanoidRootPart")
+local function getCharacter()
+    local char = player.Character or player.CharacterAdded:Wait()
+    return char, char:WaitForChild("Humanoid"), char:WaitForChild("HumanoidRootPart")
+end
 
--- pengaturan
+local character, humanoid, hrp = getCharacter()
+
+-- pengaturan awal
 local walkSpeed = 16
 local autoWalk = false
+local fullBrightEnabled = false
+
+-- simpan lighting lama
+local oldBrightness = Lighting.Brightness
+local oldClockTime = Lighting.ClockTime
+local oldFogEnd = Lighting.FogEnd
+local oldAmbient = Lighting.Ambient
+local oldOutdoorAmbient = Lighting.OutdoorAmbient
 
 -- BodyVelocity biar bisa jalan di udara
 local bodyVelocity = Instance.new("BodyVelocity")
-bodyVelocity.MaxForce = Vector3.new(100000, 0, 100000) -- hanya XZ
+bodyVelocity.MaxForce = Vector3.new(0, 0, 0) -- default mati
 bodyVelocity.Velocity = Vector3.new(0, 0, 0)
 bodyVelocity.Parent = hrp
 
+-- fungsi FullBright
+local function enableFullBright()
+	Lighting.Brightness = 2
+	Lighting.ClockTime = 12
+	Lighting.FogEnd = 100000
+	Lighting.Ambient = Color3.fromRGB(255, 255, 255)
+	Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
+end
+
+local function disableFullBright()
+	Lighting.Brightness = oldBrightness
+	Lighting.ClockTime = oldClockTime
+	Lighting.FogEnd = oldFogEnd
+	Lighting.Ambient = oldAmbient
+	Lighting.OutdoorAmbient = oldOutdoorAmbient
+end
+
 -- GUI
 local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "AutoWalkGui"
+ScreenGui.Name = "UtilityGui"
 ScreenGui.Parent = player:WaitForChild("PlayerGui")
 
--- tombol toggle
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 240, 0, 200)
+MainFrame.Position = UDim2.new(0.5, -120, 1, -250)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+MainFrame.BackgroundTransparency = 0.2
+MainFrame.BorderSizePixel = 0
+MainFrame.Parent = ScreenGui
+MainFrame.Active = true
+MainFrame.Draggable = true
+
+-- judul
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 30)
+Title.Position = UDim2.new(0, 0, 0, 0)
+Title.Text = "⚙ Utility Menu"
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.BackgroundTransparency = 1
+Title.TextScaled = true
+Title.Font = Enum.Font.GothamBold
+Title.Parent = MainFrame
+
+-- tombol AutoWalk
 local ToggleBtn = Instance.new("TextButton")
-ToggleBtn.Size = UDim2.new(0, 180, 0, 60)
-ToggleBtn.Position = UDim2.new(0.5, -90, 1, -160)
+ToggleBtn.Size = UDim2.new(1, -20, 0, 40)
+ToggleBtn.Position = UDim2.new(0, 10, 0, 40)
 ToggleBtn.Text = "Auto Walk: OFF"
-ToggleBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
 ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 ToggleBtn.TextScaled = true
-ToggleBtn.BackgroundTransparency = 0.2
-ToggleBtn.Parent = ScreenGui
-ToggleBtn.BorderSizePixel = 0
-ToggleBtn.TextStrokeTransparency = 0.5
 ToggleBtn.Font = Enum.Font.GothamBold
-ToggleBtn.Active = true
-ToggleBtn.Draggable = true
+ToggleBtn.Parent = MainFrame
+ToggleBtn.BorderSizePixel = 0
 
--- text box untuk kecepatan
+-- textbox Speed
 local SpeedBox = Instance.new("TextBox")
-SpeedBox.Size = UDim2.new(0, 180, 0, 50)
-SpeedBox.Position = UDim2.new(0.5, -90, 1, -100)
+SpeedBox.Size = UDim2.new(1, -20, 0, 40)
+SpeedBox.Position = UDim2.new(0, 10, 0, 90)
 SpeedBox.Text = tostring(walkSpeed)
-SpeedBox.PlaceholderText = "Masukkan Speed"
+SpeedBox.PlaceholderText = "Speed"
 SpeedBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 SpeedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
 SpeedBox.TextScaled = true
-SpeedBox.Parent = ScreenGui
-SpeedBox.BorderSizePixel = 0
 SpeedBox.Font = Enum.Font.GothamBold
+SpeedBox.Parent = MainFrame
+SpeedBox.BorderSizePixel = 0
 
--- toggle fungsi
+-- tombol FullBright
+local BrightBtn = Instance.new("TextButton")
+BrightBtn.Size = UDim2.new(1, -20, 0, 40)
+BrightBtn.Position = UDim2.new(0, 10, 0, 140)
+BrightBtn.Text = "FullBright: OFF"
+BrightBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+BrightBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+BrightBtn.TextScaled = true
+BrightBtn.Font = Enum.Font.GothamBold
+BrightBtn.Parent = MainFrame
+BrightBtn.BorderSizePixel = 0
+
+-- toggle AutoWalk
 ToggleBtn.MouseButton1Click:Connect(function()
 	autoWalk = not autoWalk
 	if autoWalk then
 		ToggleBtn.Text = "Auto Walk: ON"
 		ToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+		bodyVelocity.MaxForce = Vector3.new(100000, 0, 100000)
 	else
 		ToggleBtn.Text = "Auto Walk: OFF"
 		ToggleBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+		bodyVelocity.MaxForce = Vector3.new(0, 0, 0)
 		bodyVelocity.Velocity = Vector3.new(0, 0, 0)
 	end
 end)
 
--- ubah speed lewat text box
+-- ubah Speed lewat textbox
 SpeedBox.FocusLost:Connect(function(enterPressed)
 	if enterPressed then
 		local newSpeed = tonumber(SpeedBox.Text)
 		if newSpeed and newSpeed > 0 then
 			walkSpeed = newSpeed
 		else
-			SpeedBox.Text = tostring(walkSpeed) -- reset kalau salah input
+			SpeedBox.Text = tostring(walkSpeed)
 		end
 	end
 end)
 
--- loop gerak
+-- toggle FullBright
+BrightBtn.MouseButton1Click:Connect(function()
+	fullBrightEnabled = not fullBrightEnabled
+	if fullBrightEnabled then
+		enableFullBright()
+		BrightBtn.Text = "FullBright: ON"
+		BrightBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+	else
+		disableFullBright()
+		BrightBtn.Text = "FullBright: OFF"
+		BrightBtn.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+	end
+end)
+
+-- loop jalan
 RunService.RenderStepped:Connect(function()
-	if autoWalk and humanoid.Health > 0 then
+	if autoWalk and humanoid and humanoid.Health > 0 then
 		local camera = Workspace.CurrentCamera
 		local camLook = camera.CFrame.LookVector
 		local moveDir = Vector3.new(camLook.X, 0, camLook.Z).Unit * walkSpeed
 		bodyVelocity.Velocity = moveDir
 	end
+end)
+
+-- refresh kalau respawn
+player.CharacterAdded:Connect(function(char)
+	character, humanoid, hrp = getCharacter()
+	bodyVelocity.Parent = hrp
 end)
