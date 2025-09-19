@@ -11,15 +11,15 @@ local humanoid = character:FindFirstChild("Humanoid")
 
 -- GUI Setup
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "CoordTeleportGUI"
+screenGui.Name = "MiniCoordGUI"
 screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
+-- Frame utama (compact dan keren)
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0,320,0,400)
+frame.Size = UDim2.new(0,240,0,280) -- lebih kecil
 frame.Position = UDim2.new(0.05,0,0.05,0)
-frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-frame.BackgroundTransparency = 0.2
+frame.BackgroundColor3 = Color3.fromRGB(30,30,35) -- gelap modern
 frame.BorderSizePixel = 0
 frame.Active = true
 frame.Draggable = true
@@ -30,7 +30,7 @@ local coordsLabel = Instance.new("TextLabel")
 coordsLabel.Size = UDim2.new(1,-10,0,30)
 coordsLabel.Position = UDim2.new(0,5,0,5)
 coordsLabel.BackgroundTransparency = 1
-coordsLabel.TextColor3 = Color3.fromRGB(0,255,0)
+coordsLabel.TextColor3 = Color3.fromRGB(0,255,180)
 coordsLabel.Font = Enum.Font.Code
 coordsLabel.TextSize = 16
 coordsLabel.TextXAlignment = Enum.TextXAlignment.Left
@@ -38,8 +38,8 @@ coordsLabel.Text = "X: 0 Y: 0 Z: 0"
 coordsLabel.Parent = frame
 
 local savedLabel = Instance.new("TextLabel")
-savedLabel.Size = UDim2.new(1,-10,0,30)
-savedLabel.Position = UDim2.new(0,5,0,40)
+savedLabel.Size = UDim2.new(1,-10,0,25)
+savedLabel.Position = UDim2.new(0,5,0,35)
 savedLabel.BackgroundTransparency = 1
 savedLabel.TextColor3 = Color3.fromRGB(255,200,0)
 savedLabel.Font = Enum.Font.Code
@@ -48,15 +48,15 @@ savedLabel.TextXAlignment = Enum.TextXAlignment.Left
 savedLabel.Text = "Saved: -"
 savedLabel.Parent = frame
 
--- Tombol Helper
+-- Tombol helper
 local function createButton(name,text,posX,posY,color)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0.45,0,0.12,0)
     btn.Position = UDim2.new(posX,0,posY,0)
-    btn.BackgroundColor3 = color or Color3.fromRGB(50,50,50)
+    btn.BackgroundColor3 = color or Color3.fromRGB(50,50,60)
     btn.TextColor3 = Color3.fromRGB(255,255,255)
     btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 16
+    btn.TextSize = 14
     btn.Text = text
     btn.Name = name
     btn.Parent = frame
@@ -70,28 +70,28 @@ local deleteAllBtn = createButton("DeleteAllBtn","🗑 Delete All",0.025,0.85,Co
 local tpBtn = createButton("TeleportBtn","✈ Teleport",0.525,0.35)
 local prevBtn = createButton("PrevBtn","⬅ Prev",0.025,0.7)
 local nextBtn = createButton("NextBtn","Next ➡",0.525,0.7)
-local autoBtn = createButton("AutoBtn","▶ Auto-Teleport",0.025,0.35)
-local antiDamageBtn = createButton("AntiDamageBtn","💪 Anti-Damage: ON",0.025,0.25,Color3.fromRGB(0,120,255))
+local autoBtn = createButton("AutoBtn","▶ Auto",0.025,0.35)
+local antiDamageBtn = createButton("AntiDamageBtn","💪 ON",0.525,0.25,Color3.fromRGB(0,120,255))
 
--- Minimize & Close
+-- Minimize & Close (modern)
 local minimizeBtn = Instance.new("TextButton")
 minimizeBtn.Size = UDim2.new(0.12,0,0.08,0)
 minimizeBtn.Position = UDim2.new(0.75,0,0.01,0)
 minimizeBtn.Text = "—"
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(70,70,70)
-minimizeBtn.TextColor3 = Color3.fromRGB(255,255,255)
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+minimizeBtn.TextColor3 = Color3.fromRGB(0,255,180)
 minimizeBtn.Font = Enum.Font.SourceSansBold
-minimizeBtn.TextSize = 18
+minimizeBtn.TextSize = 16
 minimizeBtn.Parent = frame
 
 local closeBtn = Instance.new("TextButton")
 closeBtn.Size = UDim2.new(0.12,0,0.08,0)
 closeBtn.Position = UDim2.new(0.88,0,0.01,0)
 closeBtn.Text = "X"
-closeBtn.BackgroundColor3 = Color3.fromRGB(150,0,0)
+closeBtn.BackgroundColor3 = Color3.fromRGB(180,0,0)
 closeBtn.TextColor3 = Color3.fromRGB(255,255,255)
 closeBtn.Font = Enum.Font.SourceSansBold
-closeBtn.TextSize = 18
+closeBtn.TextSize = 16
 closeBtn.Parent = frame
 
 -- Delay TextBox
@@ -99,10 +99,10 @@ local delayBox = Instance.new("TextBox")
 delayBox.Size = UDim2.new(0.9,0,0.12,0)
 delayBox.Position = UDim2.new(0.05,0,0.15,0)
 delayBox.BackgroundColor3 = Color3.fromRGB(60,60,60)
-delayBox.TextColor3 = Color3.fromRGB(255,255,255)
+delayBox.TextColor3 = Color3.fromRGB(0,255,180)
 delayBox.Font = Enum.Font.SourceSansBold
-delayBox.TextSize = 16
-delayBox.PlaceholderText = "Delay per teleport (s)"
+delayBox.TextSize = 14
+delayBox.PlaceholderText = "Delay (s)"
 delayBox.Text = "1.5"
 delayBox.Parent = frame
 
@@ -115,7 +115,7 @@ local moveDuration = 1.5
 local antiDamageEnabled = true
 local minimized = false
 
--- Update koordinat real-time
+-- Update koordinat
 RunService.RenderStepped:Connect(function()
     if hrp and hrp.Parent then
         coordsLabel.Text = string.format("X: %.2f Y: %.2f Z: %.2f", hrp.Position.X, hrp.Position.Y, hrp.Position.Z)
@@ -129,95 +129,100 @@ local function updatePreview()
     if #savedCoords == 0 then
         savedLabel.Text = "Saved: -"
     else
-        savedLabel.Text = string.format("Saved [%d/%d]: %s", currentIndex, #savedCoords, savedNames[currentIndex])
+        savedLabel.Text = string.format("[%d/%d] %s", currentIndex, #savedCoords, savedNames[currentIndex])
     end
 end
 
 -- Delay Box
 delayBox.FocusLost:Connect(function()
     local val = tonumber(delayBox.Text)
-    if val and val>0 then
-        moveDuration = val
-    else
-        delayBox.Text = tostring(moveDuration)
-    end
+    if val and val>0 then moveDuration = val else delayBox.Text = tostring(moveDuration) end
 end)
 
--- Safe Teleport
-local function safeTeleport(targetPos)
-    if not hrp then return end
-    if humanoid and antiDamageEnabled then
-        humanoid.Health = humanoid.MaxHealth
-    end
-    hrp.CFrame = CFrame.new(targetPos)
+-- Safe teleport
+local function safeTeleport(pos)
+    if humanoid and antiDamageEnabled then humanoid.Health = humanoid.MaxHealth end
+    hrp.CFrame = CFrame.new(pos)
 end
 
--- Tombol Fungsi
+-- Tombol fungsional (Save / Remove / Delete All / Next / Prev / Teleport / Auto / AntiDamage)
 saveBtn.MouseButton1Click:Connect(function()
     if hrp then
-        local name = "Point"..(#savedCoords+1)
-        table.insert(savedCoords, hrp.Position)
-        table.insert(savedNames, name)
+        table.insert(savedCoords,hrp.Position)
+        table.insert(savedNames,"Point"..#savedCoords)
         currentIndex = #savedCoords
         updatePreview()
     end
 end)
-
 removeBtn.MouseButton1Click:Connect(function()
-    if #savedCoords == 0 then return end
-    table.remove(savedCoords, currentIndex)
-    table.remove(savedNames, currentIndex)
-    if currentIndex > #savedCoords then currentIndex = #savedCoords end
+    if #savedCoords==0 then return end
+    table.remove(savedCoords,currentIndex)
+    table.remove(savedNames,currentIndex)
+    if currentIndex>#savedCoords then currentIndex=#savedCoords end
     updatePreview()
 end)
-
 deleteAllBtn.MouseButton1Click:Connect(function()
     savedCoords = {}
     savedNames = {}
-    currentIndex = 1
+    currentIndex=1
     updatePreview()
 end)
-
-nextBtn.MouseButton1Click:Connect(function()
-    if #savedCoords == 0 then return end
-    currentIndex = currentIndex + 1
-    if currentIndex > #savedCoords then currentIndex = 1 end
-    updatePreview()
-end)
-
 prevBtn.MouseButton1Click:Connect(function()
-    if #savedCoords == 0 then return end
-    currentIndex = currentIndex - 1
-    if currentIndex < 1 then currentIndex = #savedCoords end
+    if #savedCoords==0 then return end
+    currentIndex = currentIndex -1
+    if currentIndex<1 then currentIndex=#savedCoords end
     updatePreview()
 end)
-
-tpBtn.MouseButton1Click:Connect(function()
-    if savedCoords[currentIndex] then
-        safeTeleport(savedCoords[currentIndex])
-    end
+nextBtn.MouseButton1Click:Connect(function()
+    if #savedCoords==0 then return end
+    currentIndex = currentIndex +1
+    if currentIndex>#savedCoords then currentIndex=1 end
+    updatePreview()
 end)
-
--- Anti-Damage Toggle
+tpBtn.MouseButton1Click:Connect(function()
+    if savedCoords[currentIndex] then safeTeleport(savedCoords[currentIndex]) end
+end)
 antiDamageBtn.MouseButton1Click:Connect(function()
     antiDamageEnabled = not antiDamageEnabled
     if antiDamageEnabled then
-        antiDamageBtn.Text = "💪 Anti-Damage: ON"
+        antiDamageBtn.Text = "💪 ON"
         antiDamageBtn.BackgroundColor3 = Color3.fromRGB(0,120,255)
     else
-        antiDamageBtn.Text = "💀 Anti-Damage: OFF"
-        antiDamageBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
+        antiDamageBtn.Text = "💀 OFF"
+        antiDamageBtn.BackgroundColor3 = Color3.fromRGB(80,80,80)
     end
 end)
 
--- Minimize & Close
+-- Minimize & Close (GUI compact)
 minimizeBtn.MouseButton1Click:Connect(function()
     if not minimized then
-        frame.Size = UDim2.new(0,200,0,50)
-        minimized = true
+        frame.Size = UDim2.new(0,100,0,40)
+        minimized=true
+        coordsLabel.Visible=false
+        savedLabel.Visible=false
+        saveBtn.Visible=false
+        removeBtn.Visible=false
+        deleteAllBtn.Visible=false
+        tpBtn.Visible=false
+        prevBtn.Visible=false
+        nextBtn.Visible=false
+        autoBtn.Visible=false
+        antiDamageBtn.Visible=false
+        delayBox.Visible=false
     else
-        frame.Size = UDim2.new(0,320,0,400)
-        minimized = false
+        frame.Size = UDim2.new(0,240,0,280)
+        minimized=false
+        coordsLabel.Visible=true
+        savedLabel.Visible=true
+        saveBtn.Visible=true
+        removeBtn.Visible=true
+        deleteAllBtn.Visible=true
+        tpBtn.Visible=true
+        prevBtn.Visible=true
+        nextBtn.Visible=true
+        autoBtn.Visible=true
+        antiDamageBtn.Visible=true
+        delayBox.Visible=true
     end
 end)
 
@@ -225,24 +230,18 @@ closeBtn.MouseButton1Click:Connect(function()
     screenGui:Destroy()
 end)
 
--- Auto-Teleport
+-- Auto teleport
 autoBtn.MouseButton1Click:Connect(function()
-    if #savedCoords == 0 then return end
+    if #savedCoords==0 then return end
     autoTeleporting = not autoTeleporting
-    if autoTeleporting then
-        autoBtn.Text = "⏸ Stop Auto"
-        spawn(function()
-            local idx = 1
-            while autoTeleporting and #savedCoords>0 do
-                if savedCoords[idx] then
-                    safeTeleport(savedCoords[idx])
-                    idx = idx + 1
-                    if idx > #savedCoords then idx = 1 end
-                    task.wait(moveDuration)
-                end
-            end
-        end)
-    else
-        autoBtn.Text = "▶ Auto-Teleport"
-    end
+    autoBtn.Text = autoTeleporting and "⏸ Stop" or "▶ Auto"
+    spawn(function()
+        local idx = 1
+        while autoTeleporting and #savedCoords>0 do
+            safeTeleport(savedCoords[idx])
+            idx = idx +1
+            if idx>#savedCoords then idx=1 end
+            task.wait(moveDuration)
+        end
+    end)
 end)
