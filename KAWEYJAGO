@@ -1,0 +1,257 @@
+-- LocalScript (StarterPlayer > StarterPlayerScripts)
+
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+
+-- ==============================
+-- GUI SETUP
+-- ==============================
+local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+ScreenGui.Name = "StandGUI"
+
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 250, 0, 380)
+Frame.Position = UDim2.new(0.05, 0, 0.3, 0)
+Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Name = "MainFrame"
+
+-- Title
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1, -40, 0, 30)
+Title.Position = UDim2.new(0, 10, 0, 5)
+Title.Text = "kaweydlsra"
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 20
+Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.BackgroundTransparency = 1
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Minimize button
+local MinBtn = Instance.new("TextButton", Frame)
+MinBtn.Size = UDim2.new(0, 30, 0, 30)
+MinBtn.Position = UDim2.new(1, -35, 0, 5)
+MinBtn.Text = "-"
+MinBtn.Font = Enum.Font.GothamBold
+MinBtn.TextSize = 20
+MinBtn.TextColor3 = Color3.fromRGB(255,255,255)
+MinBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+MinBtn.Name = "Minimize"
+
+-- Scroll list player
+local PlayerList = Instance.new("ScrollingFrame", Frame)
+PlayerList.Size = UDim2.new(1, -20, 0, 200)
+PlayerList.Position = UDim2.new(0, 10, 0, 40)
+PlayerList.CanvasSize = UDim2.new(0,0,0,0)
+PlayerList.ScrollBarThickness = 6
+PlayerList.BackgroundColor3 = Color3.fromRGB(20,20,20)
+PlayerList.BorderSizePixel = 0
+
+local UIListLayout = Instance.new("UIListLayout", PlayerList)
+UIListLayout.Padding = UDim.new(0,5)
+UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+-- ==============================
+-- LOGIC VARIABEL
+-- ==============================
+local distance = 0
+local delayTime = 2
+local Teleporting = false
+
+-- ==============================
+-- FUNGI TELEPORT
+-- ==============================
+local function teleportToTarget(targetPlayer, mode)
+	if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("HumanoidRootPart") then
+		local targetHRP = targetPlayer.Character.HumanoidRootPart
+		local myChar = player.Character or player.CharacterAdded:Wait()
+		local myHRP = myChar:WaitForChild("HumanoidRootPart")
+
+		local offset = Vector3.new(0, 0, 0)
+		if mode == "F" then
+			offset = targetHRP.CFrame.LookVector * distance
+		elseif mode == "B" then
+			offset = -targetHRP.CFrame.LookVector * distance
+		elseif mode == "L" then
+			offset = -targetHRP.CFrame.RightVector * distance
+		elseif mode == "R" then
+			offset = targetHRP.CFrame.RightVector * distance
+		else
+			offset = Vector3.new(0, 3, 0) -- default atas kepala
+		end
+
+		myHRP.CFrame = targetHRP.CFrame + offset
+	end
+end
+
+-- Auto teleport ke semua player sekali
+local function autoTeleportAll()
+	for _, targetPlayer in ipairs(Players:GetPlayers()) do
+		if not Teleporting then break end
+		if targetPlayer ~= player then
+			teleportToTarget(targetPlayer)
+			task.wait(delayTime)
+		end
+	end
+	-- selesai -> otomatis stop
+	Teleporting = false
+	ToggleButton.Text = "OFF"
+	ToggleButton.BackgroundColor3 = Color3.fromRGB(0,120,255)
+end
+
+-- ==============================
+-- ITEM PLAYER LIST
+-- ==============================
+local function createPlayerItem(p)
+    local Item = Instance.new("Frame")
+    Item.Size = UDim2.new(1, 0, 0, 30)
+    Item.BackgroundTransparency = 1
+
+    local NameLabel = Instance.new("TextLabel", Item)
+    NameLabel.Size = UDim2.new(0.6, 0, 1, 0)
+    NameLabel.Text = p.DisplayName
+    NameLabel.Font = Enum.Font.Gotham
+    NameLabel.TextSize = 16
+    NameLabel.TextColor3 = Color3.fromRGB(255,255,255)
+    NameLabel.BackgroundTransparency = 1
+    NameLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local positions = {"F","B","L","R"}
+    for i, pos in ipairs(positions) do
+        local Btn = Instance.new("TextButton", Item)
+        Btn.Size = UDim2.new(0, 30, 1, 0)
+        Btn.Position = UDim2.new(0.6 + (i-1)*0.1, 5, 0, 0)
+        Btn.Text = pos
+        Btn.Font = Enum.Font.GothamBold
+        Btn.TextSize = 14
+        Btn.TextColor3 = Color3.fromRGB(255,255,255)
+        Btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+
+        Btn.MouseButton1Click:Connect(function()
+            teleportToTarget(p, pos)
+        end)
+    end
+
+    return Item
+end
+
+-- Update list player
+local function updateList()
+    PlayerList:ClearAllChildren()
+    UIListLayout.Parent = PlayerList
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player then
+            local Item = createPlayerItem(p)
+            Item.Parent = PlayerList
+        end
+    end
+
+    PlayerList.CanvasSize = UDim2.new(0,0,0,UIListLayout.AbsoluteContentSize.Y+10)
+end
+
+Players.PlayerAdded:Connect(updateList)
+Players.PlayerRemoving:Connect(updateList)
+updateList()
+
+-- ==============================
+-- INPUT JARAK & DELAY
+-- ==============================
+local DistanceLabel = Instance.new("TextLabel", Frame)
+DistanceLabel.Size = UDim2.new(0.5, -10, 0, 30)
+DistanceLabel.Position = UDim2.new(0, 10, 0, 250)
+DistanceLabel.Text = "Jarak:"
+DistanceLabel.Font = Enum.Font.Gotham
+DistanceLabel.TextSize = 16
+DistanceLabel.TextColor3 = Color3.fromRGB(255,255,255)
+DistanceLabel.BackgroundTransparency = 1
+DistanceLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local DistanceBox = Instance.new("TextBox", Frame)
+DistanceBox.Size = UDim2.new(0.5, -10, 0, 30)
+DistanceBox.Position = UDim2.new(0.5, 0, 0, 250)
+DistanceBox.Text = "0"
+DistanceBox.Font = Enum.Font.Gotham
+DistanceBox.TextSize = 16
+DistanceBox.TextColor3 = Color3.fromRGB(255,255,255)
+DistanceBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
+DistanceBox.ClearTextOnFocus = false
+
+DistanceBox.FocusLost:Connect(function(enter)
+	if enter then
+		local num = tonumber(DistanceBox.Text)
+		if num then
+			distance = num
+		end
+	end
+end)
+
+local DelayLabel = Instance.new("TextLabel", Frame)
+DelayLabel.Size = UDim2.new(0.5, -10, 0, 30)
+DelayLabel.Position = UDim2.new(0, 10, 0, 285)
+DelayLabel.Text = "Delay:"
+DelayLabel.Font = Enum.Font.Gotham
+DelayLabel.TextSize = 16
+DelayLabel.TextColor3 = Color3.fromRGB(255,255,255)
+DelayLabel.BackgroundTransparency = 1
+DelayLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+local DelayBox = Instance.new("TextBox", Frame)
+DelayBox.Size = UDim2.new(0.5, -10, 0, 30)
+DelayBox.Position = UDim2.new(0.5, 0, 0, 285)
+DelayBox.Text = tostring(delayTime)
+DelayBox.Font = Enum.Font.Gotham
+DelayBox.TextSize = 16
+DelayBox.TextColor3 = Color3.fromRGB(255,255,255)
+DelayBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
+DelayBox.ClearTextOnFocus = false
+
+DelayBox.FocusLost:Connect(function(enter)
+	if enter then
+		local num = tonumber(DelayBox.Text)
+		if num and num > 0 then
+			delayTime = num
+		end
+	end
+end)
+
+-- ==============================
+-- TOGGLE AUTO TELEPORT
+-- ==============================
+ToggleButton = Instance.new("TextButton", Frame)
+ToggleButton.Size = UDim2.new(1, -20, 0, 40)
+ToggleButton.Position = UDim2.new(0, 10, 0, 330)
+ToggleButton.Text = "OFF"
+ToggleButton.Font = Enum.Font.GothamBold
+ToggleButton.TextSize = 20
+ToggleButton.TextColor3 = Color3.fromRGB(255,255,255)
+ToggleButton.BackgroundColor3 = Color3.fromRGB(0,120,255)
+
+ToggleButton.MouseButton1Click:Connect(function()
+	if not Teleporting then
+		Teleporting = true
+		ToggleButton.Text = "ON"
+		ToggleButton.BackgroundColor3 = Color3.fromRGB(0,200,100)
+		task.spawn(autoTeleportAll)
+	else
+		Teleporting = false
+		ToggleButton.Text = "OFF"
+		ToggleButton.BackgroundColor3 = Color3.fromRGB(0,120,255)
+	end
+end)
+
+-- ==============================
+-- MINIMIZE
+-- ==============================
+local minimized = false
+MinBtn.MouseButton1Click:Connect(function()
+    minimized = not minimized
+    for _, child in ipairs(Frame:GetChildren()) do
+        if child ~= Title and child ~= MinBtn then
+            child.Visible = not minimized
+        end
+    end
+    Frame.Size = minimized and UDim2.new(0,250,0,40) or UDim2.new(0,250,0,380)
+end)
