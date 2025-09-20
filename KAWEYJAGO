@@ -1,13 +1,14 @@
 -- LocalScript (StarterPlayer > StarterPlayerScripts)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
 local targetPlayer = nil
 local enabled = false
 local followConn
 local positionMode = "Back"
-local distance = 0 -- default langsung nempel
+local distance = 0
 local autoTeleporting = false
 
 -- === GUI ===
@@ -17,35 +18,70 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 170, 0, 200)
-frame.Position = UDim2.new(1, -180, 0, 60)
+frame.Size = UDim2.new(0, 250, 0, 280) -- diperbesar
+frame.Position = UDim2.new(1, -260, 0, 80)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
 frame.Active = true
-frame.Draggable = true
 frame.Parent = screenGui
 
+-- Drag support Android
+local dragging, dragInput, dragStart, startPos
+local function update(input)
+	local delta = input.Position - dragStart
+	frame.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset + delta.Y
+	)
+end
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+frame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		update(input)
+	end
+end)
+
+-- Title
 local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -30, 0, 25)
+title.Size = UDim2.new(1, -40, 0, 35)
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 title.Text = "kaweydlsra"
 title.TextColor3 = Color3.fromRGB(255, 255, 255)
 title.Font = Enum.Font.SourceSansBold
-title.TextSize = 16
+title.TextSize = 20
 title.Parent = frame
 
 -- Minimize button
 local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Size = UDim2.new(0, 25, 0, 25)
-minimizeBtn.Position = UDim2.new(1, -25, 0, 0)
+minimizeBtn.Size = UDim2.new(0, 35, 0, 35)
+minimizeBtn.Position = UDim2.new(1, -35, 0, 0)
 minimizeBtn.Text = "-"
 minimizeBtn.BackgroundColor3 = Color3.fromRGB(100,100,100)
 minimizeBtn.TextColor3 = Color3.fromRGB(255,255,255)
 minimizeBtn.Parent = frame
 
 local content = Instance.new("Frame")
-content.Size = UDim2.new(1, 0, 1, -25)
-content.Position = UDim2.new(0,0,0,25)
+content.Size = UDim2.new(1, 0, 1, -35)
+content.Position = UDim2.new(0,0,0,35)
 content.BackgroundTransparency = 1
 content.Parent = frame
 
@@ -54,37 +90,39 @@ local normalSize = frame.Size
 minimizeBtn.MouseButton1Click:Connect(function()
 	minimized = not minimized
 	content.Visible = not minimized
-	frame.Size = minimized and UDim2.new(0,170,0,25) or normalSize
+	frame.Size = minimized and UDim2.new(0,250,0,35) or normalSize
 	minimizeBtn.Text = minimized and "+" or "-"
 end)
 
 -- Dropdown player
 local playerDropdown = Instance.new("TextButton")
-playerDropdown.Size = UDim2.new(1, -10, 0, 25)
-playerDropdown.Position = UDim2.new(0, 5, 0, 5)
+playerDropdown.Size = UDim2.new(1, -20, 0, 35)
+playerDropdown.Position = UDim2.new(0, 10, 0, 10)
 playerDropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
 playerDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
 playerDropdown.Text = "Pilih Player"
+playerDropdown.TextSize = 18
 playerDropdown.Parent = content
 
 local dropdownFrame = Instance.new("ScrollingFrame")
-dropdownFrame.Size = UDim2.new(1, -10, 0, 70)
-dropdownFrame.Position = UDim2.new(0, 5, 0, 35)
+dropdownFrame.Size = UDim2.new(1, -20, 0, 100)
+dropdownFrame.Position = UDim2.new(0, 10, 0, 50)
 dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
 dropdownFrame.Visible = false
 dropdownFrame.BorderSizePixel = 0
 dropdownFrame.CanvasSize = UDim2.new(0,0,0,0)
-dropdownFrame.ScrollBarThickness = 6
+dropdownFrame.ScrollBarThickness = 8
 dropdownFrame.Parent = content
 
 local uiList = Instance.new("UIListLayout")
 uiList.Parent = dropdownFrame
 uiList.SortOrder = Enum.SortOrder.LayoutOrder
+uiList.Padding = UDim.new(0,2)
 
 -- Posisi tombol
 local posRow = Instance.new("Frame")
-posRow.Size = UDim2.new(1, -10, 0, 25)
-posRow.Position = UDim2.new(0,5,0,110)
+posRow.Size = UDim2.new(1, -20, 0, 40)
+posRow.Position = UDim2.new(0,10,0,160)
 posRow.BackgroundTransparency = 1
 posRow.Parent = content
 
@@ -93,10 +131,11 @@ local fullNames = {F="Front",B="Back",L="Left",R="Right"}
 local modeButtons = {}
 for i, name in ipairs(modes) do
 	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0.25, -2, 1, 0)
-	btn.Position = UDim2.new((i-1)*0.25, (i-1)*2, 0, 0)
+	btn.Size = UDim2.new(0.25, -3, 1, 0)
+	btn.Position = UDim2.new((i-1)*0.25, (i-1)*3, 0, 0)
 	btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.TextSize = 18
 	btn.Text = name
 	btn.Parent = posRow
 	modeButtons[name] = btn
@@ -111,15 +150,16 @@ for i, name in ipairs(modes) do
 end
 modeButtons["B"].BackgroundColor3 = Color3.fromRGB(0,120,200)
 
--- TextBox jarak (ganti slider)
+-- TextBox jarak
 local distBox = Instance.new("TextBox")
-distBox.Size = UDim2.new(1, -10, 0, 25)
-distBox.Position = UDim2.new(0, 5, 0, 85)
+distBox.Size = UDim2.new(1, -20, 0, 35)
+distBox.Position = UDim2.new(0, 10, 0, 120)
 distBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 distBox.TextColor3 = Color3.fromRGB(255,255,255)
 distBox.Text = tostring(distance)
 distBox.ClearTextOnFocus = false
 distBox.PlaceholderText = "Jarak (0-25)"
+distBox.TextSize = 18
 distBox.Parent = content
 
 distBox.FocusLost:Connect(function()
@@ -134,19 +174,21 @@ end)
 
 -- Toggle ON/OFF
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(1, -10, 0, 25)
-toggleBtn.Position = UDim2.new(0,5,1,-60)
+toggleBtn.Size = UDim2.new(1, -20, 0, 40)
+toggleBtn.Position = UDim2.new(0,10,1,-80)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextSize = 18
 toggleBtn.Text = "OFF"
 toggleBtn.Parent = content
 
 -- Auto teleport semua player
 local autoBtn = Instance.new("TextButton")
-autoBtn.Size = UDim2.new(1, -10, 0, 25)
-autoBtn.Position = UDim2.new(0,5,1,-30)
+autoBtn.Size = UDim2.new(1, -20, 0, 40)
+autoBtn.Position = UDim2.new(0,10,1,-35)
 autoBtn.BackgroundColor3 = Color3.fromRGB(200, 120, 0)
 autoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoBtn.TextSize = 18
 autoBtn.Text = "Auto Teleport ALL"
 autoBtn.Parent = content
 
@@ -176,7 +218,7 @@ local function followTarget()
 			end
 
 			local targetPos = targetHRP.CFrame * CFrame.new(offset)
-			myHRP.CFrame = targetPos -- teleport langsung
+			myHRP.CFrame = targetPos
 		end
 	end)
 end
@@ -207,7 +249,7 @@ local function toggle()
 end
 toggleBtn.MouseButton1Click:Connect(toggle)
 
--- Auto teleport semua player (satu-satu lalu stop)
+-- Auto teleport semua player
 autoBtn.MouseButton1Click:Connect(function()
 	if autoTeleporting then return end
 	autoTeleporting = true
@@ -226,7 +268,7 @@ autoBtn.MouseButton1Click:Connect(function()
 		local hrp = getHRP(plr.Character)
 		if hrp then
 			myHRP.CFrame = hrp.CFrame * CFrame.new(0, 0, 3)
-			task.wait(0.5) -- delay antar teleport
+			task.wait(0.5)
 		end
 	end
 
@@ -252,9 +294,10 @@ local function refreshDropdown()
 
 	for _, plr in ipairs(playerList) do
 		local btn = Instance.new("TextButton")
-		btn.Size = UDim2.new(1, -5, 0, 20)
+		btn.Size = UDim2.new(1, -5, 0, 30)
 		btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.TextSize = 16
 		btn.Text = plr.DisplayName
 		btn.Parent = dropdownFrame
 		btn.MouseButton1Click:Connect(function()
