@@ -18,7 +18,7 @@ screenGui.ResetOnSpawn = false
 screenGui.Parent = player:WaitForChild("PlayerGui")
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 250, 0, 280) -- diperbesar
+frame.Size = UDim2.new(0, 250, 0, 280)
 frame.Position = UDim2.new(1, -260, 0, 80)
 frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 frame.BorderSizePixel = 0
@@ -65,7 +65,7 @@ local title = Instance.new("TextLabel")
 title.Size = UDim2.new(1, -40, 0, 35)
 title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 title.Text = "kaweydlsra"
-title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.TextColor3 = Color3.fromRGB(255, 0, 0) -- merah
 title.Font = Enum.Font.SourceSansBold
 title.TextSize = 20
 title.Parent = frame
@@ -154,7 +154,7 @@ modeButtons["B"].BackgroundColor3 = Color3.fromRGB(0,120,200)
 local distBox = Instance.new("TextBox")
 distBox.Size = UDim2.new(1, -20, 0, 35)
 distBox.Position = UDim2.new(0, 10, 0, 120)
-distBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+distBox.BackgroundColor3 = Color3.fromRGB(0, 150, 0) -- hijau
 distBox.TextColor3 = Color3.fromRGB(255,255,255)
 distBox.Text = tostring(distance)
 distBox.ClearTextOnFocus = false
@@ -174,21 +174,21 @@ end)
 
 -- Toggle ON/OFF
 local toggleBtn = Instance.new("TextButton")
-toggleBtn.Size = UDim2.new(1, -20, 0, 40)
-toggleBtn.Position = UDim2.new(0,10,1,-80)
+toggleBtn.Size = UDim2.new(1, -20, 0, 30) -- diperkecil
+toggleBtn.Position = UDim2.new(0,10,1,-70)
 toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
 toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleBtn.TextSize = 18
+toggleBtn.TextSize = 16
 toggleBtn.Text = "OFF"
 toggleBtn.Parent = content
 
 -- Auto teleport semua player
 local autoBtn = Instance.new("TextButton")
-autoBtn.Size = UDim2.new(1, -20, 0, 40)
+autoBtn.Size = UDim2.new(1, -20, 0, 30) -- diperkecil
 autoBtn.Position = UDim2.new(0,10,1,-35)
 autoBtn.BackgroundColor3 = Color3.fromRGB(200, 120, 0)
 autoBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-autoBtn.TextSize = 18
+autoBtn.TextSize = 16
 autoBtn.Text = "Auto Teleport ALL"
 autoBtn.Parent = content
 
@@ -249,7 +249,7 @@ local function toggle()
 end
 toggleBtn.MouseButton1Click:Connect(toggle)
 
--- Auto teleport semua player
+-- Auto teleport semua player dengan "menempel"
 autoBtn.MouseButton1Click:Connect(function()
 	if autoTeleporting then return end
 	autoTeleporting = true
@@ -264,15 +264,19 @@ autoBtn.MouseButton1Click:Connect(function()
 		end
 	end
 
-	for _, plr in ipairs(others) do
-		local hrp = getHRP(plr.Character)
-		if hrp then
-			myHRP.CFrame = hrp.CFrame * CFrame.new(0, 0, 3)
-			task.wait(0.5)
+	-- Loop tempel ke semua player satu per satu
+	task.spawn(function()
+		for _, plr in ipairs(others) do
+			if plr.Character and getHRP(plr.Character) then
+				local targetHRP = getHRP(plr.Character)
+				while plr.Parent and targetHRP and player.Character and myHRP do
+					myHRP.CFrame = targetHRP.CFrame * CFrame.new(0,0,3)
+					task.wait(0.05)
+				end
+			end
 		end
-	end
-
-	autoTeleporting = false
+		autoTeleporting = false
+	end)
 end)
 
 -- Dropdown logic
