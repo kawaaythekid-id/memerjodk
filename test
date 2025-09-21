@@ -1,0 +1,465 @@
+-- LocalScript (StarterPlayerScripts)
+-- Aimbot + Auto Shoot (full features) — Mobile/Android friendly
+-- Fitur:
+--  - Toggle via GUI (touch) + keyboard (E)
+--  - Smoothing aim, predictive aim, projectileSpeed
+--  - Auto-equip weapon sebelum menembak
+--  - Auto-shoot via Tool:Activate() atau RemoteEvent/RemoteFunction (scan & pilih)
+--  - Head-only (only-head) / body aim toggle
+--  - Hitbox offset support (offset pada aim target)
+--  - Lock-on crosshair visual yang mengikuti target di layar
+--  - Panel pengaturan sederhana (smoothing, prediction, projectileSpeed, headOnly, offset)
+--  - Team-check support
+-- Catatan: beberapa fungsi (misal Remote names) perlu penyesuaian per game.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
+local Camera = workspace.CurrentCamera
+local LocalPlayer = Players.LocalPlayer
+local Teams = game:GetService("Teams")
+local StarterGui = game:GetService("StarterGui")
+
+-- ===== SETTINGS (ubah sesuai kebutuhan) =====
+local SETTINGS = {
+    enabled = false,
+    maxDistance = 250,             -- maksimal jarak target
+    smoothing = 0.14,              -- 0 = instant, 0.1-0.25 nyaman
+    predictionEnabled = true,
+    projectileSpeed = 400,         -- estimasi projectile speed
+    aimPartName = "Head",          -- "Head" atau "HumanoidRootPart"
+    teamCheck = true,
+    raycastRadius = 0,             -- 0 = single ray
+    headOnly = false,              -- jika true, hanya head dianggap valid target
+    hitboxOffset = Vector3.new(0,0,0), -- offset world-space terhadap target position
+    autoEquip = true,              -- auto-equip tool dari Backpack
+    autoShoot = true,              -- aktifkan auto shoot
+    autoScanRemotes = true,        -- scan remote events/functions dari tool
+    remotePreferredNames = {"fire","shoot","attack","shootserver","fireserver"}, -- prioritas nama
+    guiScale = 1.0,                -- ukuran GUI scale (untuk Android)
+}
+
+-- internal state
+local gui = {}
+local selectedRemote = nil
+local cachedRemotes = {} -- {toolName => { {obj=..., type="RemoteEvent"/"RemoteFunction", name=...}, ... } }
+
+-- ===== Helper functions =====
+
+local function isSameTeam(p1, p2)
+    if not SETTINGS.teamCheck then return false end
+    if not p1 or not p2 then return false end
+    if not p1.Team or not p2.Team then return false end
+    return p1.Team == p2.Team
+end
+
+local function createGui()
+    -- root screen gui
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "AimbotGUI"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+    -- container frame (bottom-left)
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 210 * SETTINGS.guiScale, 0, 220 * SETTINGS.guiScale)
+    frame.Position = UDim2.new(0.02, 0, 0.68, 0)
+    frame.BackgroundTransparency = 0.4
+    frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
+
+    -- Toggle button (besar untuk touch)
+    local toggleBtn = Instance.new("TextButton")
+    toggleBtn.Size = UDim2.new(0, 200 * SETTINGS.guiScale, 0, 48 * SETTINGS.guiScale)
+    toggleBtn.Position = UDim2.new(0, 6 * SETTINGS.guiScale, 0, 6 * SETTINGS.guiScale)
+    toggleBtn.Text = "AIMBOT: OFF"
+    toggleBtn.Font = Enum.Font.GothamBold
+    toggleBtn.TextSize = 18 * SETTINGS.guiScale
+    toggleBtn.Parent = frame
+
+    -- Lock-on crosshair toggle
+    local lockBtn = Instance.new("TextButton")
+    lockBtn.Size = UDim2.new(0, 96 * SETTINGS.guiScale, 0, 36 * SETTINGS.guiScale)
+    lockBtn.Position = UDim2.new(0, 6 * SETTINGS.guiScale, 0, 62 * SETTINGS.guiScale)
+    lockBtn.Text = "Lock: ON"
+    lockBtn.Font = Enum.Font.Gotham
+    lockBtn.TextSize = 14 * SETTINGS.guiScale
+    lockBtn.Parent = frame
+
+    -- Head-only toggle
+    local headBtn = Instance.new("TextButton")
+    headBtn.Size = UDim2.new(0, 96 * SETTINGS.guiScale, 0, 36 * SETTINGS.guiScale)
+    headBtn.Position = UDim2.new(0, 110 * SETTINGS.guiScale, 0, 62 * SETTINGS.guiScale)
+    headBtn.Text = "HeadOnly: " .. (SETTINGS.headOnly and "YES" or "NO")
+    headBtn.Font = Enum.Font.Gotham
+    headBtn.TextSize = 14 * SETTINGS.guiScale
+    headBtn.Parent = frame
+
+    -- Small label for smoothing (value)
+    local smoothingLabel = Instance.new("TextLabel")
+    smoothingLabel.Size = UDim2.new(0, 70 * SETTINGS.guiScale, 0, 22 * SETTINGS.guiScale)
+    smoothingLabel.Position = UDim2.new(0, 6 * SETTINGS.guiScale, 0, 106 * SETTINGS.guiScale)
+    smoothingLabel.Text = "Smooth: ".. tostring(SETTINGS.smoothing)
+    smoothingLabel.Font = Enum.Font.Gotham
+    smoothingLabel.TextSize = 12 * SETTINGS.guiScale
+    smoothingLabel.BackgroundTransparency = 1
+    smoothingLabel.TextXAlignment = Enum.TextXAlignment.Left
+    smoothingLabel.Parent = frame
+
+    -- Buttons for smoothing +/- (touch)
+    local smoothMinus = Instance.new("TextButton")
+    smoothMinus.Size = UDim2.new(0, 36 * SETTINGS.guiScale, 0, 24 * SETTINGS.guiScale)
+    smoothMinus.Position = UDim2.new(0, 78 * SETTINGS.guiScale, 0, 104 * SETTINGS.guiScale)
+    smoothMinus.Text = "-"
+    smoothMinus.Font = Enum.Font.Gotham
+    smoothMinus.TextSize = 18 * SETTINGS.guiScale
+    smoothMinus.Parent = frame
+
+    local smoothPlus = Instance.new("TextButton")
+    smoothPlus.Size = UDim2.new(0, 36 * SETTINGS.guiScale, 0, 24 * SETTINGS.guiScale)
+    smoothPlus.Position = UDim2.new(0, 120 * SETTINGS.guiScale, 0, 104 * SETTINGS.guiScale)
+    smoothPlus.Text = "+"
+    smoothPlus.Font = Enum.Font.Gotham
+    smoothPlus.TextSize = 18 * SETTINGS.guiScale
+    smoothPlus.Parent = frame
+
+    -- Remote selection dropdown (simple)
+    local remoteLabel = Instance.new("TextLabel")
+    remoteLabel.Size = UDim2.new(0, 200 * SETTINGS.guiScale, 0, 22 * SETTINGS.guiScale)
+    remoteLabel.Position = UDim2.new(0, 6 * SETTINGS.guiScale, 0, 138 * SETTINGS.guiScale)
+    remoteLabel.Text = "Remote: Auto"
+    remoteLabel.Font = Enum.Font.Gotham
+    remoteLabel.TextSize = 12 * SETTINGS.guiScale
+    remoteLabel.BackgroundTransparency = 1
+    remoteLabel.TextXAlignment = Enum.TextXAlignment.Left
+    remoteLabel.Parent = frame
+
+    -- Crosshair (centered initially, hidden)
+    local cross = Instance.new("Frame")
+    cross.Name = "AimbotCrosshair"
+    cross.Size = UDim2.new(0, 10 * SETTINGS.guiScale, 0, 10 * SETTINGS.guiScale)
+    cross.AnchorPoint = Vector2.new(0.5, 0.5)
+    cross.Position = UDim2.new(0.5, 0, 0.5, 0)
+    cross.BackgroundColor3 = Color3.new(1, 0, 0)
+    cross.BorderSizePixel = 0
+    cross.Visible = false
+    cross.Parent = screenGui
+
+    -- store gui refs
+    gui.screenGui = screenGui
+    gui.frame = frame
+    gui.toggleBtn = toggleBtn
+    gui.lockBtn = lockBtn
+    gui.headBtn = headBtn
+    gui.smoothingLabel = smoothingLabel
+    gui.smoothMinus = smoothMinus
+    gui.smoothPlus = smoothPlus
+    gui.remoteLabel = remoteLabel
+    gui.cross = cross
+
+    -- Connect UI events
+    toggleBtn.MouseButton1Click:Connect(function()
+        SETTINGS.enabled = not SETTINGS.enabled
+        toggleBtn.Text = "AIMBOT: " .. (SETTINGS.enabled and "ON" or "OFF")
+        gui.cross.Visible = SETTINGS.enabled
+    end)
+
+    lockBtn.MouseButton1Click:Connect(function()
+        -- toggle lock (we use this to quickly enable/disable crosshair follow)
+        if lockBtn.Text:sub(1,4) == "Lock" then
+            if lockBtn.Text:find("ON") then
+                lockBtn.Text = "Lock: OFF"
+                gui.cross.BackgroundColor3 = Color3.new(1,1,0)
+            else
+                lockBtn.Text = "Lock: ON"
+                gui.cross.BackgroundColor3 = Color3.new(1,0,0)
+            end
+        end
+    end)
+
+    headBtn.MouseButton1Click:Connect(function()
+        SETTINGS.headOnly = not SETTINGS.headOnly
+        headBtn.Text = "HeadOnly: " .. (SETTINGS.headOnly and "YES" or "NO")
+    end)
+
+    smoothMinus.MouseButton1Click:Connect(function()
+        SETTINGS.smoothing = math.clamp(SETTINGS.smoothing - 0.02, 0, 1)
+        smoothingLabel.Text = "Smooth: " .. string.format("%.2f", SETTINGS.smoothing)
+    end)
+    smoothPlus.MouseButton1Click:Connect(function()
+        SETTINGS.smoothing = math.clamp(SETTINGS.smoothing + 0.02, 0, 1)
+        smoothingLabel.Text = "Smooth: " .. string.format("%.2f", SETTINGS.smoothing)
+    end)
+
+    return screenGui
+end
+
+-- Raycast visibility check
+local function hasLineOfSight(originPos, targetCharacter, targetPart)
+    if not originPos or not targetPart or not targetCharacter then return false end
+    local direction = (targetPart.Position - originPos)
+    if direction.Magnitude <= 0 then return true end
+    local raycastParams = RaycastParams.new()
+    raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+    raycastParams.FilterDescendantsInstances = {}
+    if LocalPlayer.Character then
+        table.insert(raycastParams.FilterDescendantsInstances, LocalPlayer.Character)
+    end
+    raycastParams.IgnoreWater = true
+
+    if SETTINGS.raycastRadius <= 0 then
+        local result = workspace:Raycast(originPos, direction, raycastParams)
+        if not result then return false end
+        return result.Instance:IsDescendantOf(targetCharacter)
+    else
+        local offsets = {Vector3.new(), Vector3.new(SETTINGS.raycastRadius,0,0), Vector3.new(0,SETTINGS.raycastRadius,0)}
+        for _, off in ipairs(offsets) do
+            local res = workspace:Raycast(originPos + off, direction, raycastParams)
+            if res and res.Instance:IsDescendantOf(targetCharacter) then
+                return true
+            end
+        end
+        return false
+    end
+end
+
+-- Predict target position based on velocity and projectileSpeed
+local function predictPosition(targetPart)
+    if not SETTINGS.predictionEnabled or SETTINGS.projectileSpeed <= 0 then
+        return targetPart.Position
+    end
+    local targetVel = Vector3.new()
+    if targetPart.AssemblyLinearVelocity then
+        targetVel = targetPart.AssemblyLinearVelocity
+    elseif targetPart.Velocity then
+        targetVel = targetPart.Velocity
+    end
+    local origin = Camera.CFrame.Position
+    local displacement = targetPart.Position - origin
+    local distance = displacement.Magnitude
+    local travelTime = distance / SETTINGS.projectileSpeed
+    return targetPart.Position + targetVel * travelTime
+end
+
+-- Get nearest valid player
+local function getNearestPlayer()
+    local closestPlayer = nil
+    local closestDistance = math.huge
+    local origin = Camera.CFrame.Position
+    for _, player in ipairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character.Parent and not player.Character:FindFirstChildWhichIsA("ForceField") then
+            if not isSameTeam(LocalPlayer, player) then
+                local aimPart = player.Character:FindFirstChild(SETTINGS.aimPartName) or player.Character:FindFirstChild("HumanoidRootPart")
+                if aimPart then
+                    if SETTINGS.headOnly and (aimPart.Name ~= "Head") then
+                        -- if headOnly is set but aimPartName is not Head, try to find Head specifically
+                        aimPart = player.Character:FindFirstChild("Head")
+                        if not aimPart then
+                            -- no head found; skip
+                            goto continue
+                        end
+                    end
+                    local pos = aimPart.Position
+                    local dist = (pos - origin).Magnitude
+                    if dist <= SETTINGS.maxDistance then
+                        if hasLineOfSight(origin, player.Character, aimPart) then
+                            if dist < closestDistance then
+                                closestDistance = dist
+                                closestPlayer = player
+                            end
+                        end
+                    end
+                end
+            end
+        end
+        ::continue::
+    end
+    return closestPlayer
+end
+
+-- Smoothly aim camera toward world point
+local function smoothLookAt(worldPos)
+    if not Camera then return end
+    local camPos = Camera.CFrame.Position
+    local desired = CFrame.new(camPos, worldPos)
+    Camera.CFrame = Camera.CFrame:Lerp(desired, math.clamp(SETTINGS.smoothing, 0, 1))
+end
+
+-- Auto-equip tool (try humanoid:EquipTool)
+local function autoEquipTool(tool)
+    if not tool or not LocalPlayer.Character then return end
+    local humanoid = LocalPlayer.Character:FindFirstChildWhichIsA("Humanoid")
+    if humanoid and tool.Parent ~= LocalPlayer.Character then
+        pcall(function()
+            humanoid:EquipTool(tool)
+        end)
+    end
+end
+
+-- Scan tool for RemoteEvent/RemoteFunction and cache them
+local function scanToolRemotes(tool)
+    if not tool then return {} end
+    if cachedRemotes[tool.Name] then return cachedRemotes[tool.Name] end
+    local found = {}
+    for _, obj in ipairs(tool:GetDescendants()) do
+        if obj:IsA("RemoteEvent") or obj:IsA("RemoteFunction") then
+            table.insert(found, {obj = obj, type = obj.ClassName, name = obj.Name})
+        end
+    end
+    cachedRemotes[tool.Name] = found
+    return found
+end
+
+-- Choose best remote from list using preferred names
+local function chooseBestRemote(remotes)
+    if not remotes or #remotes == 0 then return nil end
+    -- try preferred names first
+    for _, pref in ipairs(SETTINGS.remotePreferredNames) do
+        for _, r in ipairs(remotes) do
+            if r.name:lower():find(pref:lower()) then
+                return r.obj
+            end
+        end
+    end
+    -- fallback to first
+    return remotes[1].obj
+end
+
+-- Try to auto-shoot using tool
+local function tryAutoShoot()
+    if not SETTINGS.autoShoot then return end
+    local char = LocalPlayer.Character
+    if not char then return end
+    local tool = char:FindFirstChildOfClass("Tool")
+    if not tool then
+        -- try backpack
+        if LocalPlayer.Backpack then
+            tool = LocalPlayer.Backpack:FindFirstChildOfClass("Tool")
+            if tool and SETTINGS.autoEquip then
+                autoEquipTool(tool)
+                -- after equip, try to re-get tool
+                tool = char:FindFirstChildOfClass("Tool") or tool
+            end
+        end
+    end
+    if not tool then return end
+
+    -- attempt Activate()
+    pcall(function()
+        if tool and tool.Parent and tool.Parent == char then
+            tool:Activate()
+        end
+    end)
+
+    -- scan remotes and fire best candidate
+    if SETTINGS.autoScanRemotes then
+        local remotes = scanToolRemotes(tool)
+        local chosen = chooseBestRemote(remotes)
+        if chosen then
+            pcall(function()
+                if chosen.ClassName == "RemoteEvent" then
+                    chosen:FireServer()
+                elseif chosen.ClassName == "RemoteFunction" then
+                    chosen:InvokeServer()
+                end
+            end)
+            selectedRemote = chosen
+            return
+        end
+    end
+
+    -- fallback: search globally in ReplicatedStorage / workspace for remotes with common names (less safe)
+    -- (optional: implement if necessary per game)
+end
+
+-- Update crosshair screen position
+local function updateCrosshair(screenFrame, worldPos)
+    if not screenFrame or not gui.cross then return end
+    local viewportPoint, onScreen = Camera:WorldToViewportPoint(worldPos)
+    if not onScreen then
+        gui.cross.Visible = false
+        return
+    end
+    gui.cross.Visible = true
+    gui.cross.Position = UDim2.new(0, viewportPoint.X, 0, viewportPoint.Y)
+end
+
+-- Main loop
+local lastTarget = nil
+local crossTargetPos = nil
+
+RunService.RenderStepped:Connect(function()
+    if not SETTINGS.enabled then
+        if gui.cross and gui.cross.Visible then
+            gui.cross.Visible = false
+        end
+        return
+    end
+
+    local nearest = getNearestPlayer()
+    if nearest and nearest.Character then
+        local targetPart = nearest.Character:FindFirstChild(SETTINGS.aimPartName) or nearest.Character:FindFirstChild("HumanoidRootPart")
+        if SETTINGS.headOnly then
+            targetPart = nearest.Character:FindFirstChild("Head") or targetPart
+        end
+        if targetPart then
+            -- predicted position + hitbox offset
+            local predicted = predictPosition(targetPart) + SETTINGS.hitboxOffset
+            crossTargetPos = predicted
+
+            -- update crosshair
+            updateCrosshair(gui.frame, predicted)
+
+            -- smooth aim
+            smoothLookAt(predicted)
+
+            -- auto-shoot when roughly aligned
+            local lookVector = Camera.CFrame.LookVector
+            local dirTo = (predicted - Camera.CFrame.Position)
+            if dirTo.Magnitude > 0 then
+                local dirUnit = dirTo.Unit
+                local dot = lookVector:Dot(dirUnit)
+                if dot > 0.985 then -- threshold adjust if needed
+                    tryAutoShoot()
+                end
+            end
+        end
+    else
+        -- no target
+        if gui.cross and gui.cross.Visible then
+            gui.cross.Visible = false
+        end
+    end
+end)
+
+-- Keyboard toggle (E)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        SETTINGS.enabled = not SETTINGS.enabled
+        if gui.toggleBtn then
+            gui.toggleBtn.Text = "AIMBOT: " .. (SETTINGS.enabled and "ON" or "OFF")
+        end
+        if gui.cross then gui.cross.Visible = SETTINGS.enabled end
+    end
+end)
+
+-- Bind a controller/touch action (example: two-finger tap or controller R3)
+ContextActionService:BindAction("ToggleAimbotMobile", function(name, state, input)
+    if state == Enum.UserInputState.Begin then
+        SETTINGS.enabled = not SETTINGS.enabled
+        if gui.toggleBtn then gui.toggleBtn.Text = "AIMBOT: " .. (SETTINGS.enabled and "ON" or "OFF") end
+        if gui.cross then gui.cross.Visible = SETTINGS.enabled end
+    end
+    return Enum.ContextActionResult.Sink
+end, false, Enum.KeyCode.ButtonR3)
+
+-- Initialize GUI
+createGui()
+
+-- Optional: print summary
+print("Full Aimbot loaded (Android-friendly). Toggle via GUI or [E]. Use settings in GUI (smooth/headOnly/auto-scan).")
+
+-- End of script
