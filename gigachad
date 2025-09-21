@@ -1,0 +1,129 @@
+-- LocalScript Auto Strength Farm + GUI + TextBox + Counter
+-- Tempelkan di StarterPlayer > StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local PlayerGui = player:WaitForChild("PlayerGui")
+
+-- ======================
+-- PENGATURAN
+-- ======================
+local REMOTE_NAMES = {"Train", "GainStrength", "Punch", "Swing", "Strength"}
+local INTERVAL = 0.05 -- default kecepatan (detik)
+-- ======================
+
+-- cari remote
+local remote = nil
+for _, name in ipairs(REMOTE_NAMES) do
+    local r = ReplicatedStorage:FindFirstChild(name, true) or player:FindFirstChild(name, true)
+    if r and (r:IsA("RemoteEvent") or r:IsA("RemoteFunction")) then
+        remote = r
+        print("✅ Ditemukan Remote:", r:GetFullName())
+        break
+    end
+end
+if not remote then
+    warn("❌ Tidak menemukan RemoteEvent/Function Strength. Harus cek manual di game.")
+end
+
+-- status
+local ENABLED = false
+local COUNTER = 0
+
+-- GUI setup
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "AutoStrengthGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = PlayerGui
+
+-- Tombol ON/OFF
+local button = Instance.new("TextButton")
+button.Size = UDim2.new(0, 140, 0, 50)
+button.Position = UDim2.new(0.05, 0, 0.2, 0)
+button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+button.TextColor3 = Color3.fromRGB(255, 255, 255)
+button.Text = "Auto Strength: OFF"
+button.Font = Enum.Font.SourceSansBold
+button.TextSize = 18
+button.Parent = screenGui
+button.Active = true
+button.Draggable = true
+
+-- TextBox untuk speed
+local textBox = Instance.new("TextBox")
+textBox.Size = UDim2.new(0, 140, 0, 40)
+textBox.Position = UDim2.new(0.05, 0, 0.32, 0)
+textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+textBox.TextColor3 = Color3.fromRGB(0, 255, 0)
+textBox.Text = tostring(INTERVAL)
+textBox.PlaceholderText = "Speed (detik)"
+textBox.Font = Enum.Font.SourceSansBold
+textBox.TextSize = 16
+textBox.Parent = screenGui
+textBox.ClearTextOnFocus = false
+textBox.Active = true
+textBox.Draggable = true
+
+-- Label counter
+local counterLabel = Instance.new("TextLabel")
+counterLabel.Size = UDim2.new(0, 140, 0, 40)
+counterLabel.Position = UDim2.new(0.05, 0, 0.4, 0)
+counterLabel.BackgroundTransparency = 0.3
+counterLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+counterLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+counterLabel.Text = "Counter: 0"
+counterLabel.Font = Enum.Font.SourceSansBold
+counterLabel.TextSize = 16
+counterLabel.Parent = screenGui
+counterLabel.Active = true
+counterLabel.Draggable = true
+
+-- fungsi toggle
+local function toggle()
+    ENABLED = not ENABLED
+    if ENABLED then
+        button.Text = "Auto Strength: ON"
+        button.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    else
+        button.Text = "Auto Strength: OFF"
+        button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
+    end
+end
+
+button.MouseButton1Click:Connect(toggle)
+
+-- fungsi ubah interval lewat textbox
+textBox.FocusLost:Connect(function(enterPressed)
+    local val = tonumber(textBox.Text)
+    if val and val > 0 then
+        INTERVAL = val
+        textBox.TextColor3 = Color3.fromRGB(0, 255, 0) -- hijau kalau valid
+    else
+        textBox.Text = tostring(INTERVAL)
+        textBox.TextColor3 = Color3.fromRGB(255, 0, 0) -- merah kalau salah input
+    end
+end)
+
+-- loop auto farm
+task.spawn(function()
+    while true do
+        RunService.Heartbeat:Wait()
+        if ENABLED and remote then
+            pcall(function()
+                if remote:IsA("RemoteEvent") then
+                    remote:FireServer()
+                elseif remote:IsA("RemoteFunction") then
+                    remote:InvokeServer()
+                end
+                COUNTER += 1
+                counterLabel.Text = "Counter: " .. tostring(COUNTER)
+            end)
+            task.wait(INTERVAL)
+        else
+            task.wait(0.2)
+        end
+    end
+end)
