@@ -1,61 +1,108 @@
--- Gigachad Simulator Auto Push Up & Weight Lift (Mobile No Delay) - 2025 Update
--- Oleh: Grok (edukasi only, gunakan bijak)
+-- LocalScript for the Hitbox GUI
 
+-- Services
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
 
+-- Variables
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
+local playerGui = player:WaitForChild("PlayerGui")
+local hitboxEnabled = false
+local teamCheckEnabled = false
 
--- Konfigurasi: true/false untuk enable
-local enabled = true  -- Set false untuk stop
+-- Create GUI
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "HitboxGUI"
+screenGui.Parent = playerGui
 
--- Nama tool/object (update 2025: sesuaikan jika beda, cek explorer)
-local pushUpPromptName = "PushUp"  -- ProximityPrompt untuk push up
-local weightPromptName = "WeightLift"  -- Untuk angkat beban
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 200, 0, 100)
+mainFrame.Position = UDim2.new(0.5, -100, 0.5, -50)
+mainFrame.BackgroundColor3 = Color3.new(0.1, 0.1, 0.1)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
 
--- Fungsi fire proximity prompt (untuk simulator mobile)
-local function triggerPrompt(promptName)
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if obj:IsA("ProximityPrompt") and obj.Name:find(promptName) then
-            obj:InputHoldBegin()
-            wait(0.01)  -- No delay
-            obj:InputHoldEnd()
-            return true
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 20, 0, 20)
+closeButton.Position = UDim2.new(1, -20, 0, 0)
+closeButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.new(1, 1, 1)
+closeButton.Parent = mainFrame
+
+local enableHitboxButton = Instance.new("TextButton")
+enableHitboxButton.Size = UDim2.new(1, -10, 0, 30)
+enableHitboxButton.Position = UDim2.new(0, 5, 0, 5)
+enableHitboxButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+enableHitboxButton.Text = "Enable Hitbox"
+enableHitboxButton.TextColor3 = Color3.new(1, 1, 1)
+enableHitboxButton.Parent = mainFrame
+
+local enableTeamCheckButton = Instance.new("TextButton")
+enableTeamCheckButton.Size = UDim2.new(1, -10, 0, 30)
+enableTeamCheckButton.Position = UDim2.new(0, 5, 0, 40)
+enableTeamCheckButton.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+enableTeamCheckButton.Text = "Enable Team-Check"
+enableTeamCheckButton.TextColor3 = Color3.new(1, 1, 1)
+enableTeamCheckButton.Parent = mainFrame
+
+-- Functions
+local function createHitbox(character)
+    local head = character:FindFirstChild("Head")
+    if head then
+        local hitbox = Instance.new("Part")
+        hitbox.Size = Vector3.new(6, 6, 6)
+        hitbox.Transparency = 0.6
+        hitbox.CanCollide = false
+        hitbox.Anchored = true
+        hitbox.Parent = character
+        hitbox.Name = "Hitbox"
+        hitbox.Position = head.Position
+
+        local weld = Instance.new("WeldConstraint")
+        weld.Part0 = head
+        weld.Part1 = hitbox
+        weld.Parent = hitbox
+    end
+end
+
+local function removeHitbox(character)
+    local hitbox = character:FindFirstChild("Hitbox")
+    if hitbox then
+        hitbox:Destroy()
+    end
+end
+
+local function updateHitboxes()
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= player and (not teamCheckEnabled or player.Team ~= player.Team) then
+            local character = player.Character
+            if character and character:FindFirstChild("Head") then
+                if hitboxEnabled then
+                    createHitbox(character)
+                else
+                    removeHitbox(character)
+                end
+            end
         end
     end
-    return false
 end
 
--- Loop utama no delay (gunakan Heartbeat untuk mobile stability)
-if enabled then
-    local connection
-    connection = RunService.Heartbeat:Connect(function()
-        if not enabled then connection:Disconnect() return end
-        
-        -- Auto push up
-        if triggerPrompt(pushUpPromptName) then
-            print("Auto Push Up Fired! 💪")
-        end
-        
-        -- Jeda super kecil untuk no lag di mobile
-        wait(0.01)
-        
-        -- Auto weight lift
-        if triggerPrompt(weightPromptName) then
-            print("Auto Weight Lift Fired! 🏋️")
-        end
-        
-        wait(0.01)
-    end)
-end
-
--- Handler respawn (penting untuk mobile disconnect)
-player.CharacterAdded:Connect(function(newChar)
-    character = newChar
-    humanoid = character:WaitForChild("Humanoid")
+-- Event Connections
+closeButton.MouseButton1Click:Connect(function()
+    mainFrame.Visible = not mainFrame.Visible
 end)
 
-print("Mobile Script Loaded: Gigachad Auto Train No Delay Aktif! 🚀")
+enableHitboxButton.MouseButton1Click:Connect(function()
+    hitboxEnabled = not hitboxEnabled
+    enableHitboxButton.Text = hitboxEnabled and "Disable Hitbox" or "Enable Hitbox"
+    updateHitboxes()
+end)
+
+enableTeamCheckButton.MouseButton1Click:Connect(function()
+    teamCheckEnabled = not teamCheckEnabled
+    enableTeamCheckButton.Text = teamCheckEnabled and "Disable Team-Check" or "Enable Team-Check"
+    updateHitboxes()
+end)
+
+UserInputService.InputBegan:Connect(
