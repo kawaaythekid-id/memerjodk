@@ -1,129 +1,142 @@
--- LocalScript Auto Strength Farm + GUI + TextBox + Counter
--- Tempelkan di StarterPlayer > StarterPlayerScripts
+-- Gigachad Simulator Mobile Ultimate Script (Android Optimized) by Grok (v1.0 - September 2025)
+-- Fitur: Auto Train, Auto Rebirth, Auto Collect Pets, Auto Claim Gifts, Speed/Jump Boost
+-- Optimized for mobile executors like Arceus X/Hydrogen
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
-local PlayerGui = player:WaitForChild("PlayerGui")
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoid = character:WaitForChild("Humanoid")
 
--- ======================
--- PENGATURAN
--- ======================
-local REMOTE_NAMES = {"Train", "GainStrength", "Punch", "Swing", "Strength"}
-local INTERVAL = 0.05 -- default kecepatan (detik)
--- ======================
+-- RemoteEvents (sesuaikan jika berbeda, ini contoh)
+local remotes = ReplicatedStorage:WaitForChild("Remotes") -- Asumsi folder
+local trainRemote = remotes:WaitForChild("Train")
+local rebirthRemote = remotes:WaitForChild("Rebirth")
+local collectPetRemote = remotes:WaitForChild("CollectPet")
+local claimGiftRemote = remotes:WaitForChild("ClaimGift")
 
--- cari remote
-local remote = nil
-for _, name in ipairs(REMOTE_NAMES) do
-    local r = ReplicatedStorage:FindFirstChild(name, true) or player:FindFirstChild(name, true)
-    if r and (r:IsA("RemoteEvent") or r:IsA("RemoteFunction")) then
-        remote = r
-        print("✅ Ditemukan Remote:", r:GetFullName())
-        break
-    end
-end
-if not remote then
-    warn("❌ Tidak menemukan RemoteEvent/Function Strength. Harus cek manual di game.")
-end
+-- Config
+local config = {
+    autoTrain = true,
+    autoRebirth = true,
+    autoCollectPets = true,
+    autoClaimGifts = true,
+    speedBoost = 50,
+    jumpBoost = 100
+}
 
--- status
-local ENABLED = false
-local COUNTER = 0
-
--- GUI setup
+-- Simple GUI untuk Android
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "AutoStrengthGUI"
-screenGui.ResetOnSpawn = false
-screenGui.Parent = PlayerGui
+local frame = Instance.new("Frame")
+local title = Instance.new("TextLabel")
+local toggleBtn = Instance.new("TextButton")
 
--- Tombol ON/OFF
-local button = Instance.new("TextButton")
-button.Size = UDim2.new(0, 140, 0, 50)
-button.Position = UDim2.new(0.05, 0, 0.2, 0)
-button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-button.TextColor3 = Color3.fromRGB(255, 255, 255)
-button.Text = "Auto Strength: OFF"
-button.Font = Enum.Font.SourceSansBold
-button.TextSize = 18
-button.Parent = screenGui
-button.Active = true
-button.Draggable = true
+screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.IgnoreGuiInset = true -- Fullscreen friendly
 
--- TextBox untuk speed
-local textBox = Instance.new("TextBox")
-textBox.Size = UDim2.new(0, 140, 0, 40)
-textBox.Position = UDim2.new(0.05, 0, 0.32, 0)
-textBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-textBox.TextColor3 = Color3.fromRGB(0, 255, 0)
-textBox.Text = tostring(INTERVAL)
-textBox.PlaceholderText = "Speed (detik)"
-textBox.Font = Enum.Font.SourceSansBold
-textBox.TextSize = 16
-textBox.Parent = screenGui
-textBox.ClearTextOnFocus = false
-textBox.Active = true
-textBox.Draggable = true
+frame.Parent = screenGui
+frame.Size = UDim2.new(0, 200, 0, 300)
+frame.Position = UDim2.new(0, 10, 0, 10)
+frame.BackgroundColor3 = Color3.new(0, 0, 0)
+frame.BackgroundTransparency = 0.5
+frame.Visible = false
 
--- Label counter
-local counterLabel = Instance.new("TextLabel")
-counterLabel.Size = UDim2.new(0, 140, 0, 40)
-counterLabel.Position = UDim2.new(0.05, 0, 0.4, 0)
-counterLabel.BackgroundTransparency = 0.3
-counterLabel.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-counterLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-counterLabel.Text = "Counter: 0"
-counterLabel.Font = Enum.Font.SourceSansBold
-counterLabel.TextSize = 16
-counterLabel.Parent = screenGui
-counterLabel.Active = true
-counterLabel.Draggable = true
+title.Parent = frame
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Text = "Gigachad Mobile Hub"
+title.TextColor3 = Color3.new(1, 1, 1)
+title.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
 
--- fungsi toggle
-local function toggle()
-    ENABLED = not ENABLED
-    if ENABLED then
-        button.Text = "Auto Strength: ON"
-        button.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-    else
-        button.Text = "Auto Strength: OFF"
-        button.BackgroundColor3 = Color3.fromRGB(170, 0, 0)
-    end
-end
-
-button.MouseButton1Click:Connect(toggle)
-
--- fungsi ubah interval lewat textbox
-textBox.FocusLost:Connect(function(enterPressed)
-    local val = tonumber(textBox.Text)
-    if val and val > 0 then
-        INTERVAL = val
-        textBox.TextColor3 = Color3.fromRGB(0, 255, 0) -- hijau kalau valid
-    else
-        textBox.Text = tostring(INTERVAL)
-        textBox.TextColor3 = Color3.fromRGB(255, 0, 0) -- merah kalau salah input
-    end
+-- Toggle All Button (simpel untuk mobile)
+toggleBtn.Parent = frame
+toggleBtn.Size = UDim2.new(1, -20, 0, 40)
+toggleBtn.Position = UDim2.new(0, 10, 0, 40)
+toggleBtn.Text = "Toggle All: ON"
+toggleBtn.TextColor3 = Color3.new(1, 1, 1)
+toggleBtn.BackgroundColor3 = Color3.new(0.3, 0.3, 0.3)
+toggleBtn.TextScaled = true
+toggleBtn.MouseButton1Click:Connect(function()
+    config.autoTrain = not config.autoTrain
+    config.autoRebirth = not config.autoRebirth
+    config.autoCollectPets = not config.autoCollectPets
+    config.autoClaimGifts = not config.autoClaimGifts
+    toggleBtn.Text = "Toggle All: " .. (config.autoTrain and "ON" or "OFF")
 end)
 
--- loop auto farm
-task.spawn(function()
+-- Auto Train
+spawn(function()
     while true do
-        RunService.Heartbeat:Wait()
-        if ENABLED and remote then
+        if config.autoTrain and trainRemote then
             pcall(function()
-                if remote:IsA("RemoteEvent") then
-                    remote:FireServer()
-                elseif remote:IsA("RemoteFunction") then
-                    remote:InvokeServer()
-                end
-                COUNTER += 1
-                counterLabel.Text = "Counter: " .. tostring(COUNTER)
+                trainRemote:FireServer()
             end)
-            task.wait(INTERVAL)
-        else
-            task.wait(0.2)
         end
+        wait(0.2) -- Delay lebih panjang untuk stabilitas Android
     end
 end)
+
+-- Auto Rebirth
+spawn(function()
+    while true do
+        if config.autoRebirth and rebirthRemote then
+            local power = player.leaderstats.Power.Value
+            if power >= 1000000 then
+                pcall(function()
+                    rebirthRemote:FireServer()
+                end)
+            end
+        end
+        wait(7) -- Delay lebih panjang
+    end
+end)
+
+-- Auto Collect Pets
+spawn(function()
+    while true do
+        if config.autoCollectPets and collectPetRemote then
+            for _, pet in pairs(workspace.Pets:GetChildren()) do
+                if pet:IsA("Model") and (pet.Position - character.HumanoidRootPart.Position).Magnitude < 50 then
+                    pcall(function()
+                        collectPetRemote:FireServer(pet.Name)
+                    end)
+                end
+            end
+        end
+        wait(3)
+    end
+end)
+
+-- Auto Claim Gifts
+spawn(function()
+    while true do
+        if config.autoClaimGifts and claimGiftRemote then
+            pcall(function()
+                claimGiftRemote:FireServer("all")
+            end)
+        end
+        wait(12)
+    end
+end)
+
+-- Speed & Jump Boost
+humanoid.WalkSpeed = config.speedBoost
+humanoid.JumpPower = config.jumpBoost
+RunService.Heartbeat:Connect(function()
+    humanoid.WalkSpeed = config.speedBoost
+    humanoid.JumpPower = config.jumpBoost
+end)
+
+-- Toggle GUI dengan tap (mobile-friendly)
+local tapCount = 0
+UserInputService.TouchTapInWorld:Connect(function()
+    tapCount = tapCount + 1
+    if tapCount >= 2 then -- Double tap
+        frame.Visible = not frame.Visible
+        tapCount = 0
+    end
+end)
+
+print("Gigachad Mobile Hub Loaded! Double-tap to toggle GUI. Become the ultimate Chad! 💪")
