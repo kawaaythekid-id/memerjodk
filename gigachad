@@ -1,6 +1,6 @@
--- Gigachad Simulator Mobile Ultimate Script (Android Optimized) by Grok (v1.0 - September 2025)
+-- Gigachad Simulator Mobile Ultimate Script (Android GUI Fix) by Grok (v1.1 - September 2025)
 -- Fitur: Auto Train, Auto Rebirth, Auto Collect Pets, Auto Claim Gifts, Speed/Jump Boost
--- Optimized for mobile executors like Arceus X/Hydrogen
+-- Perbaikan: GUI lebih stabil, tombol toggle di layar, debug prints
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -11,12 +11,12 @@ local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 
--- RemoteEvents (sesuaikan jika berbeda, ini contoh)
-local remotes = ReplicatedStorage:WaitForChild("Remotes") -- Asumsi folder
-local trainRemote = remotes:WaitForChild("Train")
-local rebirthRemote = remotes:WaitForChild("Rebirth")
-local collectPetRemote = remotes:WaitForChild("CollectPet")
-local claimGiftRemote = remotes:WaitForChild("ClaimGift")
+-- Cari folder Remotes (dengan fallback)
+local remotes = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage
+local trainRemote = remotes:FindFirstChild("Train")
+local rebirthRemote = remotes:FindFirstChild("Rebirth")
+local collectPetRemote = remotes:FindFirstChild("CollectPet")
+local claimGiftRemote = remotes:FindFirstChild("ClaimGift")
 
 -- Config
 local config = {
@@ -28,29 +28,31 @@ local config = {
     jumpBoost = 100
 }
 
--- Simple GUI untuk Android
+-- GUI untuk Android
 local screenGui = Instance.new("ScreenGui")
-local frame = Instance.new("Frame")
-local title = Instance.new("TextLabel")
-local toggleBtn = Instance.new("TextButton")
-
 screenGui.Parent = player:WaitForChild("PlayerGui")
-screenGui.IgnoreGuiInset = true -- Fullscreen friendly
+screenGui.IgnoreGuiInset = true
+screenGui.Enabled = true
+screenGui.ResetOnSpawn = false
 
+local frame = Instance.new("Frame")
 frame.Parent = screenGui
-frame.Size = UDim2.new(0, 200, 0, 300)
+frame.Size = UDim2.new(0, 200, 0, 250)
 frame.Position = UDim2.new(0, 10, 0, 10)
 frame.BackgroundColor3 = Color3.new(0, 0, 0)
 frame.BackgroundTransparency = 0.5
-frame.Visible = false
+frame.Visible = true -- Mulai visible untuk debug
 
+local title = Instance.new("TextLabel")
 title.Parent = frame
 title.Size = UDim2.new(1, 0, 0, 30)
 title.Text = "Gigachad Mobile Hub"
 title.TextColor3 = Color3.new(1, 1, 1)
 title.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
+title.TextScaled = true
 
--- Toggle All Button (simpel untuk mobile)
+-- Tombol Toggle
+local toggleBtn = Instance.new("TextButton")
 toggleBtn.Parent = frame
 toggleBtn.Size = UDim2.new(1, -20, 0, 40)
 toggleBtn.Position = UDim2.new(0, 10, 0, 40)
@@ -64,6 +66,21 @@ toggleBtn.MouseButton1Click:Connect(function()
     config.autoCollectPets = not config.autoCollectPets
     config.autoClaimGifts = not config.autoClaimGifts
     toggleBtn.Text = "Toggle All: " .. (config.autoTrain and "ON" or "OFF")
+    print("Toggled features: " .. toggleBtn.Text)
+end)
+
+-- Tombol Hide/Show GUI
+local hideBtn = Instance.new("TextButton")
+hideBtn.Parent = screenGui
+hideBtn.Size = UDim2.new(0, 50, 0, 50)
+hideBtn.Position = UDim2.new(1, -60, 0, 10)
+hideBtn.Text = "X"
+hideBtn.TextColor3 = Color3.new(1, 1, 1)
+hideBtn.BackgroundColor3 = Color3.new(0.5, 0, 0)
+hideBtn.TextScaled = true
+hideBtn.MouseButton1Click:Connect(function()
+    frame.Visible = not frame.Visible
+    print("GUI Visibility: " .. tostring(frame.Visible))
 end)
 
 -- Auto Train
@@ -72,9 +89,12 @@ spawn(function()
         if config.autoTrain and trainRemote then
             pcall(function()
                 trainRemote:FireServer()
+                print("Fired Train Remote")
             end)
+        elseif not trainRemote then
+            print("Error: Train Remote not found")
         end
-        wait(0.2) -- Delay lebih panjang untuk stabilitas Android
+        wait(0.3) -- Delay lebih panjang untuk Android
     end
 end)
 
@@ -82,14 +102,17 @@ end)
 spawn(function()
     while true do
         if config.autoRebirth and rebirthRemote then
-            local power = player.leaderstats.Power.Value
+            local power = player.leaderstats and player.leaderstats.Power and player.leaderstats.Power.Value or 0
             if power >= 1000000 then
                 pcall(function()
                     rebirthRemote:FireServer()
+                    print("Fired Rebirth Remote")
                 end)
             end
+        elseif not rebirthRemote then
+            print("Error: Rebirth Remote not found")
         end
-        wait(7) -- Delay lebih panjang
+        wait(8)
     end
 end)
 
@@ -97,15 +120,18 @@ end)
 spawn(function()
     while true do
         if config.autoCollectPets and collectPetRemote then
-            for _, pet in pairs(workspace.Pets:GetChildren()) do
+            for _, pet in pairs(workspace:FindFirstChild("Pets") and workspace.Pets:GetChildren() or {}) do
                 if pet:IsA("Model") and (pet.Position - character.HumanoidRootPart.Position).Magnitude < 50 then
                     pcall(function()
                         collectPetRemote:FireServer(pet.Name)
+                        print("Collected Pet: " .. pet.Name)
                     end)
                 end
             end
+        elseif not collectPetRemote then
+            print("Error: CollectPet Remote not found")
         end
-        wait(3)
+        wait(4)
     end
 end)
 
@@ -115,9 +141,12 @@ spawn(function()
         if config.autoClaimGifts and claimGiftRemote then
             pcall(function()
                 claimGiftRemote:FireServer("all")
+                print("Fired ClaimGift Remote")
             end)
+        elseif not claimGiftRemote then
+            print("Error: ClaimGift Remote not found")
         end
-        wait(12)
+        wait(15)
     end
 end)
 
@@ -125,18 +154,10 @@ end)
 humanoid.WalkSpeed = config.speedBoost
 humanoid.JumpPower = config.jumpBoost
 RunService.Heartbeat:Connect(function()
-    humanoid.WalkSpeed = config.speedBoost
-    humanoid.JumpPower = config.jumpBoost
-end)
-
--- Toggle GUI dengan tap (mobile-friendly)
-local tapCount = 0
-UserInputService.TouchTapInWorld:Connect(function()
-    tapCount = tapCount + 1
-    if tapCount >= 2 then -- Double tap
-        frame.Visible = not frame.Visible
-        tapCount = 0
+    if humanoid then
+        humanoid.WalkSpeed = config.speedBoost
+        humanoid.JumpPower = config.jumpBoost
     end
 end)
 
-print("Gigachad Mobile Hub Loaded! Double-tap to toggle GUI. Become the ultimate Chad! 💪")
+print("Gigachad Mobile Hub v1.1 Loaded! GUI should be visible. Tap 'X' to hide/show. Check console for errors.")
