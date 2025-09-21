@@ -1,163 +1,61 @@
--- Gigachad Simulator Mobile Ultimate Script (Android GUI Fix) by Grok (v1.1 - September 2025)
--- Fitur: Auto Train, Auto Rebirth, Auto Collect Pets, Auto Claim Gifts, Speed/Jump Boost
--- Perbaikan: GUI lebih stabil, tombol toggle di layar, debug prints
+-- Gigachad Simulator Auto Push Up & Weight Lift (Mobile No Delay) - 2025 Update
+-- Oleh: Grok (edukasi only, gunakan bijak)
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 local character = player.Character or player.CharacterAdded:Wait()
 local humanoid = character:WaitForChild("Humanoid")
 
--- Cari folder Remotes (dengan fallback)
-local remotes = ReplicatedStorage:FindFirstChild("Remotes") or ReplicatedStorage
-local trainRemote = remotes:FindFirstChild("Train")
-local rebirthRemote = remotes:FindFirstChild("Rebirth")
-local collectPetRemote = remotes:FindFirstChild("CollectPet")
-local claimGiftRemote = remotes:FindFirstChild("ClaimGift")
+-- Konfigurasi: true/false untuk enable
+local enabled = true  -- Set false untuk stop
 
--- Config
-local config = {
-    autoTrain = true,
-    autoRebirth = true,
-    autoCollectPets = true,
-    autoClaimGifts = true,
-    speedBoost = 50,
-    jumpBoost = 100
-}
+-- Nama tool/object (update 2025: sesuaikan jika beda, cek explorer)
+local pushUpPromptName = "PushUp"  -- ProximityPrompt untuk push up
+local weightPromptName = "WeightLift"  -- Untuk angkat beban
 
--- GUI untuk Android
-local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = player:WaitForChild("PlayerGui")
-screenGui.IgnoreGuiInset = true
-screenGui.Enabled = true
-screenGui.ResetOnSpawn = false
-
-local frame = Instance.new("Frame")
-frame.Parent = screenGui
-frame.Size = UDim2.new(0, 200, 0, 250)
-frame.Position = UDim2.new(0, 10, 0, 10)
-frame.BackgroundColor3 = Color3.new(0, 0, 0)
-frame.BackgroundTransparency = 0.5
-frame.Visible = true -- Mulai visible untuk debug
-
-local title = Instance.new("TextLabel")
-title.Parent = frame
-title.Size = UDim2.new(1, 0, 0, 30)
-title.Text = "Gigachad Mobile Hub"
-title.TextColor3 = Color3.new(1, 1, 1)
-title.BackgroundColor3 = Color3.new(0.2, 0.2, 0.2)
-title.TextScaled = true
-
--- Tombol Toggle
-local toggleBtn = Instance.new("TextButton")
-toggleBtn.Parent = frame
-toggleBtn.Size = UDim2.new(1, -20, 0, 40)
-toggleBtn.Position = UDim2.new(0, 10, 0, 40)
-toggleBtn.Text = "Toggle All: ON"
-toggleBtn.TextColor3 = Color3.new(1, 1, 1)
-toggleBtn.BackgroundColor3 = Color3.new(0.3, 0.3, 0.3)
-toggleBtn.TextScaled = true
-toggleBtn.MouseButton1Click:Connect(function()
-    config.autoTrain = not config.autoTrain
-    config.autoRebirth = not config.autoRebirth
-    config.autoCollectPets = not config.autoCollectPets
-    config.autoClaimGifts = not config.autoClaimGifts
-    toggleBtn.Text = "Toggle All: " .. (config.autoTrain and "ON" or "OFF")
-    print("Toggled features: " .. toggleBtn.Text)
-end)
-
--- Tombol Hide/Show GUI
-local hideBtn = Instance.new("TextButton")
-hideBtn.Parent = screenGui
-hideBtn.Size = UDim2.new(0, 50, 0, 50)
-hideBtn.Position = UDim2.new(1, -60, 0, 10)
-hideBtn.Text = "X"
-hideBtn.TextColor3 = Color3.new(1, 1, 1)
-hideBtn.BackgroundColor3 = Color3.new(0.5, 0, 0)
-hideBtn.TextScaled = true
-hideBtn.MouseButton1Click:Connect(function()
-    frame.Visible = not frame.Visible
-    print("GUI Visibility: " .. tostring(frame.Visible))
-end)
-
--- Auto Train
-spawn(function()
-    while true do
-        if config.autoTrain and trainRemote then
-            pcall(function()
-                trainRemote:FireServer()
-                print("Fired Train Remote")
-            end)
-        elseif not trainRemote then
-            print("Error: Train Remote not found")
+-- Fungsi fire proximity prompt (untuk simulator mobile)
+local function triggerPrompt(promptName)
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("ProximityPrompt") and obj.Name:find(promptName) then
+            obj:InputHoldBegin()
+            wait(0.01)  -- No delay
+            obj:InputHoldEnd()
+            return true
         end
-        wait(0.3) -- Delay lebih panjang untuk Android
     end
-end)
+    return false
+end
 
--- Auto Rebirth
-spawn(function()
-    while true do
-        if config.autoRebirth and rebirthRemote then
-            local power = player.leaderstats and player.leaderstats.Power and player.leaderstats.Power.Value or 0
-            if power >= 1000000 then
-                pcall(function()
-                    rebirthRemote:FireServer()
-                    print("Fired Rebirth Remote")
-                end)
-            end
-        elseif not rebirthRemote then
-            print("Error: Rebirth Remote not found")
+-- Loop utama no delay (gunakan Heartbeat untuk mobile stability)
+if enabled then
+    local connection
+    connection = RunService.Heartbeat:Connect(function()
+        if not enabled then connection:Disconnect() return end
+        
+        -- Auto push up
+        if triggerPrompt(pushUpPromptName) then
+            print("Auto Push Up Fired! 💪")
         end
-        wait(8)
-    end
-end)
-
--- Auto Collect Pets
-spawn(function()
-    while true do
-        if config.autoCollectPets and collectPetRemote then
-            for _, pet in pairs(workspace:FindFirstChild("Pets") and workspace.Pets:GetChildren() or {}) do
-                if pet:IsA("Model") and (pet.Position - character.HumanoidRootPart.Position).Magnitude < 50 then
-                    pcall(function()
-                        collectPetRemote:FireServer(pet.Name)
-                        print("Collected Pet: " .. pet.Name)
-                    end)
-                end
-            end
-        elseif not collectPetRemote then
-            print("Error: CollectPet Remote not found")
+        
+        -- Jeda super kecil untuk no lag di mobile
+        wait(0.01)
+        
+        -- Auto weight lift
+        if triggerPrompt(weightPromptName) then
+            print("Auto Weight Lift Fired! 🏋️")
         end
-        wait(4)
-    end
+        
+        wait(0.01)
+    end)
+end
+
+-- Handler respawn (penting untuk mobile disconnect)
+player.CharacterAdded:Connect(function(newChar)
+    character = newChar
+    humanoid = character:WaitForChild("Humanoid")
 end)
 
--- Auto Claim Gifts
-spawn(function()
-    while true do
-        if config.autoClaimGifts and claimGiftRemote then
-            pcall(function()
-                claimGiftRemote:FireServer("all")
-                print("Fired ClaimGift Remote")
-            end)
-        elseif not claimGiftRemote then
-            print("Error: ClaimGift Remote not found")
-        end
-        wait(15)
-    end
-end)
-
--- Speed & Jump Boost
-humanoid.WalkSpeed = config.speedBoost
-humanoid.JumpPower = config.jumpBoost
-RunService.Heartbeat:Connect(function()
-    if humanoid then
-        humanoid.WalkSpeed = config.speedBoost
-        humanoid.JumpPower = config.jumpBoost
-    end
-end)
-
-print("Gigachad Mobile Hub v1.1 Loaded! GUI should be visible. Tap 'X' to hide/show. Check console for errors.")
+print("Mobile Script Loaded: Gigachad Auto Train No Delay Aktif! 🚀")
