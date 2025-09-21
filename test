@@ -21,18 +21,17 @@ frame.Parent = screenGui
 -- Tombol Close (X)
 local closeButton = Instance.new("TextButton")
 closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(1, -35, 0, 5) -- pojok kanan atas
+closeButton.Position = UDim2.new(1, -35, 0, 5)
 closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
 closeButton.TextColor3 = Color3.new(1,1,1)
 closeButton.Text = "X"
 closeButton.Parent = frame
 
--- Fungsi untuk menutup GUI
 closeButton.MouseButton1Click:Connect(function()
-    screenGui:Destroy() -- menghapus GUI
+    screenGui:Destroy()
 end)
 
--- Scrollable frame untuk daftar outfit
+-- Scrollable frame
 local scrollingFrame = Instance.new("ScrollingFrame")
 scrollingFrame.Size = UDim2.new(1, 0, 1, 0)
 scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
@@ -45,27 +44,26 @@ UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 10)
 UIListLayout.Parent = scrollingFrame
 
--- Fungsi untuk mengambil full-body thumbnail dari HumanoidDescription
-local function getFullBodyThumbnail(userId)
+-- Fungsi mendapatkan thumbnail dari HumanoidDescription (full-body)
+local function getThumbnail(desc)
     local thumbType = Enum.ThumbnailType.AvatarThumbnail -- full-body
     local thumbSize = Enum.ThumbnailSize.Size420x420
     local success, url = pcall(function()
-        return Players:GetUserThumbnailAsync(userId, thumbType, thumbSize)
+        return Players:GetHumanoidDescriptionThumbnailAsync(desc, thumbType, thumbSize)
     end)
     if success then
         return url
     else
-        return "" -- fallback jika gagal
+        return ""
     end
 end
 
--- Fungsi menampilkan outfit dengan preview full-body
+-- Fungsi menampilkan semua outfit
 local function showOutfits()
     local descriptions = Players:GetHumanoidDescriptionsFromUserId(player.UserId)
     scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, #descriptions * 120)
 
     for i, desc in ipairs(descriptions) do
-        -- Tombol utama
         local btn = Instance.new("TextButton")
         btn.Size = UDim2.new(1, -10, 0, 110)
         btn.Position = UDim2.new(0, 5, 0, (i-1) * 115)
@@ -73,14 +71,14 @@ local function showOutfits()
         btn.Text = ""
         btn.Parent = scrollingFrame
 
-        -- Gambar preview full-body
+        -- Gambar preview full-body tiap outfit
         local imageLabel = Instance.new("ImageLabel")
         imageLabel.Size = UDim2.new(0, 100, 0, 100)
         imageLabel.Position = UDim2.new(0, 5, 0, 5)
         imageLabel.BackgroundTransparency = 1
         imageLabel.Parent = btn
 
-        local thumbnailUrl = getFullBodyThumbnail(player.UserId)
+        local thumbnailUrl = getThumbnail(desc)
         imageLabel.Image = thumbnailUrl
 
         -- Label nama outfit
@@ -100,7 +98,7 @@ local function showOutfits()
     end
 end
 
--- Jalankan fungsi menampilkan outfit
+-- Jalankan
 showOutfits()
 
 -- Toggle GUI untuk Android (tap layar)
