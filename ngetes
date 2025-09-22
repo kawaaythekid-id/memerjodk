@@ -1,123 +1,81 @@
--- LocalScript di StarterPlayerScripts
+-- LocalScript untuk Murder vs Sheriff (StarterPlayerScripts)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+
 local LocalPlayer = Players.LocalPlayer
-local Workspace = game:GetService("Workspace")
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 
-local targetDistance = 5
+-- Status
+local NoCooldown = false
+local CanShootBeforeStart = true
+local GuiMinimized = false
 
-local EnabledGather = false
-local EnabledESP = false
-local ESPs = {}
+-- Fungsi tembak otomatis
+local function GetActiveToolAndEvent()
+    local character = LocalPlayer.Character
+    if not character then return nil, nil end
+    local tool = character:FindFirstChildOfClass("Tool")
+    if not tool then return nil, nil end
+    for _, child in ipairs(tool:GetChildren()) do
+        if child:IsA("RemoteEvent") or child.Name:lower():find("fire") then
+            return tool, child
+        end
+    end
+    return tool, nil
+end
 
--- GUI
+local function FireWeapon()
+    local tool, event = GetActiveToolAndEvent()
+    if tool and event then
+        event:FireServer()
+    end
+end
+
+-- Loop no cooldown
+RunService.RenderStepped:Connect(function()
+    if NoCooldown and CanShootBeforeStart then
+        FireWeapon()
+    end
+end)
+
+-- GUI Setup
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.Parent = PlayerGui
 
 local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 220, 0, 180)
-Frame.Position = UDim2.new(0.7, 0, 0.1, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+Frame.Size = UDim2.new(0, 200, 0, 120)
+Frame.Position = UDim2.new(0, 20, 0, 50)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 Frame.BorderSizePixel = 0
 Frame.Parent = ScreenGui
 
-local function createButton(text, pos, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 200, 0, 40)
-    btn.Position = pos
-    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Font = Enum.Font.SourceSansBold
-    btn.TextSize = 18
-    btn.Text = text
-    btn.Parent = Frame
-    btn.MouseButton1Click:Connect(callback)
-    return btn
-end
+local OnOffButton = Instance.new("TextButton")
+OnOffButton.Size = UDim2.new(0, 180, 0, 40)
+OnOffButton.Position = UDim2.new(0, 10, 0, 10)
+OnOffButton.Text = "No Cooldown: OFF"
+OnOffButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+OnOffButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+OnOffButton.Parent = Frame
 
--- Tombol Gather ON/OFF
-local gatherBtn = createButton("Gather: OFF", UDim2.new(0,10,0,10), function()
-    EnabledGather = not EnabledGather
-    gatherBtn.Text = EnabledGather and "Gather: ON (Teleport sekali, bisa hit)" or "Gather: OFF (Players bebas)"
-    
-    if EnabledGather then
-        -- teleport sekali semua pemain ketika tombol diaktifkan
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                local hrp = player.Character.HumanoidRootPart
-                local localHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-                if localHRP then
-                    hrp.CFrame = localHRP.CFrame * CFrame.new(math.random(-targetDistance,targetDistance), 0, math.random(-targetDistance,targetDistance))
-                end
-            end
-        end
-    end
-end)
+local MinimizeButton = Instance.new("TextButton")
+MinimizeButton.Size = UDim2.new(0, 60, 0, 30)
+MinimizeButton.Position = UDim2.new(0, 10, 0, 80)
+MinimizeButton.Text = "Min"
+MinimizeButton.BackgroundColor3 = Color3.fromRGB(50, 50, 200)
+MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+MinimizeButton.Parent = Frame
 
--- Tombol ESP ON/OFF
-local espBtn = createButton("ESP: OFF", UDim2.new(0,10,0,60), function()
-    EnabledESP = not EnabledESP
-    espBtn.Text = EnabledESP and "ESP: ON" or "ESP: OFF"
+-- Tombol On/Off
+OnOffButton.MouseButton1Click:Connect(function()
+    NoCooldown = not NoCooldown
+    OnOffButton.Text = "No Cooldown: " .. (NoCooldown and "ON" or "OFF")
 end)
 
 -- Tombol Minimize
-local minimizeBtn = createButton("Minimize", UDim2.new(0,10,0,110), function()
-    Frame.Visible = false
-    local restoreBtn = Instance.new("TextButton")
-    restoreBtn.Size = UDim2.new(0, 80, 0, 30)
-    restoreBtn.Position = UDim2.new(0.9, 0, 0.02, 0)
-    restoreBtn.BackgroundColor3 = Color3.fromRGB(60,60,60)
-    restoreBtn.TextColor3 = Color3.fromRGB(255,255,255)
-    restoreBtn.Font = Enum.Font.SourceSansBold
-    restoreBtn.TextSize = 16
-    restoreBtn.Text = "Restore"
-    restoreBtn.Parent = ScreenGui
-    restoreBtn.MouseButton1Click:Connect(function()
-        Frame.Visible = true
-        restoreBtn:Destroy()
-    end)
-end)
-
--- Tombol Close
-local closeBtn = createButton("Close", UDim2.new(0,10,0,150), function()
-    ScreenGui:Destroy()
-end)
-
--- Fungsi buat ESP
-local function createESP(player)
-    if ESPs[player] then return end
-    local box = Instance.new("BoxHandleAdornment")
-    box.Adornee = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    box.Color3 = Color3.fromRGB(255,0,0)
-    box.Transparency = 0.5
-    box.Size = Vector3.new(2,5,1)
-    box.AlwaysOnTop = true
-    box.ZIndex = 10
-    box.Parent = workspace
-    ESPs[player] = box
-end
-
--- Hapus ESP ketika pemain keluar
-Players.PlayerRemoving:Connect(function(player)
-    if ESPs[player] then
-        ESPs[player]:Destroy()
-        ESPs[player] = nil
-    end
-end)
-
--- Update ESP setiap frame
-RunService.RenderStepped:Connect(function()
-    if EnabledESP then
-        for _, player in pairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                createESP(player)
-            end
-        end
-    else
-        for _, box in pairs(ESPs) do
-            box:Destroy()
-        end
-        ESPs = {}
-    end
+MinimizeButton.MouseButton1Click:Connect(function()
+    GuiMinimized = not GuiMinimized
+    Frame.Size = GuiMinimized and UDim2.new(0, 60, 0, 40) or UDim2.new(0, 200, 0, 120)
+    OnOffButton.Visible = not GuiMinimized
 end)
