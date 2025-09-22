@@ -2,11 +2,10 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local LocalPlayer = Players.LocalPlayer
-local Camera = workspace.CurrentCamera
+local Workspace = game:GetService("Workspace")
 
 local targetDistance = 5
 
--- State
 local EnabledGather = false
 local EnabledESP = false
 local ESPs = {}
@@ -23,7 +22,6 @@ Frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
 Frame.BorderSizePixel = 0
 Frame.Parent = ScreenGui
 
--- Function buat tombol
 local function createButton(text, pos, callback)
     local btn = Instance.new("TextButton")
     btn.Size = UDim2.new(0, 200, 0, 40)
@@ -38,13 +36,13 @@ local function createButton(text, pos, callback)
     return btn
 end
 
--- Tombol On/Off Kumpulkan Pemain
+-- Tombol Gather ON/OFF
 local gatherBtn = createButton("Gather: OFF", UDim2.new(0,10,0,10), function()
     EnabledGather = not EnabledGather
-    gatherBtn.Text = EnabledGather and "Gather: ON" or "Gather: OFF"
+    gatherBtn.Text = EnabledGather and "Gather: ON (Players dikumpul & bisa di-hit)" or "Gather: OFF (Players bebas)"
 end)
 
--- Tombol On/Off ESP
+-- Tombol ESP ON/OFF
 local espBtn = createButton("ESP: OFF", UDim2.new(0,10,0,60), function()
     EnabledESP = not EnabledESP
     espBtn.Text = EnabledESP and "ESP: ON" or "ESP: OFF"
@@ -53,7 +51,6 @@ end)
 -- Tombol Minimize
 local minimizeBtn = createButton("Minimize", UDim2.new(0,10,0,110), function()
     Frame.Visible = false
-    -- Tombol kecil muncul di pojok untuk restore
     local restoreBtn = Instance.new("TextButton")
     restoreBtn.Size = UDim2.new(0, 80, 0, 30)
     restoreBtn.Position = UDim2.new(0.9, 0, 0.02, 0)
@@ -69,19 +66,19 @@ local minimizeBtn = createButton("Minimize", UDim2.new(0,10,0,110), function()
     end)
 end)
 
--- Tombol Hapus/X
+-- Tombol Close
 local closeBtn = createButton("Close", UDim2.new(0,10,0,150), function()
     ScreenGui:Destroy()
 end)
 
--- Fungsi kumpulkan pemain
+-- Fungsi kumpulkan pemain (tanpa anchoring, tetap bisa di-hit)
 local function gatherPlayers()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
             local hrp = player.Character.HumanoidRootPart
             local localHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
             if localHRP then
-                hrp.CFrame = localHRP.CFrame * CFrame.new(math.random(-targetDistance,targetDistance),0,math.random(-targetDistance,targetDistance))
+                hrp.CFrame = localHRP.CFrame * CFrame.new(math.random(-targetDistance,targetDistance), 0, math.random(-targetDistance,targetDistance))
             end
         end
     end
@@ -109,7 +106,7 @@ Players.PlayerRemoving:Connect(function(player)
     end
 end)
 
--- Update ESP setiap frame
+-- Update ESP
 local function updateESP()
     for _, player in pairs(Players:GetPlayers()) do
         if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
