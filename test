@@ -4,21 +4,15 @@ local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local AvatarEditorService = game:GetService("AvatarEditorService")
 
--- GUI Ringkas
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "QuickCreationsGui"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = PlayerGui
-
--- Fungsi buat tombol kecil untuk setiap kreasi
-local function createQuickButton(creation, index)
+-- Fungsi buat tombol kecil langsung di layar
+local function createButton(creation, index)
     local button = Instance.new("TextButton")
-    button.Size = UDim2.new(0, 120, 0, 30)
-    button.Position = UDim2.new(0, 10, 0, 10 + (35 * (index - 1)))
+    button.Size = UDim2.new(0, 140, 0, 35)
+    button.Position = UDim2.new(0, 10, 0, 10 + (40 * (index - 1)))
     button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.Text = creation.Name or "Unnamed"
-    button.Parent = ScreenGui
+    button.Parent = PlayerGui
     button.AutoButtonColor = true
 
     button.MouseButton1Click:Connect(function()
@@ -28,14 +22,14 @@ local function createQuickButton(creation, index)
     end)
 end
 
--- Ambil semua kreasi avatar pemain
+-- Ambil kreasi avatar pemain
 local success, creations = pcall(function()
     return AvatarEditorService:GetUserCreations(LocalPlayer.UserId)
 end)
 
 if success and creations then
     for index, creation in ipairs(creations) do
-        createQuickButton(creation, index)
+        createButton(creation, index)
     end
 else
     warn("Gagal mengambil kreasi avatar")
