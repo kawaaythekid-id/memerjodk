@@ -1,112 +1,42 @@
 -- LocalScript (StarterPlayerScripts)
-
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local playerGui = player:WaitForChild("PlayerGui")
-local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local AvatarEditorService = game:GetService("AvatarEditorService")
 
--- Membuat ScreenGui
-local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "OutfitFullBodyGui"
-screenGui.Parent = playerGui
+-- GUI Ringkas
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "QuickCreationsGui"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
 
--- Frame utama
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 350, 0, 500)
-frame.Position = UDim2.new(0.5, -175, 0.5, -250)
-frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-frame.BorderSizePixel = 0
-frame.Parent = screenGui
+-- Fungsi buat tombol kecil untuk setiap kreasi
+local function createQuickButton(creation, index)
+    local button = Instance.new("TextButton")
+    button.Size = UDim2.new(0, 120, 0, 30)
+    button.Position = UDim2.new(0, 10, 0, 10 + (35 * (index - 1)))
+    button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Text = creation.Name or "Unnamed"
+    button.Parent = ScreenGui
+    button.AutoButtonColor = true
 
--- Tombol Close (X)
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(1, -35, 0, 5)
-closeButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
-closeButton.TextColor3 = Color3.new(1,1,1)
-closeButton.Text = "X"
-closeButton.Parent = frame
-
-closeButton.MouseButton1Click:Connect(function()
-    screenGui:Destroy()
-end)
-
--- Scrollable frame
-local scrollingFrame = Instance.new("ScrollingFrame")
-scrollingFrame.Size = UDim2.new(1, 0, 1, 0)
-scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-scrollingFrame.ScrollBarThickness = 8
-scrollingFrame.BackgroundTransparency = 1
-scrollingFrame.Parent = frame
-
-local UIListLayout = Instance.new("UIListLayout")
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 10)
-UIListLayout.Parent = scrollingFrame
-
--- Fungsi mendapatkan thumbnail dari HumanoidDescription (full-body)
-local function getThumbnail(desc)
-    local thumbType = Enum.ThumbnailType.AvatarThumbnail -- full-body
-    local thumbSize = Enum.ThumbnailSize.Size420x420
-    local success, url = pcall(function()
-        return Players:GetHumanoidDescriptionThumbnailAsync(desc, thumbType, thumbSize)
-    end)
-    if success then
-        return url
-    else
-        return ""
-    end
-end
-
--- Fungsi menampilkan semua outfit
-local function showOutfits()
-    local descriptions = Players:GetHumanoidDescriptionsFromUserId(player.UserId)
-    scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, #descriptions * 120)
-
-    for i, desc in ipairs(descriptions) do
-        local btn = Instance.new("TextButton")
-        btn.Size = UDim2.new(1, -10, 0, 110)
-        btn.Position = UDim2.new(0, 5, 0, (i-1) * 115)
-        btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-        btn.Text = ""
-        btn.Parent = scrollingFrame
-
-        -- Gambar preview full-body tiap outfit
-        local imageLabel = Instance.new("ImageLabel")
-        imageLabel.Size = UDim2.new(0, 100, 0, 100)
-        imageLabel.Position = UDim2.new(0, 5, 0, 5)
-        imageLabel.BackgroundTransparency = 1
-        imageLabel.Parent = btn
-
-        local thumbnailUrl = getThumbnail(desc)
-        imageLabel.Image = thumbnailUrl
-
-        -- Label nama outfit
-        local textLabel = Instance.new("TextLabel")
-        textLabel.Size = UDim2.new(0, 220, 0, 100)
-        textLabel.Position = UDim2.new(0, 110, 0, 5)
-        textLabel.BackgroundTransparency = 1
-        textLabel.TextColor3 = Color3.new(1, 1, 1)
-        textLabel.Text = "Outfit "..i
-        textLabel.TextScaled = true
-        textLabel.Parent = btn
-
-        -- Ganti outfit saat tombol ditekan
-        btn.MouseButton1Click:Connect(function()
-            player:ApplyDescription(desc)
+    button.MouseButton1Click:Connect(function()
+        pcall(function()
+            AvatarEditorService:ApplyAvatarAsset(LocalPlayer.UserId, creation.AssetId)
         end)
-    end
+    end)
 end
 
--- Jalankan
-showOutfits()
-
--- Toggle GUI untuk Android (tap layar)
-local guiVisible = true
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.UserInputType == Enum.UserInputType.Touch then
-        guiVisible = not guiVisible
-        frame.Visible = guiVisible
-    end
+-- Ambil semua kreasi avatar pemain
+local success, creations = pcall(function()
+    return AvatarEditorService:GetUserCreations(LocalPlayer.UserId)
 end)
+
+if success and creations then
+    for index, creation in ipairs(creations) do
+        createQuickButton(creation, index)
+    end
+else
+    warn("Gagal mengambil kreasi avatar")
+end
