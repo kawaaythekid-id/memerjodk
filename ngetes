@@ -39,7 +39,20 @@ end
 -- Tombol Gather ON/OFF
 local gatherBtn = createButton("Gather: OFF", UDim2.new(0,10,0,10), function()
     EnabledGather = not EnabledGather
-    gatherBtn.Text = EnabledGather and "Gather: ON (Players dikumpul & bisa di-hit)" or "Gather: OFF (Players bebas)"
+    gatherBtn.Text = EnabledGather and "Gather: ON (Teleport sekali, bisa hit)" or "Gather: OFF (Players bebas)"
+    
+    if EnabledGather then
+        -- teleport sekali semua pemain ketika tombol diaktifkan
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = player.Character.HumanoidRootPart
+                local localHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+                if localHRP then
+                    hrp.CFrame = localHRP.CFrame * CFrame.new(math.random(-targetDistance,targetDistance), 0, math.random(-targetDistance,targetDistance))
+                end
+            end
+        end
+    end
 end)
 
 -- Tombol ESP ON/OFF
@@ -71,19 +84,6 @@ local closeBtn = createButton("Close", UDim2.new(0,10,0,150), function()
     ScreenGui:Destroy()
 end)
 
--- Fungsi kumpulkan pemain (tanpa anchoring, tetap bisa di-hit)
-local function gatherPlayers()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local hrp = player.Character.HumanoidRootPart
-            local localHRP = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
-            if localHRP then
-                hrp.CFrame = localHRP.CFrame * CFrame.new(math.random(-targetDistance,targetDistance), 0, math.random(-targetDistance,targetDistance))
-            end
-        end
-    end
-end
-
 -- Fungsi buat ESP
 local function createESP(player)
     if ESPs[player] then return end
@@ -106,24 +106,18 @@ Players.PlayerRemoving:Connect(function(player)
     end
 end)
 
--- Update ESP
-local function updateESP()
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            if EnabledESP then
+-- Update ESP setiap frame
+RunService.RenderStepped:Connect(function()
+    if EnabledESP then
+        for _, player in pairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 createESP(player)
-            elseif ESPs[player] then
-                ESPs[player]:Destroy()
-                ESPs[player] = nil
             end
         end
+    else
+        for _, box in pairs(ESPs) do
+            box:Destroy()
+        end
+        ESPs = {}
     end
-end
-
--- Loop utama
-RunService.RenderStepped:Connect(function()
-    if EnabledGather then
-        gatherPlayers()
-    end
-    updateESP()
 end)
