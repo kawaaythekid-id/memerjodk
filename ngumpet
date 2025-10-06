@@ -1,8 +1,7 @@
--- LocalScript untuk fitur bersembunyi di tanah dengan GUI draggable
+-- LocalScript untuk fitur bersembunyi di tanah dengan perbaikan kedalaman dan bug keluar otomatis
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local StarterGui = game:GetService("StarterGui")
+local RunService = game:GetService("RunService")
 
 -- Variabel lokal
 local player = Players.LocalPlayer
@@ -12,11 +11,14 @@ local humanoid = character:WaitForChild("Humanoid")
 local isHidden = false
 local originalCFrame = nil
 local originalCanCollide = {}
+local isProcessing = false -- Untuk mencegah spam klik
+local hideDepth = -1.5 -- Kedalaman lebih rendah untuk menghindari kematian (sesuaikan jika perlu)
 
 -- Membuat GUI untuk kontrol
 local screenGui = Instance.new("ScreenGui")
 screenGui.Parent = player.PlayerGui
 screenGui.Name = "HideControlGui"
+screenGui.ResetOnSpawn = false -- Mencegah GUI hilang saat respawn
 
 -- Frame utama untuk tombol
 local mainFrame = Instance.new("Frame")
@@ -67,12 +69,35 @@ end
 -- Fungsi untuk mengembalikan status CanCollide
 local function restoreCollisionState()
     for part, canCollide in pairs(originalCanCollide) do
-        part.CanCollide = canCollide
+        if part and part.Parent then -- Pastikan part masih ada
+            part.CanCollide = canCollide
+        end
+    end
+end
+
+-- Fungsi untuk mempertahankan posisi saat bersembunyi (mencegah keluar otomatis)
+local connection
+local function maintainHiddenPosition()
+    if connection then
+        connection:Disconnect()
+    end
+    if isHidden then
+        connection = RunService.Heartbeat:Connect(function()
+            if isHidden and humanoidRootPart then
+                humanoidRootPart.Velocity = Vector3.new(0, 0, 0) -- Set velocity ke 0 untuk mencegah pergerakan
+                humanoidRootPart.CFrame = originalCFrame * CFrame.new(0, hideDepth, 0) -- Pertahankan posisi
+            end
+        end)
     end
 end
 
 -- Fungsi untuk menyembunyikan pemain
 local function hidePlayer()
+    if isProcessing or not character or not humanoidRootPart or not humanoid or humanoid.Health <= 0 then
+        return
+    end
+    isProcessing = true
+
     if not isHidden then
         isHidden = true
         originalCFrame = humanoidRootPart.CFrame
@@ -85,14 +110,20 @@ local function hidePlayer()
             end
         end
 
-        -- Nonaktifkan hitbox serangan
+        -- Nonaktifkan hitbox serangan dan buat pemain tidak bisa dibunuh
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false) -- Mencegah jatuh
         humanoid.PlatformStand = true
+        humanoid.WalkSpeed = 0 -- Mencegah gerakan
+        humanoid.JumpPower = 0 -- Mencegah lompatan
 
-        -- Animasi tenggelam ke tanah
-        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-        local goal = {CFrame = originalCFrame * CFrame.new(0, -3, 0)}
-        local tween = TweenService:Create(humanoidRootPart, tweenInfo, goal)
-        tween:Play()
+        -- Pindahkan pemain ke dalam tanah secara instan
+        humanoidRootPart.CFrame = originalCFrame * CFrame.new(0, hideDepth, 0)
+        humanoidRootPart.Anchored = true -- Anchor untuk mencegah jatuh atau keluar
+
+        -- Mulai loop maintain posisi
+        maintainHiddenPosition()
 
         -- Ubah teks tombol
         toggleButton.Text = "Show"
@@ -101,19 +132,32 @@ local function hidePlayer()
         isHidden = false
         restoreCollisionState()
 
-        -- Kembalikan ke posisi asli
-        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-        local goal = {CFrame = originalCFrame}
-        local tween = TweenService:Create(humanoidRootPart, tweenInfo, goal)
-        tween:Play()
+        -- Kembalikan ke posisi asli secara instan
+        humanoidRootPart.Anchored = false -- Unanchor
+        humanoidRootPart.CFrame = originalCFrame
 
-        -- Aktifkan kembali hitbox
+        -- Aktifkan kembali hitbox dan gerakan
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
         humanoid.PlatformStand = false
+        humanoid.WalkSpeed = 16 -- Kembalikan ke default
+        humanoid.JumpPower = 50 -- Kembalikan ke default
+
+        -- Hentikan loop maintain
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
 
         -- Ubah teks tombol
         toggleButton.Text = "Hide"
         toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
     end
+
+    -- Reset isProcessing setelah selesai
+    RunService.Heartbeat:Wait() -- Menunggu satu frame untuk mencegah bug
+    isProcessing = false
 end
 
 -- Fungsi untuk minimize/maximize GUI
@@ -135,6 +179,10 @@ end
 -- Fungsi untuk menutup GUI
 local function closeGui()
     screenGui:Destroy()
+    if connection then
+        connection:Disconnect()
+        connection = nil
+    end
 end
 
 -- Logika untuk drag-and-drop GUI
@@ -189,6 +237,36 @@ player.CharacterAdded:Connect(function(newCharacter)
     humanoidRootPart = character:WaitForChild("HumanoidRootPart")
     humanoid = character:WaitForChild("Humanoid")
     isHidden = false
+    isProcessing = false
     toggleButton.Text = "Hide"
     toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    
+    -- Pastikan state kembali normal saat respawn
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+    humanoid.PlatformStand = false
+    humanoid.WalkSpeed = 16
+    humanoid.JumpPower = 50
+    humanoidRootPart.Anchored = false
+    
+    -- Hentikan loop jika ada
+    if connection then
+        connection:Disconnect()
+        connection = nil
+    end
+end)
+
+-- Menangani bug jika karakter mati saat bersembunyi
+humanoid.Died:Connect(function()
+    if isHidden then
+        isHidden = false
+        toggleButton.Text = "Hide"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+        isProcessing = false
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+    end
 end)
