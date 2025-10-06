@@ -1,0 +1,159 @@
+-- LocalScript untuk fitur bersembunyi di tanah
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local StarterGui = game:GetService("StarterGui")
+
+-- Variabel lokal
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+local isHidden = false
+local originalCFrame = nil
+local originalCanCollide = {}
+
+-- Membuat GUI untuk kontrol
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = player.PlayerGui
+screenGui.Name = "HideControlGui"
+
+-- Frame utama untuk tombol
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 150, 0, 200)
+mainFrame.Position = UDim2.new(0.85, 0, 0.5, 0)
+mainFrame.BackgroundTransparency = 0.5
+mainFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+mainFrame.Parent = screenGui
+
+-- Tombol On/Off
+local toggleButton = Instance.new("TextButton")
+toggleButton.Size = UDim2.new(0, 100, 0, 50)
+toggleButton.Position = UDim2.new(0, 25, 0, 10)
+toggleButton.Text = "Hide"
+toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleButton.Parent = mainFrame
+
+-- Tombol Minimize
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Size = UDim2.new(0, 30, 0, 30)
+minimizeButton.Position = UDim2.new(0, 110, 0, 0)
+minimizeButton.Text = "-"
+minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.Parent = mainFrame
+
+-- Tombol Close (X)
+local closeButton = Instance.new("TextButton")
+closeButton.Size = UDim2.new(0, 30, 0, 30)
+closeButton.Position = UDim2.new(0, 0, 0, 0)
+closeButton.Text = "X"
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.Parent = mainFrame
+
+-- Fungsi untuk menyimpan status CanCollide
+local function saveCollisionState()
+    originalCanCollide = {}
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") then
+            originalCanCollide[part] = part.CanCollide
+        end
+    end
+end
+
+-- Fungsi untuk mengembalikan status CanCollide
+local function restoreCollisionState()
+    for part, canCollide in pairs(originalCanCollide) do
+        part.CanCollide = canCollide
+    end
+end
+
+-- Fungsi untuk menyembunyikan pemain
+local function hidePlayer()
+    if not isHidden then
+        isHidden = true
+        originalCFrame = humanoidRootPart.CFrame
+        saveCollisionState()
+
+        -- Nonaktifkan collision untuk semua bagian tubuh
+        for _, part in pairs(character:GetDescendants()) do
+            if part:IsA("BasePart") then
+                part.CanCollide = false
+            end
+        end
+
+        -- Nonaktifkan hitbox serangan (mengubah Humanoid state)
+        humanoid.PlatformStand = true
+
+        -- Animasi tenggelam ke tanah
+        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+        local goal = {CFrame = originalCFrame * CFrame.new(0, -3, 0)} -- Turun 3 unit
+        local tween = TweenService:Create(humanoidRootPart, tweenInfo, goal)
+        tween:Play()
+
+        -- Ubah teks tombol
+        toggleButton.Text = "Show"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    else
+        isHidden = false
+        restoreCollisionState()
+
+        -- Kembalikan ke posisi asli
+        local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
+        local goal = {CFrame = originalCFrame}
+        local tween = TweenService:Create(humanoidRootPart, tweenInfo, goal)
+        tween:Play()
+
+        -- Aktifkan kembali hitbox
+        humanoid.PlatformStand = false
+
+        -- Ubah teks tombol
+        toggleButton.Text = "Hide"
+        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+    end
+end
+
+-- Fungsi untuk minimize/maximize GUI
+local isMinimized = false
+local function toggleMinimize()
+    if not isMinimized then
+        mainFrame.Size = UDim2.new(0, 50, 0, 50)
+        toggleButton.Visible = false
+        minimizeButton.Text = "+"
+        isMinimized = true
+    else
+        mainFrame.Size = UDim2.new(0, 150, 0, 200)
+        toggleButton.Visible = true
+        minimizeButton.Text = "-"
+        isMinimized = false
+    end
+end
+
+-- Fungsi untuk menutup GUI
+local function closeGui()
+    screenGui:Destroy()
+end
+
+-- Event untuk tombol
+toggleButton.MouseButton1Click:Connect(hidePlayer)
+minimizeButton.MouseButton1Click:Connect(toggleMinimize)
+closeButton.MouseButton1Click:Connect(closeGui)
+
+-- Mendukung input sentuh untuk Android
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if not gameProcessedEvent and input.UserInputType == Enum.UserInputType.Touch then
+        -- Tambahan logika jika diperlukan untuk sentuhan
+    end
+end)
+
+-- Mengatur ulang saat karakter respawn
+player.CharacterAdded:Connect(function(newCharacter)
+    character = newCharacter
+    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+    humanoid = character:WaitForChild("Humanoid")
+    isHidden = false
+    toggleButton.Text = "Hide"
+    toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
+end)
