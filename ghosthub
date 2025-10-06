@@ -1,5 +1,6 @@
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
+local ContextActionService = game:GetService("ContextActionService")
 local RunService = game:GetService("RunService")
 local GuiService = game:GetService("GuiService")
 
@@ -14,71 +15,42 @@ local ghostPart = nil
 local originalPosition = nil
 local moveDirection = Vector3.new(0, 0, 0)
 
--- Buat GUI
-local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = player.PlayerGui
-screenGui.Name = "GhostModeGui"
-screenGui.ResetOnSpawn = false
+-- Membuat UI untuk Android
+local function createUI()
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Parent = player:WaitForChild("PlayerGui")
+    screenGui.Name = "GhostModeUI"
+    screenGui.ResetOnSpawn = false
 
--- Frame utama untuk tombol
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 200, 0, 150)
-mainFrame.Position = UDim2.new(0, 10, 0, 10) -- Kiri atas, sesuai untuk Android
-mainFrame.BackgroundTransparency = 0.5
-mainFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-mainFrame.Parent = screenGui
+    -- Tombol Minimize (aktifkan ghost mode)
+    local minimizeButton = Instance.new("TextButton")
+    minimizeButton.Size = UDim2.new(0, 100, 0, 50)
+    minimizeButton.Position = UDim2.new(0, 10, 0, 10)
+    minimizeButton.Text = "Minimize"
+    minimizeButton.BackgroundColor3 = Color3.fromRGB(0, 170, 255)
+    minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    minimizeButton.Parent = screenGui
 
--- Tombol On
-local onButton = Instance.new("TextButton")
-onButton.Size = UDim2.new(0, 80, 0, 40)
-onButton.Position = UDim2.new(0, 10, 0, 10)
-onButton.Text = "On"
-onButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-onButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-onButton.Parent = mainFrame
+    -- Tombol X (nonaktifkan ghost mode)
+    local xButton = Instance.new("TextButton")
+    xButton.Size = UDim2.new(0, 50, 0, 50)
+    xButton.Position = UDim2.new(0, 120, 0, 10)
+    xButton.Text = "X"
+    xButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+    xButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    xButton.Parent = screenGui
+    xButton.Visible = false -- Sembunyikan tombol X saat awal
 
--- Tombol Off
-local offButton = Instance.new("TextButton")
-offButton.Size = UDim2.new(0, 80, 0, 40)
-offButton.Position = UDim2.new(0, 110, 0, 10)
-offButton.Text = "Off"
-offButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-offButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-offButton.Parent = mainFrame
+    return screenGui, minimizeButton, xButton
+end
 
--- Tombol Minimize
-local minimizeButton = Instance.new("TextButton")
-minimizeButton.Size = UDim2.new(0, 80, 0, 40)
-minimizeButton.Position = UDim2.new(0, 10, 0, 60)
-minimizeButton.Text = "Minimize"
-minimizeButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-minimizeButton.Parent = mainFrame
+local screenGui, minimizeButton, xButton = createUI()
 
--- Tombol X (close)
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 80, 0, 40)
-closeButton.Position = UDim2.new(0, 110, 0, 60)
-closeButton.Text = "X"
-closeButton.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeButton.Parent = mainFrame
-
--- Tombol Restore (setelah minimize)
-local restoreButton = Instance.new("TextButton")
-restoreButton.Size = UDim2.new(0, 50, 0, 50)
-restoreButton.Position = UDim2.new(0, 10, 0, 10)
-restoreButton.Text = "+"
-restoreButton.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-restoreButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-restoreButton.Visible = false
-restoreButton.Parent = screenGui
-
--- Fungsi untuk ghost mode ON
+-- Fungsi untuk mengaktifkan ghost mode
 local function activateGhostMode()
     if inGhostMode then return end
     inGhostMode = true
-    originalPosition = rootPart.Position -- Simpan posisi awal (A)
+    originalPosition = rootPart.Position -- Simpan posisi awal (posisi A)
 
     -- Buat karakter asli transparan dan statis
     for _, part in pairs(character:GetChildren()) do
@@ -101,17 +73,21 @@ local function activateGhostMode()
 
     -- Atur kamera ke entitas hantu
     camera.CameraSubject = ghostPart
-    camera.CameraType = Enum.CameraType.Fixed
+    camera.CameraType = Enum.CameraType.Follow
+
+    -- Tampilkan tombol X, sembunyikan Minimize
+    minimizeButton.Visible = false
+    xButton.Visible = true
 
     print("Ghost mode ON")
 end
 
--- Fungsi untuk ghost mode OFF
+-- Fungsi untuk menonaktifkan ghost mode
 local function deactivateGhostMode()
     if not inGhostMode then return end
     inGhostMode = false
 
-    -- Pindahkan karakter ke posisi ghostPart (B)
+    -- Pindahkan karakter ke posisi ghostPart (posisi B)
     if ghostPart then
         rootPart.Position = ghostPart.Position
         ghostPart:Destroy()
@@ -128,81 +104,129 @@ local function deactivateGhostMode()
     rootPart.Anchored = false
     humanoid.WalkSpeed = 16
 
-    -- Kembalikan kamera
+    -- Kembalikan kamera ke karakter
     camera.CameraSubject = humanoid
     camera.CameraType = Enum.CameraType.Custom
+
+    -- Tampilkan tombol Minimize, sembunyikan X
+    minimizeButton.Visible = true
+    xButton.Visible = false
 
     print("Ghost mode OFF")
 end
 
--- Kontrol gerakan untuk entitas hantu (WASD untuk PC, sentuh untuk Android)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
+-- Kontrol gerakan untuk PC (WASD)
+local function handleInput(input, gameProcessed)
     if gameProcessed or not inGhostMode then return end
-    if input.KeyCode == Enum.KeyCode.W then
-        moveDirection = moveDirection + Vector3.new(0, 0, -1)
-    elseif input.KeyCode == Enum.KeyCode.S then
-        moveDirection = moveDirection + Vector3.new(0, 0, 1)
-    elseif input.KeyCode == Enum.KeyCode.A then
-        moveDirection = moveDirection + Vector3.new(-1, 0, 0)
-    elseif input.KeyCode == Enum.KeyCode.D then
-        moveDirection = moveDirection + Vector3.new(1, 0, 0)
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        if input.KeyCode == Enum.KeyCode.W then
+            moveDirection = moveDirection + Vector3.new(0, 0, -1)
+        elseif input.KeyCode == Enum.KeyCode.S then
+            moveDirection = moveDirection + Vector3.new(0, 0, 1)
+        elseif input.KeyCode == Enum.KeyCode.A then
+            moveDirection = moveDirection + Vector3.new(-1, 0, 0)
+        elseif input.KeyCode == Enum.KeyCode.D then
+            moveDirection = moveDirection + Vector3.new(1, 0, 0)
+        end
     end
-end)
-
-UserInputService.InputEnded:Connect(function(input)
-    if input.KeyCode == Enum.KeyCode.W then
-        moveDirection = moveDirection - Vector3.new(0, 0, -1)
-    elseif input.KeyCode == Enum.KeyCode.S then
-        moveDirection = moveDirection - Vector3.new(0, 0, 1)
-    elseif input.KeyCode == Enum.KeyCode.A then
-        moveDirection = moveDirection - Vector3.new(-1, 0, 0)
-    elseif input.KeyCode == Enum.KeyCode.D then
-        moveDirection = moveDirection - Vector3.new(1, 0, 0)
-    end
-end)
-
--- Update posisi ghostPart
-RunService.RenderStepped:Connect(function()
-    if inGhostMode and ghostPart then
-        local cameraCFrame = camera.CFrame
-        local moveSpeed = 20
-        local direction = cameraCFrame:VectorToWorldSpace(moveDirection).Unit * moveSpeed
-        ghostPart.Position = ghostPart.Position + direction * RunService.RenderStepped:Wait()
-    end
-end)
-
--- Input sentuh untuk Android (sederhana, gerak berdasarkan arah sentuhan)
-local function handleTouch(input)
-    if not inGhostMode or not ghostPart then return end
-    local touchPos = input.Position
-    local screenCenter = Vector2.new(workspace.CurrentCamera.ViewportSize.X / 2, workspace.CurrentCamera.ViewportSize.Y / 2)
-    local delta = (touchPos - screenCenter).Unit
-    moveDirection = Vector3.new(delta.X, 0, delta.Y) * 0.5 -- Skala gerakan
 end
 
-UserInputService.TouchMoved:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    handleTouch(input)
+local function handleInputEnd(input)
+    if not inGhostMode then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard then
+        if input.KeyCode == Enum.KeyCode.W then
+            moveDirection = moveDirection - Vector3.new(0, 0, -1)
+        elseif input.KeyCode == Enum.KeyCode.S then
+            moveDirection = moveDirection - Vector3.new(0, 0, 1)
+        elseif input.KeyCode == Enum.KeyCode.A then
+            moveDirection = moveDirection - Vector3.new(-1, 0, 0)
+        elseif input.KeyCode == Enum.KeyCode.D then
+            moveDirection = moveDirection - Vector3.new(1, 0, 0)
+        end
+    end
+end
+
+-- Virtual joystick untuk Android
+local joystickActive = false
+local joystickOrigin = nil
+local joystickDelta = Vector2.new(0, 0)
+
+local function createJoystick()
+    local joystickGui = Instance.new("ScreenGui")
+    joystickGui.Parent = player:WaitForChild("PlayerGui")
+    joystickGui.Name = "JoystickGui"
+    joystickGui.Enabled = false
+
+    local joystickFrame = Instance.new("Frame")
+    joystickFrame.Size = UDim2.new(0, 100, 0, 100)
+    joystickFrame.Position = UDim2.new(0, 50, 0.5, 0)
+    joystickFrame.BackgroundTransparency = 0.5
+    joystickFrame.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+    joystickFrame.Parent = joystickGui
+
+    local joystickKnob = Instance.new("Frame")
+    joystickKnob.Size = UDim2.new(0, 40, 0, 40)
+    joystickKnob.Position = UDim2.new(0.5, -20, 0.5, -20)
+    joystickKnob.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    joystickKnob.Parent = joystickFrame
+
+    return joystickGui, joystickFrame, joystickKnob
+end
+
+local joystickGui, joystickFrame, joystickKnob = createJoystick()
+
+-- Logika joystick untuk Android
+UserInputService.TouchStarted:Connect(function(touch, gameProcessed)
+    if gameProcessed or not inGhostMode then return end
+    joystickActive = true
+    joystickOrigin = touch.Position
+    joystickFrame.Position = UDim2.new(0, joystickOrigin.X - 50, 0, joystickOrigin.Y - 50)
+    joystickGui.Enabled = true
 end)
 
-UserInputService.TouchEnded:Connect(function(input)
-    moveDirection = Vector3.new(0, 0, 0) -- Hentikan gerakan saat sentuhan berakhir
+UserInputService.TouchMoved:Connect(function(touch, gameProcessed)
+    if not joystickActive or not inGhostMode then return end
+    local delta = touch.Position - joystickOrigin
+    local maxRadius = 50
+    if delta.Magnitude > maxRadius then
+        delta = delta.Unit * maxRadius
+    end
+    joystickKnob.Position = UDim2.new(0.5, delta.X - 20, 0.5, delta.Y - 20)
+    joystickDelta = delta / maxRadius
 end)
 
--- Event tombol
-onButton.MouseButton1Click:Connect(activateGhostMode)
-offButton.MouseButton1Click:Connect(deactivateGhostMode)
-minimizeButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = false
-    restoreButton.Visible = true
+UserInputService.TouchEnded:Connect(function(touch, gameProcessed)
+    joystickActive = false
+    joystickGui.Enabled = false
+    joystickKnob.Position = UDim2.new(0.5, -20, 0.5, -20)
+    joystickDelta = Vector2.new(0, 0)
 end)
-closeButton.MouseButton1Click:Connect(function()
-    screenGui.Enabled = false -- Nonaktifkan GUI
+
+-- Update gerakan ghostPart
+RunService.RenderStepped:Connect(function(dt)
+    if inGhostMode and ghostPart then
+        local moveSpeed = 20
+        local direction = Vector3.new(0, 0, 0)
+        if GuiService:IsTenFootInterface() or UserInputService.TouchEnabled then
+            -- Gunakan joystick untuk Android
+            direction = camera.CFrame:VectorToWorldSpace(Vector3.new(joystickDelta.X, 0, -joystickDelta.Y)).Unit * moveSpeed
+        else
+            -- Gunakan WASD untuk PC
+            direction = camera.CFrame:VectorToWorldSpace(moveDirection).Unit * moveSpeed
+        end
+        if direction.Magnitude > 0 then
+            ghostPart.Position = ghostPart.Position + direction * dt
+        end
+    end
 end)
-restoreButton.MouseButton1Click:Connect(function()
-    mainFrame.Visible = true
-    restoreButton.Visible = false
-end)
+
+-- Bind tombol UI
+minimizeButton.MouseButton1Click:Connect(activateGhostMode)
+xButton.MouseButton1Click:Connect(deactivateGhostMode)
+
+-- Bind input keyboard
+UserInputService.InputBegan:Connect(handleInput)
+UserInputService.InputEnded:Connect(handleInputEnd)
 
 -- Handle karakter baru
 player.CharacterAdded:Connect(function(newChar)
@@ -212,5 +236,8 @@ player.CharacterAdded:Connect(function(newChar)
     if not inGhostMode then
         camera.CameraSubject = humanoid
         camera.CameraType = Enum.CameraType.Custom
+        minimizeButton.Visible = true
+        xButton.Visible = false
+        joystickGui.Enabled = false
     end
 end)
