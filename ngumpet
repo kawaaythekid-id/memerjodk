@@ -1,4 +1,4 @@
--- LocalScript untuk fitur bersembunyi di tanah
+-- LocalScript untuk fitur bersembunyi di tanah dengan GUI draggable
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
@@ -21,15 +21,16 @@ screenGui.Name = "HideControlGui"
 -- Frame utama untuk tombol
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 150, 0, 200)
-mainFrame.Position = UDim2.new(0.85, 0, 0.5, 0)
+mainFrame.Position = UDim2.new(0, 10, 0, 10) -- Kiri atas
 mainFrame.BackgroundTransparency = 0.5
 mainFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
 mainFrame.Parent = screenGui
+mainFrame.ClipsDescendants = true
 
 -- Tombol On/Off
 local toggleButton = Instance.new("TextButton")
 toggleButton.Size = UDim2.new(0, 100, 0, 50)
-toggleButton.Position = UDim2.new(0, 25, 0, 10)
+toggleButton.Position = UDim2.new(0, 25, 0, 40)
 toggleButton.Text = "Hide"
 toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
@@ -84,12 +85,12 @@ local function hidePlayer()
             end
         end
 
-        -- Nonaktifkan hitbox serangan (mengubah Humanoid state)
+        -- Nonaktifkan hitbox serangan
         humanoid.PlatformStand = true
 
         -- Animasi tenggelam ke tanah
         local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-        local goal = {CFrame = originalCFrame * CFrame.new(0, -3, 0)} -- Turun 3 unit
+        local goal = {CFrame = originalCFrame * CFrame.new(0, -3, 0)}
         local tween = TweenService:Create(humanoidRootPart, tweenInfo, goal)
         tween:Play()
 
@@ -136,17 +137,51 @@ local function closeGui()
     screenGui:Destroy()
 end
 
+-- Logika untuk drag-and-drop GUI
+local dragging = false
+local dragStart = nil
+local startPos = nil
+
+UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
+    if gameProcessedEvent then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local position = input.Position
+        local guiPosition = mainFrame.AbsolutePosition
+        local guiSize = mainFrame.AbsoluteSize
+        if position.X >= guiPosition.X and position.X <= guiPosition.X + guiSize.X and
+           position.Y >= guiPosition.Y and position.Y <= guiPosition.Y + guiSize.Y then
+            dragging = true
+            dragStart = position
+            startPos = mainFrame.Position
+        end
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input, gameProcessedEvent)
+    if gameProcessedEvent then return end
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStart
+        local newPos = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+        mainFrame.Position = newPos
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
+    if gameProcessedEvent then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
 -- Event untuk tombol
 toggleButton.MouseButton1Click:Connect(hidePlayer)
 minimizeButton.MouseButton1Click:Connect(toggleMinimize)
 closeButton.MouseButton1Click:Connect(closeGui)
-
--- Mendukung input sentuh untuk Android
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if not gameProcessedEvent and input.UserInputType == Enum.UserInputType.Touch then
-        -- Tambahan logika jika diperlukan untuk sentuhan
-    end
-end)
 
 -- Mengatur ulang saat karakter respawn
 player.CharacterAdded:Connect(function(newCharacter)
