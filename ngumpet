@@ -1,4 +1,4 @@
--- LocalScript untuk fitur bersembunyi di tanah dengan perbaikan kedalaman dan bug keluar otomatis
+-- LocalScript untuk fitur bersembunyi di tanah dengan kedalaman cukup dan anti-hit
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -11,8 +11,9 @@ local humanoid = character:WaitForChild("Humanoid")
 local isHidden = false
 local originalCFrame = nil
 local originalCanCollide = {}
+local originalTransparency = {}
 local isProcessing = false -- Untuk mencegah spam klik
-local hideDepth = -1.5 -- Kedalaman lebih rendah untuk menghindari kematian (sesuaikan jika perlu)
+local hideDepth = -2.5 -- Kedalaman disesuaikan untuk memastikan tersembunyi (sesuaikan jika perlu)
 
 -- Membuat GUI untuk kontrol
 local screenGui = Instance.new("ScreenGui")
@@ -56,26 +57,29 @@ closeButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.Parent = mainFrame
 
--- Fungsi untuk menyimpan status CanCollide
-local function saveCollisionState()
+-- Fungsi untuk menyimpan status CanCollide dan Transparency
+local function saveCollisionAndTransparencyState()
     originalCanCollide = {}
+    originalTransparency = {}
     for _, part in pairs(character:GetDescendants()) do
         if part:IsA("BasePart") then
             originalCanCollide[part] = part.CanCollide
+            originalTransparency[part] = part.Transparency
         end
     end
 end
 
--- Fungsi untuk mengembalikan status CanCollide
-local function restoreCollisionState()
+-- Fungsi untuk mengembalikan status CanCollide dan Transparency
+local function restoreCollisionAndTransparencyState()
     for part, canCollide in pairs(originalCanCollide) do
-        if part and part.Parent then -- Pastikan part masih ada
+        if part and part.Parent then
             part.CanCollide = canCollide
+            part.Transparency = originalTransparency[part] or 0
         end
     end
 end
 
--- Fungsi untuk mempertahankan posisi saat bersembunyi (mencegah keluar otomatis)
+-- Fungsi untuk mempertahankan posisi saat bersembunyi
 local connection
 local function maintainHiddenPosition()
     if connection then
@@ -83,8 +87,8 @@ local function maintainHiddenPosition()
     end
     if isHidden then
         connection = RunService.Heartbeat:Connect(function()
-            if isHidden and humanoidRootPart then
-                humanoidRootPart.Velocity = Vector3.new(0, 0, 0) -- Set velocity ke 0 untuk mencegah pergerakan
+            if isHidden and humanoidRootPart and humanoid and humanoid.Health > 0 then
+                humanoidRootPart.Velocity = Vector3.new(0, 0, 0) -- Set velocity ke 0
                 humanoidRootPart.CFrame = originalCFrame * CFrame.new(0, hideDepth, 0) -- Pertahankan posisi
             end
         end)
@@ -101,26 +105,28 @@ local function hidePlayer()
     if not isHidden then
         isHidden = true
         originalCFrame = humanoidRootPart.CFrame
-        saveCollisionState()
+        saveCollisionAndTransparencyState()
 
-        -- Nonaktifkan collision untuk semua bagian tubuh
+        -- Nonaktifkan collision dan buat karakter invisible
         for _, part in pairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
                 part.CanCollide = false
+                part.Transparency = 1 -- Buat invisible
             end
         end
 
         -- Nonaktifkan hitbox serangan dan buat pemain tidak bisa dibunuh
         humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
         humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false) -- Mencegah jatuh
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false) -- Nonaktifkan physics
         humanoid.PlatformStand = true
-        humanoid.WalkSpeed = 0 -- Mencegah gerakan
-        humanoid.JumpPower = 0 -- Mencegah lompatan
+        humanoid.WalkSpeed = 0
+        humanoid.JumpPower = 0
 
         -- Pindahkan pemain ke dalam tanah secara instan
         humanoidRootPart.CFrame = originalCFrame * CFrame.new(0, hideDepth, 0)
-        humanoidRootPart.Anchored = true -- Anchor untuk mencegah jatuh atau keluar
+        humanoidRootPart.Anchored = true -- Anchor untuk mencegah pergerakan
 
         -- Mulai loop maintain posisi
         maintainHiddenPosition()
@@ -130,19 +136,20 @@ local function hidePlayer()
         toggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
     else
         isHidden = false
-        restoreCollisionState()
+        restoreCollisionAndTransparencyState()
 
         -- Kembalikan ke posisi asli secara instan
-        humanoidRootPart.Anchored = false -- Unanchor
+        humanoidRootPart.Anchored = false
         humanoidRootPart.CFrame = originalCFrame
 
         -- Aktifkan kembali hitbox dan gerakan
         humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
         humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
         humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
         humanoid.PlatformStand = false
-        humanoid.WalkSpeed = 16 -- Kembalikan ke default
-        humanoid.JumpPower = 50 -- Kembalikan ke default
+        humanoid.WalkSpeed = 16
+        humanoid.JumpPower = 50
 
         -- Hentikan loop maintain
         if connection then
@@ -156,7 +163,7 @@ local function hidePlayer()
     end
 
     -- Reset isProcessing setelah selesai
-    RunService.Heartbeat:Wait() -- Menunggu satu frame untuk mencegah bug
+    RunService.Heartbeat:Wait()
     isProcessing = false
 end
 
@@ -178,6 +185,9 @@ end
 
 -- Fungsi untuk menutup GUI
 local function closeGui()
+    if isHidden then
+        hidePlayer() -- Keluar dari mode hide sebelum menutup
+    end
     screenGui:Destroy()
     if connection then
         connection:Disconnect()
@@ -245,6 +255,7 @@ player.CharacterAdded:Connect(function(newCharacter)
     humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
     humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
     humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
+    humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
     humanoid.PlatformStand = false
     humanoid.WalkSpeed = 16
     humanoid.JumpPower = 50
