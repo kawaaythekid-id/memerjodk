@@ -1,313 +1,76 @@
--- LocalScript untuk fitur bersembunyi di tanah dengan kedalaman yang dapat diatur via TextBox
-local Players = game:GetService("Players")
-local UserInputService = game:GetService("UserInputService")
-local RunService = game:GetService("RunService")
+-- LocalScript: HideInGround -- Letakkan script ini di: StarterPlayer > StarterPlayerScripts -- Fungsi: membuat UI untuk masuk/sembunyi ke dalam tanah langsung (tanpa delay) -- Fitur: TextBox untuk atur kedalaman, tombol ON/OFF (warna berbeda), tombol minimize (+ untuk munculkan kembali), tombol X untuk hapus GUI
 
--- Variabel lokal
-local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-local humanoid = character:WaitForChild("Humanoid")
-local isHidden = false
-local originalCFrame = nil
-local originalCanCollide = {}
-local originalTransparency = {}
-local isProcessing = false -- Untuk mencegah spam klik
-local hideDepth = -2.5 -- Kedalaman default
+local Players = game:GetService("Players") local player = Players.LocalPlayer local starterGui = game:GetService("StarterGui") local RunService = game:GetService("RunService")
 
--- Membuat GUI untuk kontrol
-local screenGui = Instance.new("ScreenGui")
-screenGui.Parent = player.PlayerGui
-screenGui.Name = "HideControlGui"
-screenGui.ResetOnSpawn = false -- Mencegah GUI hilang saat respawn
+-- UI buat otomatis local screenGui = Instance.new("ScreenGui") screenGui.Name = "HideInGroundGUI" screenGui.ResetOnSpawn = false screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- Frame utama untuk tombol
-local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 150, 0, 250) -- Diperbesar untuk menampung TextBox
-mainFrame.Position = UDim2.new(0, 10, 0, 10) -- Kiri atas
-mainFrame.BackgroundTransparency = 0.5
-mainFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-mainFrame.Parent = screenGui
-mainFrame.ClipsDescendants = true
+local mainFrame = Instance.new("Frame") mainFrame.Name = "MainFrame" mainFrame.Size = UDim2.new(0, 260, 0, 120) mainFrame.Position = UDim2.new(0, 20, 0, 20) mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30) mainFrame.BorderSizePixel = 0 mainFrame.Parent = screenGui mainFrame.Active = true mainFrame.Draggable = true
 
--- Tombol On/Off
-local toggleButton = Instance.new("TextButton")
-toggleButton.Size = UDim2.new(0, 100, 0, 50)
-toggleButton.Position = UDim2.new(0, 25, 0, 40)
-toggleButton.Text = "Hide"
-toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleButton.Parent = mainFrame
+local title = Instance.new("TextLabel") title.Name = "Title" title.Size = UDim2.new(1, 0, 0, 30) title.BackgroundTransparency = 1 title.Text = "Sembunyi Tanah" title.TextColor3 = Color3.fromRGB(255,255,255) title.Font = Enum.Font.SourceSansBold title.TextSize = 18 title.Parent = mainFrame
 
--- TextBox untuk mengatur kedalaman
-local depthTextBox = Instance.new("TextBox")
-depthTextBox.Size = UDim2.new(0, 100, 0, 30)
-depthTextBox.Position = UDim2.new(0, 25, 0, 100)
-depthTextBox.Text = tostring(hideDepth) -- Default kedalaman
-depthTextBox.PlaceholderText = "Enter depth (e.g. -2.5)"
-depthTextBox.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
-depthTextBox.TextColor3 = Color3.fromRGB(0, 0, 0)
-depthTextBox.Parent = mainFrame
+-- Depth label + textbox local depthLabel = Instance.new("TextLabel") depthLabel.Size = UDim2.new(0, 120, 0, 28) depthLabel.Position = UDim2.new(0, 8, 0, 36) depthLabel.BackgroundTransparency = 1 depthLabel.Text = "Kedalaman (meter):" depthLabel.TextColor3 = Color3.fromRGB(230,230,230) depthLabel.TextSize = 14 depthLabel.Font = Enum.Font.SourceSans depthLabel.TextXAlignment = Enum.TextXAlignment.Left depthLabel.Parent = mainFrame
 
--- Tombol Minimize
-local minimizeButton = Instance.new("TextButton")
-minimizeButton.Size = UDim2.new(0, 30, 0, 30)
-minimizeButton.Position = UDim2.new(0, 110, 0, 0)
-minimizeButton.Text = "-"
-minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 255, 0)
-minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-minimizeButton.Parent = mainFrame
+local depthBox = Instance.new("TextBox") depthBox.Name = "DepthBox" depthBox.Size = UDim2.new(0, 120, 0, 28) depthBox.Position = UDim2.new(0, 130, 0, 36) depthBox.BackgroundColor3 = Color3.fromRGB(50,50,50) depthBox.TextColor3 = Color3.fromRGB(255,255,255) depthBox.ClearTextOnFocus = false depthBox.Text = "3" -- default 3 meter depthBox.Font = Enum.Font.SourceSans depthBox.TextSize = 14 depthBox.Parent = mainFrame
 
--- Tombol Close (X)
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0, 30, 0, 30)
-closeButton.Position = UDim2.new(0, 0, 0, 0)
-closeButton.Text = "X"
-closeButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeButton.Parent = mainFrame
+-- On/Off Button local toggleBtn = Instance.new("TextButton") toggleBtn.Name = "ToggleBtn" toggleBtn.Size = UDim2.new(0, 120, 0, 28) toggleBtn.Position = UDim2.new(0, 8, 0, 72) toggleBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50) -- OFF merah toggleBtn.TextColor3 = Color3.fromRGB(255,255,255) toggleBtn.Text = "OFF" toggleBtn.Font = Enum.Font.SourceSansBold toggleBtn.TextSize = 16 toggleBtn.Parent = mainFrame
 
--- Fungsi untuk validasi input TextBox
-local function updateDepth()
-    local input = depthTextBox.Text
-    local number = tonumber(input)
-    if number and number <= 0 and number >= -5 then -- Batasi kedalaman antara 0 dan -5
-        hideDepth = number
-    else
-        depthTextBox.Text = tostring(hideDepth) -- Kembalikan ke nilai sebelumnya jika invalid
-    end
+-- Minimize button local minimizeBtn = Instance.new("TextButton") minimizeBtn.Name = "MinimizeBtn" minimizeBtn.Size = UDim2.new(0, 28, 0, 28) minimizeBtn.Position = UDim2.new(1, -34, 0, 4) minimizeBtn.Text = "_" minimizeBtn.Font = Enum.Font.SourceSansBold minimizeBtn.TextSize = 18 minimizeBtn.BackgroundColor3 = Color3.fromRGB(80,80,80) minimizeBtn.TextColor3 = Color3.fromRGB(255,255,255) minimizeBtn.Parent = mainFrame
+
+-- Close (X) button local closeBtn = Instance.new("TextButton") closeBtn.Name = "CloseBtn" closeBtn.Size = UDim2.new(0, 28, 0, 28) closeBtn.Position = UDim2.new(1, -68, 0, 4) closeBtn.Text = "X" closeBtn.Font = Enum.Font.SourceSansBold closeBtn.TextSize = 18 closeBtn.BackgroundColor3 = Color3.fromRGB(140,40,40) closeBtn.TextColor3 = Color3.fromRGB(255,255,255) closeBtn.Parent = mainFrame
+
+-- Plus (restore) button (hidden initially) local plusBtn = Instance.new("TextButton") plusBtn.Name = "PlusBtn" plusBtn.Size = UDim2.new(0, 36, 0, 36) plusBtn.Position = UDim2.new(0, 20, 0, 20) plusBtn.Text = "+" plusBtn.Font = Enum.Font.SourceSansBold plusBtn.TextSize = 20 plusBtn.BackgroundColor3 = Color3.fromRGB(70,70,70) plusBtn.TextColor3 = Color3.fromRGB(255,255,255) plusBtn.Parent = screenGui plusBtn.Visible = false
+
+-- State local isHidden = false local storedCFrame = nil local lastDepth = 3 local debounce = false
+
+-- Utility: parse depth from textbox local function parseDepth(text) local n = tonumber(text) if not n then return nil end -- clamp reasonable values if n < 0.25 then n = 0.25 end if n > 100 then n = 100 end return n end
+
+-- Function to perform hide/unhide immediately local function setHidden(hide) if debounce then return end debounce = true local char = player.Character or player.CharacterAdded:Wait() local hrp = char:FindFirstChild("HumanoidRootPart") local humanoid = char:FindFirstChildOfClass("Humanoid") if not hrp then debounce = false return end
+
+local depth = parseDepth(depthBox.Text) or lastDepth
+lastDepth = depth
+
+if hide then
+	-- store original CFrame
+	storedCFrame = hrp.CFrame
+	-- teleport langsung ke bawah (tanpa delay)
+	hrp.CFrame = hrp.CFrame * CFrame.new(0, -depth, 0)
+	-- optional: set humanoid state agar tidak jatuh/bergelinding (tetap bisa disesuaikan)
+	if humanoid then
+		humanoid.PlatformStand = true
+	end
+	isHidden = true
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(60,180,75) -- ON warna hijau
+	toggleBtn.Text = "ON"
+else
+	-- restore original position jika ada
+	if storedCFrame then
+		hrp.CFrame = storedCFrame
+		storedCFrame = nil
+	end
+	if humanoid then
+		humanoid.PlatformStand = false
+	end
+	isHidden = false
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(200,50,50) -- OFF merah
+	toggleBtn.Text = "OFF"
+end
+debounce = false
+
 end
 
--- Event untuk TextBox saat input berubah
-depthTextBox.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        updateDepth()
-    end
-end)
+-- Toggle button click toggleBtn.MouseButton1Click:Connect(function() local depth = parseDepth(depthBox.Text) if depth then lastDepth = depth else -- jika input tidak valid, kembalikan value textbox ke lastDepth depthBox.Text = tostring(lastDepth) end setHidden(not isHidden) end)
 
--- Fungsi untuk menyimpan status CanCollide dan Transparency
-local function saveCollisionAndTransparencyState()
-    originalCanCollide = {}
-    originalTransparency = {}
-    for _, part in pairs(character:GetDescendants()) do
-        if part:IsA("BasePart") then
-            originalCanCollide[part] = part.CanCollide
-            originalTransparency[part] = part.Transparency
-        end
-    end
-end
+-- Minimize: sembunyikan mainFrame, tampilkan plusBtn minimizeBtn.MouseButton1Click:Connect(function() mainFrame.Visible = false plusBtn.Visible = true end)
 
--- Fungsi untuk mengembalikan status CanCollide dan Transparency
-local function restoreCollisionAndTransparencyState()
-    for part, canCollide in pairs(originalCanCollide) do
-        if part and part.Parent then
-            part.CanCollide = canCollide
-            part.Transparency = originalTransparency[part] or 0
-        end
-    end
-end
+-- Plus: munculkan mainFrame plusBtn.MouseButton1Click:Connect(function() mainFrame.Visible = true plusBtn.Visible = false end)
 
--- Fungsi untuk mempertahankan posisi saat bersembunyi
-local connection
-local function maintainHiddenPosition()
-    if connection then
-        connection:Disconnect()
-    end
-    if isHidden then
-        connection = RunService.Heartbeat:Connect(function()
-            if isHidden and humanoidRootPart and humanoid and humanoid.Health > 0 then
-                humanoidRootPart.Velocity = Vector3.new(0, 0, 0) -- Set velocity ke 0
-                humanoidRootPart.CFrame = originalCFrame * CFrame.new(0, hideDepth, 0) -- Pertahankan posisi
-            end
-        end)
-    end
-end
+-- Close: hapus GUI sepenuhnya closeBtn.MouseButton1Click:Connect(function() screenGui:Destroy() end)
 
--- Fungsi untuk menyembunyikan pemain
-local function hidePlayer()
-    if isProcessing or not character or not humanoidRootPart or not humanoid or humanoid.Health <= 0 then
-        return
-    end
-    isProcessing = true
+-- Pastikan jika karakter respawn, state tetap konsisten (jika sedang hidden, apply lagi) player.CharacterAdded:Connect(function(char) -- kecilkan delay agar langsung apply saat spawn if isHidden then local hrp = char:WaitForChild("HumanoidRootPart", 3) if hrp and storedCFrame then hrp.CFrame = storedCFrame * CFrame.new(0, -lastDepth, 0) end end end)
 
-    if not isHidden then
-        isHidden = true
-        originalCFrame = humanoidRootPart.CFrame
-        saveCollisionAndTransparencyState()
+-- Pastikan textbox hanya menerima angka (opsional: replace non-digit saat berubah) depthBox:GetPropertyChangedSignal("Text"):Connect(function() local text = depthBox.Text -- hilangkan karakter selain angka, titik, minus (meskipun minus tidak dipakai) local cleaned = text:gsub("[^%d%.]", "") -- hindari lebih dari satu titik local firstDot = cleaned:find(".", 1, true) if firstDot then local left = cleaned:sub(1, firstDot) local rest = cleaned:sub(firstDot + 1):gsub("%.", "") cleaned = left .. rest end if cleaned ~= text then depthBox.Text = cleaned end end)
 
-        -- Nonaktifkan collision dan buat karakter invisible
-        for _, part in pairs(character:GetDescendants()) do
-            if part:IsA("BasePart") then
-                part.CanCollide = false
-                part.Transparency = 1 -- Buat invisible
-            end
-        end
+-- Informasi singkat di tooltip (hover) mainFrame.MouseEnter:Connect(function() -- bisa ditambah jika dibutuhkan end)
 
-        -- Nonaktifkan hitbox serangan dan buat pemain tidak bisa dibunuh
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
-        humanoid.PlatformStand = true
-        humanoid.WalkSpeed = 0
-        humanoid.JumpPower = 0
+-- Siap digunakan print("HideInGround GUI siap. Tekan ON untuk sembunyi dan OFF untuk kembali.")
 
-        -- Pindahkan pemain ke dalam tanah secara instan
-        humanoidRootPart.CFrame = originalCFrame * CFrame.new(0, hideDepth, 0)
-        humanoidRootPart.Anchored = true -- Anchor untuk mencegah pergerakan
-
-        -- Mulai loop maintain posisi
-        maintainHiddenPosition()
-
-        -- Ubah teks tombol
-        toggleButton.Text = "Show"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-    else
-        isHidden = false
-        restoreCollisionAndTransparencyState()
-
-        -- Kembalikan ke posisi asli secara instan
-        humanoidRootPart.Anchored = false
-        humanoidRootPart.CFrame = originalCFrame
-
-        -- Aktifkan kembali hitbox dan gerakan
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
-        humanoid.PlatformStand = false
-        humanoid.WalkSpeed = 16
-        humanoid.JumpPower = 50
-
-        -- Hentikan loop maintain
-        if connection then
-            connection:Disconnect()
-            connection = nil
-        end
-
-        -- Ubah teks tombol
-        toggleButton.Text = "Hide"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-    end
-
-    -- Reset isProcessing setelah selesai
-    RunService.Heartbeat:Wait()
-    isProcessing = false
-end
-
--- Fungsi untuk minimize/maximize GUI
-local isMinimized = false
-local function toggleMinimize()
-    if not isMinimized then
-        mainFrame.Size = UDim2.new(0, 50, 0, 50)
-        toggleButton.Visible = false
-        depthTextBox.Visible = false
-        minimizeButton.Text = "+"
-        isMinimized = true
-    else
-        mainFrame.Size = UDim2.new(0, 150, 0, 250)
-        toggleButton.Visible = true
-        depthTextBox.Visible = true
-        minimizeButton.Text = "-"
-        isMinimized = false
-    end
-end
-
--- Fungsi untuk menutup GUI
-local function closeGui()
-    if isHidden then
-        hidePlayer() -- Keluar dari mode hide sebelum menutup
-    end
-    screenGui:Destroy()
-    if connection then
-        connection:Disconnect()
-        connection = nil
-    end
-end
-
--- Logika untuk drag-and-drop GUI
-local dragging = false
-local dragStart = nil
-local startPos = nil
-
-UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-    if gameProcessedEvent then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        local position = input.Position
-        local guiPosition = mainFrame.AbsolutePosition
-        local guiSize = mainFrame.AbsoluteSize
-        if position.X >= guiPosition.X and position.X <= guiPosition.X + guiSize.X and
-           position.Y >= guiPosition.Y and position.Y <= guiPosition.Y + guiSize.Y then
-            dragging = true
-            dragStart = position
-            startPos = mainFrame.Position
-        end
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input, gameProcessedEvent)
-    if gameProcessedEvent then return end
-    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        local newPos = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-        mainFrame.Position = newPos
-    end
-end)
-
-UserInputService.InputEnded:Connect(function(input, gameProcessedEvent)
-    if gameProcessedEvent then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end)
-
--- Event untuk tombol
-toggleButton.MouseButton1Click:Connect(hidePlayer)
-minimizeButton.MouseButton1Click:Connect(toggleMinimize)
-closeButton.MouseButton1Click:Connect(closeGui)
-
--- Mengatur ulang saat karakter respawn
-player.CharacterAdded:Connect(function(newCharacter)
-    character = newCharacter
-    humanoidRootPart = character:WaitForChild("HumanoidRootPart")
-    humanoid = character:WaitForChild("Humanoid")
-    isHidden = false
-    isProcessing = false
-    toggleButton.Text = "Hide"
-    toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-    
-    -- Pastikan state kembali normal saat respawn
-    humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, true)
-    humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, true)
-    humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, true)
-    humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, true)
-    humanoid.PlatformStand = false
-    humanoid.WalkSpeed = 16
-    humanoid.JumpPower = 50
-    humanoidRootPart.Anchored = false
-    
-    -- Hentikan loop jika ada
-    if connection then
-        connection:Disconnect()
-        connection = nil
-    end
-end)
-
--- Menangani bug jika karakter mati saat bersembunyi
-humanoid.Died:Connect(function()
-    if isHidden then
-        isHidden = false
-        toggleButton.Text = "Hide"
-        toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
-        isProcessing = false
-        if connection then
-            connection:Disconnect()
-            connection = nil
-        end
-    end
-end)
