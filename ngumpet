@@ -1,4 +1,4 @@
--- LocalScript untuk fitur bersembunyi di tanah dengan kedalaman cukup dan anti-hit
+-- LocalScript untuk fitur bersembunyi di tanah dengan kedalaman yang dapat diatur via TextBox
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
@@ -13,7 +13,7 @@ local originalCFrame = nil
 local originalCanCollide = {}
 local originalTransparency = {}
 local isProcessing = false -- Untuk mencegah spam klik
-local hideDepth = -2.5 -- Kedalaman disesuaikan untuk memastikan tersembunyi (sesuaikan jika perlu)
+local hideDepth = -2.5 -- Kedalaman default
 
 -- Membuat GUI untuk kontrol
 local screenGui = Instance.new("ScreenGui")
@@ -23,7 +23,7 @@ screenGui.ResetOnSpawn = false -- Mencegah GUI hilang saat respawn
 
 -- Frame utama untuk tombol
 local mainFrame = Instance.new("Frame")
-mainFrame.Size = UDim2.new(0, 150, 0, 200)
+mainFrame.Size = UDim2.new(0, 150, 0, 250) -- Diperbesar untuk menampung TextBox
 mainFrame.Position = UDim2.new(0, 10, 0, 10) -- Kiri atas
 mainFrame.BackgroundTransparency = 0.5
 mainFrame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
@@ -38,6 +38,16 @@ toggleButton.Text = "Hide"
 toggleButton.BackgroundColor3 = Color3.fromRGB(0, 255, 0)
 toggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 toggleButton.Parent = mainFrame
+
+-- TextBox untuk mengatur kedalaman
+local depthTextBox = Instance.new("TextBox")
+depthTextBox.Size = UDim2.new(0, 100, 0, 30)
+depthTextBox.Position = UDim2.new(0, 25, 0, 100)
+depthTextBox.Text = tostring(hideDepth) -- Default kedalaman
+depthTextBox.PlaceholderText = "Enter depth (e.g. -2.5)"
+depthTextBox.BackgroundColor3 = Color3.fromRGB(200, 200, 200)
+depthTextBox.TextColor3 = Color3.fromRGB(0, 0, 0)
+depthTextBox.Parent = mainFrame
 
 -- Tombol Minimize
 local minimizeButton = Instance.new("TextButton")
@@ -56,6 +66,24 @@ closeButton.Text = "X"
 closeButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
 closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
 closeButton.Parent = mainFrame
+
+-- Fungsi untuk validasi input TextBox
+local function updateDepth()
+    local input = depthTextBox.Text
+    local number = tonumber(input)
+    if number and number <= 0 and number >= -5 then -- Batasi kedalaman antara 0 dan -5
+        hideDepth = number
+    else
+        depthTextBox.Text = tostring(hideDepth) -- Kembalikan ke nilai sebelumnya jika invalid
+    end
+end
+
+-- Event untuk TextBox saat input berubah
+depthTextBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        updateDepth()
+    end
+end)
 
 -- Fungsi untuk menyimpan status CanCollide dan Transparency
 local function saveCollisionAndTransparencyState()
@@ -119,7 +147,7 @@ local function hidePlayer()
         humanoid:SetStateEnabled(Enum.HumanoidStateType.GettingUp, false)
         humanoid:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
         humanoid:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
-        humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false) -- Nonaktifkan physics
+        humanoid:SetStateEnabled(Enum.HumanoidStateType.Physics, false)
         humanoid.PlatformStand = true
         humanoid.WalkSpeed = 0
         humanoid.JumpPower = 0
@@ -173,11 +201,13 @@ local function toggleMinimize()
     if not isMinimized then
         mainFrame.Size = UDim2.new(0, 50, 0, 50)
         toggleButton.Visible = false
+        depthTextBox.Visible = false
         minimizeButton.Text = "+"
         isMinimized = true
     else
-        mainFrame.Size = UDim2.new(0, 150, 0, 200)
+        mainFrame.Size = UDim2.new(0, 150, 0, 250)
         toggleButton.Visible = true
+        depthTextBox.Visible = true
         minimizeButton.Text = "-"
         isMinimized = false
     end
