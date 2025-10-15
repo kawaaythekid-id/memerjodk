@@ -1,356 +1,439 @@
--- LocalScript: Ultimate GUI Respawn-Safe Final
--- Tempatkan di StarterPlayerScripts
+-- 💥 LocalScript Gabungan: Follow Player + Auto Teleport + Magnet Coin + WalkSpeed Control (Android)
+-- Taruh di StarterPlayer > StarterPlayerScripts
 
+-- === SERVICE ===
 local Players = game:GetService("Players")
-local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
-local Lighting = game:GetService("Lighting")
-local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
--- ===== Variabel =====
-local DefaultWalkSpeed = 16
-local WalkSpeed = 50
-local WalkSpeedEnabled = false
-local InfinityJumpEnabled = true
-local FullBrightEnabled = true
-local NoClipEnabled = false
-local AutoHealEnabled = false
+local player = Players.LocalPlayer
+local targetPlayer = nil
+local enabled = false
+local followConn
+local positionMode = "Back"
+local distance = 0
+local autoTeleporting = false
+local magnetEnabled = false
+local magnetConn
 
-local DefaultLighting = {
-    Brightness = Lighting.Brightness,
-    ClockTime = Lighting.ClockTime,
-    FogEnd = Lighting.FogEnd,
-    GlobalShadows = Lighting.GlobalShadows
-}
+-- === GUI UTAMA (FOLLOW PANEL) ===
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "StandFollowMobile"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
 
--- ===== GUI: hanya dibuat sekali =====
-local ScreenGui = PlayerGui:FindFirstChild("UltimateGUI") or Instance.new("ScreenGui")
-ScreenGui.Name = "UltimateGUI"
-ScreenGui.ResetOnSpawn = false  -- Pastikan GUI permanen
-ScreenGui.Parent = PlayerGui
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 300)
+frame.Position = UDim2.new(1, -270, 0, 80)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Parent = screenGui
 
-local Frame = ScreenGui:FindFirstChild("Frame") or Instance.new("Frame")
-Frame.Size = UDim2.new(0, 220, 0, 280)
-Frame.Position = UDim2.new(0.05, 0, 0.05, 0)
-Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20) -- Warna dasar hitam elegan
-Frame.BackgroundTransparency = 0.1
-Frame.Parent = ScreenGui
-
--- Tambahkan UIGradient untuk efek gradien
-local FrameGradient = Instance.new("UIGradient")
-FrameGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 20)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(50, 50, 80))
-})
-FrameGradient.Rotation = 45
-FrameGradient.Parent = Frame
-
--- Tambahkan UICorner untuk sudut membulat
-local FrameCorner = Instance.new("UICorner")
-FrameCorner.CornerRadius = UDim.new(0, 10)
-FrameCorner.Parent = Frame
-
--- Tambahkan bayangan (menggunakan UIStroke untuk simulasi)
-local FrameStroke = Instance.new("UIStroke")
-FrameStroke.Thickness = 2
-FrameStroke.Color = Color3.fromRGB(255, 215, 0) -- Aksen emas
-FrameStroke.Transparency = 0.5
-FrameStroke.Parent = Frame
-
-local MinimizeButton = Frame:FindFirstChild("MinimizeButton") or Instance.new("TextButton")
-MinimizeButton.Size = UDim2.new(0, 40, 0, 30)
-MinimizeButton.Position = UDim2.new(1, -45, 0, 5)
-MinimizeButton.BackgroundColor3 = Color3.fromRGB(255, 215, 0) -- Warna emas
-MinimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-MinimizeButton.Text = "-"
-MinimizeButton.Font = Enum.Font.GothamBold
-MinimizeButton.TextSize = 18
-MinimizeButton.Parent = Frame
-
-local MinimizeCorner = Instance.new("UICorner")
-MinimizeCorner.CornerRadius = UDim.new(0, 8)
-MinimizeCorner.Parent = MinimizeButton
-
-local ShowButton = ScreenGui:FindFirstChild("ShowButton") or Instance.new("TextButton")
-ShowButton.Size = UDim2.new(0, 50, 0, 30)
-ShowButton.Position = UDim2.new(0.05, 0, 0.05, 0)
-ShowButton.BackgroundColor3 = Color3.fromRGB(255, 215, 0)
-ShowButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-ShowButton.Text = "GUI"
-ShowButton.Font = Enum.Font.GothamBold
-ShowButton.TextSize = 16
-ShowButton.Visible = false
-ShowButton.Parent = ScreenGui
-
-local ShowButtonCorner = Instance.new("UICorner")
-ShowButtonCorner.CornerRadius = UDim.new(0, 8)
-ShowButtonCorner.Parent = ShowButton
-
--- Tombol helper dengan efek hover
-local function CreateButton(name, yPos)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 190, 0, 35)
-    btn.Position = UDim2.new(0.5, -95, 0, yPos)
-    btn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-    btn.Text = name .. ": OFF"
-    btn.Font = Enum.Font.Gotham
-    btn.TextSize = 14
-    btn.Parent = Frame
-
-    local btnCorner = Instance.new("UICorner")
-    btnCorner.CornerRadius = UDim.new(0, 6)
-    btnCorner.Parent = btn
-
-    local btnStroke = Instance.new("UIStroke")
-    btnStroke.Thickness = 1
-    btnStroke.Color = Color3.fromRGB(255, 215, 0)
-    btnStroke.Transparency = 0.7
-    btnStroke.Parent = btn
-
-    -- Efek hover
-    btn.MouseEnter:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.2), { BackgroundColor3 = Color3.fromRGB(50, 50, 50) }):Play()
-    end)
-    btn.MouseLeave:Connect(function()
-        TweenService:Create(btn, TweenInfo.new(0.2), { BackgroundColor3 = enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(30, 30, 30) }):Play()
-    end)
-
-    return btn
-end
-
-local WalkSpeedButton = Frame:FindFirstChild("WalkSpeedButton") or CreateButton("WalkSpeed", 40)
-local SpeedTextBox = Frame:FindFirstChild("SpeedTextBox") or Instance.new("TextBox")
-SpeedTextBox.Size = UDim2.new(0, 190, 0, 30)
-SpeedTextBox.Position = UDim2.new(0.5, -95, 0, 80)
-SpeedTextBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-SpeedTextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-SpeedTextBox.PlaceholderText = "Masukkan WalkSpeed"
-SpeedTextBox.Text = tostring(WalkSpeed)
-SpeedTextBox.Font = Enum.Font.Gotham
-SpeedTextBox.TextSize = 14
-SpeedTextBox.Parent = Frame
-
-local SpeedTextBoxCorner = Instance.new("UICorner")
-SpeedTextBoxCorner.CornerRadius = UDim.new(0, 6)
-SpeedTextBoxCorner.Parent = SpeedTextBox
-
-local InfinityJumpButton = Frame:FindFirstChild("InfinityJumpButton") or CreateButton("Infinity Jump", 120)
-local FullBrightButton = Frame:FindFirstChild("FullBrightButton") or CreateButton("Full Bright", 160)
-local NoClipButton = Frame:FindFirstChild("NoClipButton") or CreateButton("No Clip", 200)
-local AutoHealButton = Frame:FindFirstChild("AutoHealButton") or CreateButton("AutoHeal", 240)
-
--- ===== Karakter =====
-local Humanoid
-local Character = Player.Character
-
-local function UpdateCharacterRefs(char)
-    Character = char
-    Humanoid = char:WaitForChild("Humanoid")
-end
-
--- ===== Fitur =====
-local AutoHealConnection
-local FullBrightConnection
-
-local function UpdateButtonColor(button, enabled)
-    button.BackgroundColor3 = enabled and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(30, 30, 30)
-    button.Text = button.Text:match("^(.-):") .. " : " .. (enabled and "ON" or "OFF")
-end
-
-local function SetWalkSpeed(enabled)
-    if Humanoid and Humanoid:IsDescendantOf(game) then
-        local speed = tonumber(SpeedTextBox.Text) or WalkSpeed
-        Humanoid.WalkSpeed = enabled and math.min(speed, 100) or DefaultWalkSpeed
-    else
-        warn("Humanoid tidak ditemukan!")
-    end
-    UpdateButtonColor(WalkSpeedButton, enabled)
-end
-
-local function SetInfinityJump(enabled)
-    InfinityJumpEnabled = enabled
-    UpdateButtonColor(InfinityJumpButton, enabled)
-end
-
-local function ApplyFullBright()
-    Lighting.Brightness = 2
-    Lighting.ClockTime = 14
-    Lighting.FogEnd = 100000
-    Lighting.GlobalShadows = false
-end
-
-local function SetFullBright(enabled)
-    FullBrightEnabled = enabled
-    if FullBrightConnection then FullBrightConnection:Disconnect() end
-    if enabled then
-        ApplyFullBright()
-        FullBrightConnection = RunService.RenderStepped:Connect(ApplyFullBright)
-    else
-        Lighting.Brightness = DefaultLighting.Brightness
-        Lighting.ClockTime = DefaultLighting.ClockTime
-        Lighting.FogEnd = DefaultLighting.FogEnd
-        Lighting.GlobalShadows = DefaultLighting.GlobalShadows
-    end
-    UpdateButtonColor(FullBrightButton, enabled)
-end
-
-local function SetNoClip(enabled)
-    NoClipEnabled = enabled
-    UpdateButtonColor(NoClipButton, enabled)
-    if Character then
-        for _, part in pairs(Character:GetDescendants()) do
-            if part:IsA("BasePart") and part ~= Character:FindFirstChild("HumanoidRootPart") then
-                part.CanCollide = not enabled
-            end
-        end
-    end
-end
-
-local function SetAutoHeal(enabled)
-    AutoHealEnabled = enabled
-    UpdateButtonColor(AutoHealButton, enabled)
-    if AutoHealConnection then AutoHealConnection:Disconnect() AutoHealConnection = nil end
-    if enabled and Character and Humanoid then
-        AutoHealConnection = RunService.Heartbeat:Connect(function()
-            if Humanoid and Humanoid:IsDescendantOf(game) then
-                if Humanoid.Health < Humanoid.MaxHealth then
-                    Humanoid.Health = Humanoid.MaxHealth
-                end
-            end
-        end)
-    end
-end
-
--- ===== Tombol Event =====
-WalkSpeedButton.MouseButton1Click:Connect(function()
-    WalkSpeedEnabled = not WalkSpeedEnabled
-    SetWalkSpeed(WalkSpeedEnabled)
-end)
-
-SpeedTextBox.FocusLost:Connect(function(enterPressed)
-    if enterPressed then
-        local speed = tonumber(SpeedTextBox.Text)
-        if speed and speed >= 0 then
-            WalkSpeed = speed
-            if WalkSpeedEnabled then
-                SetWalkSpeed(true)
-            end
-        else
-            SpeedTextBox.Text = tostring(WalkSpeed)
-            warn("Masukkan angka valid untuk WalkSpeed!")
-        end
-    end
-end)
-
-InfinityJumpButton.MouseButton1Click:Connect(function()
-    SetInfinityJump(not InfinityJumpEnabled)
-end)
-
-FullBrightButton.MouseButton1Click:Connect(function()
-    SetFullBright(not FullBrightEnabled)
-end)
-
-NoClipButton.MouseButton1Click:Connect(function()
-    SetNoClip(not NoClipEnabled)
-end)
-
-AutoHealButton.MouseButton1Click:Connect(function()
-    SetAutoHeal(not AutoHealEnabled)
-end)
-
--- ===== Minimize / Show dengan Animasi Halus =====
-local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-
-MinimizeButton.MouseButton1Click:Connect(function()
-    local tween = TweenService:Create(Frame, tweenInfo, { Size = UDim2.new(0, 220, 0, 0), BackgroundTransparency = 0.5 })
-    tween:Play()
-    tween.Completed:Wait()
-    Frame.Visible = false
-    ShowButton.Visible = true
-end)
-
-ShowButton.MouseButton1Click:Connect(function()
-    Frame.Visible = true
-    local tween = TweenService:Create(Frame, tweenInfo, { Size = UDim2.new(0, 220, 0, 280), BackgroundTransparency = 0.1 })
-    tween:Play()
-    ShowButton.Visible = false
-end)
-
--- ===== Infinity Jump =====
-UserInputService.JumpRequest:Connect(function()
-    if InfinityJumpEnabled and Humanoid then
-        Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end)
-
--- ===== No Clip =====
-RunService.Stepped:Connect(function()
-    if NoClipEnabled and Character and Humanoid then
-        if Humanoid:GetState() ~= Enum.HumanoidStateType.Running then
-            Humanoid:ChangeState(Enum.HumanoidStateType.Running)
-        end
-    end
-end)
-
--- ===== Respawn handling =====
-Player.CharacterAdded:Connect(function(char)
-    UpdateCharacterRefs(char)
-    SetWalkSpeed(WalkSpeedEnabled)
-    SetNoClip(NoClipEnabled)
-    if AutoHealEnabled then SetAutoHeal(true) end
-    if FullBrightEnabled then SetFullBright(true) end
-end)
-
--- ===== Drag GUI =====
-local dragging = false
-local dragInput
-local dragStart
-local startPos
+-- drag support
+local dragging, dragInput, dragStart, startPos
 local function update(input)
-    local delta = input.Position - dragStart
-    Frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	local delta = input.Position - dragStart
+	frame.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset + delta.Y
+	)
 end
-
-Frame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = true
-        dragStart = input.Position
-        startPos = Frame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then dragging = false end
-        end)
-    end
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
 end)
-
-Frame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        dragInput = input
-    end
+frame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
 end)
-
 UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then update(input) end
+	if input == dragInput and dragging then
+		update(input)
+	end
 end)
 
--- ===== Inisialisasi Tombol =====
-local function InitializeButtons()
-    UpdateButtonColor(WalkSpeedButton, WalkSpeedEnabled)
-    UpdateButtonColor(InfinityJumpButton, InfinityJumpEnabled)
-    UpdateButtonColor(FullBrightButton, FullBrightEnabled)
-    UpdateButtonColor(NoClipButton, NoClipEnabled)
-    UpdateButtonColor(AutoHealButton, AutoHealEnabled)
+-- title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -40, 0, 35)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.Text = "kaweydlsra"
+title.TextColor3 = Color3.fromRGB(255, 0, 0)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 20
+title.Parent = frame
+
+-- minimize
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 35, 0, 35)
+minimizeBtn.Position = UDim2.new(1, -35, 0, 0)
+minimizeBtn.Text = "-"
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeBtn.Parent = frame
+
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, 0, 1, -35)
+content.Position = UDim2.new(0, 0, 0, 35)
+content.BackgroundTransparency = 1
+content.Parent = frame
+
+local minimized = false
+local normalSize = frame.Size
+minimizeBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	content.Visible = not minimized
+	frame.Size = minimized and UDim2.new(0, 260, 0, 35) or normalSize
+	minimizeBtn.Text = minimized and "+" or "-"
+end)
+
+-- dropdown player
+local playerDropdown = Instance.new("TextButton")
+playerDropdown.Size = UDim2.new(1, -20, 0, 35)
+playerDropdown.Position = UDim2.new(0, 10, 0, 10)
+playerDropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+playerDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+playerDropdown.Text = "Pilih Player"
+playerDropdown.TextSize = 18
+playerDropdown.Parent = content
+
+local dropdownFrame = Instance.new("ScrollingFrame")
+dropdownFrame.Size = UDim2.new(1, -20, 0, 100)
+dropdownFrame.Position = UDim2.new(0, 10, 0, 50)
+dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+dropdownFrame.Visible = false
+dropdownFrame.BorderSizePixel = 0
+dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+dropdownFrame.ScrollBarThickness = 8
+dropdownFrame.Parent = content
+
+local uiList = Instance.new("UIListLayout")
+uiList.Parent = dropdownFrame
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+uiList.Padding = UDim.new(0, 2)
+
+-- textBox jarak (hijau)
+local distBox = Instance.new("TextBox")
+distBox.Size = UDim2.new(1, -20, 0, 35)
+distBox.Position = UDim2.new(0, 10, 0, 160)
+distBox.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+distBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+distBox.Text = tostring(distance)
+distBox.ClearTextOnFocus = false
+distBox.PlaceholderText = "Jarak (0-25)"
+distBox.TextSize = 18
+distBox.Parent = content
+
+distBox.FocusLost:Connect(function()
+	local val = tonumber(distBox.Text)
+	if val then
+		distance = math.clamp(val, 0, 25)
+		distBox.Text = tostring(distance)
+	else
+		distBox.Text = tostring(distance)
+	end
+end)
+
+-- tombol sejajar
+local buttonFrame = Instance.new("Frame", content)
+buttonFrame.Size = UDim2.new(1, -20, 0, 30)
+buttonFrame.Position = UDim2.new(0, 10, 1, -40)
+buttonFrame.BackgroundTransparency = 1
+
+local buttonLayout = Instance.new("UIListLayout", buttonFrame)
+buttonLayout.FillDirection = Enum.FillDirection.Horizontal
+buttonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+buttonLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+buttonLayout.Padding = UDim.new(0, 5)
+
+local function makeButton(text, color)
+	local btn = Instance.new("TextButton", buttonFrame)
+	btn.Size = UDim2.new(0, 60, 0, 30)
+	btn.BackgroundColor3 = color
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.TextSize = 14
+	btn.Text = text
+	return btn
 end
 
--- ===== Inisialisasi =====
-if Player.Character then
-    UpdateCharacterRefs(Player.Character)
-    InitializeButtons()
-    SetWalkSpeed(WalkSpeedEnabled)
-    SetInfinityJump(InfinityJumpEnabled)
-    SetFullBright(FullBrightEnabled)
-    SetNoClip(NoClipEnabled)
-    SetAutoHeal(AutoHealEnabled)
+local toggleBtn = makeButton("OFF", Color3.fromRGB(0, 120, 200))
+local autoBtn   = makeButton("Auto", Color3.fromRGB(200, 120, 0))
+local stopBtn   = makeButton("STOP", Color3.fromRGB(200, 0, 0))
+local magnetBtn = makeButton("Magnet", Color3.fromRGB(120, 0, 200))
+
+-- === LOGIC FOLLOW ===
+local function getHRP(character)
+	if not character then return end
+	return character:FindFirstChild("HumanoidRootPart")
 end
+
+local function followTarget()
+	if followConn then followConn:Disconnect() end
+	followConn = RunService.RenderStepped:Connect(function()
+		if not targetPlayer or not targetPlayer.Character then return end
+		local targetHRP = getHRP(targetPlayer.Character)
+		local myHRP = getHRP(player.Character)
+		if targetHRP and myHRP then
+			local offset = Vector3.new()
+			if positionMode == "Back" then
+				offset = Vector3.new(0, 0, distance)
+			elseif positionMode == "Front" then
+				offset = Vector3.new(0, 0, -distance)
+			elseif positionMode == "Right" then
+				offset = Vector3.new(distance, 0, 0)
+			elseif positionMode == "Left" then
+				offset = Vector3.new(-distance, 0, 0)
+			end
+			myHRP.CFrame = targetHRP.CFrame * CFrame.new(offset)
+		end
+	end)
+end
+
+local function stopFollow()
+	if followConn then followConn:Disconnect() followConn = nil end
+end
+
+local function toggleFollow()
+	enabled = not enabled
+	if enabled and targetPlayer then
+		followTarget()
+		toggleBtn.Text = "ON"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+	else
+		stopFollow()
+		enabled = false
+		toggleBtn.Text = "OFF"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+	end
+end
+toggleBtn.MouseButton1Click:Connect(toggleFollow)
+
+-- Auto teleport semua player
+autoBtn.MouseButton1Click:Connect(function()
+	if autoTeleporting then return end
+	autoTeleporting = true
+	local myHRP = getHRP(player.Character)
+	if not myHRP then return end
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player then
+			local hrp = getHRP(plr.Character)
+			if hrp then
+				myHRP.CFrame = hrp.CFrame * CFrame.new(0, 0, 3)
+				task.wait(0.3)
+			end
+		end
+	end
+	autoTeleporting = false
+end)
+
+-- Tombol STOP
+stopBtn.MouseButton1Click:Connect(function()
+	stopFollow()
+	enabled = false
+	autoTeleporting = false
+	magnetEnabled = false
+	if magnetConn then magnetConn:Disconnect() magnetConn = nil end
+	toggleBtn.Text = "OFF"
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+	magnetBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 200)
+end)
+
+-- === MAGNET COIN ===
+local function findCoins()
+	local results = {}
+	for _, obj in pairs(workspace:GetDescendants()) do
+		if obj:IsA("BasePart") and string.find(string.lower(obj.Name), "coin") then
+			table.insert(results, obj)
+		end
+	end
+	return results
+end
+
+local function touchCoin(coin, hrp)
+	if not coin or not coin.Parent then return end
+	firetouchinterest(hrp, coin, 0)
+	task.wait()
+	firetouchinterest(hrp, coin, 1)
+end
+
+local function toggleMagnet()
+	magnetEnabled = not magnetEnabled
+	if magnetEnabled then
+		magnetBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 200)
+		if not magnetConn then
+			magnetConn = RunService.Heartbeat:Connect(function()
+				local char = player.Character
+				if not char then return end
+				local hrp = char:FindFirstChild("HumanoidRootPart")
+				if not hrp then return end
+				for _, coin in pairs(findCoins()) do
+					touchCoin(coin, hrp)
+				end
+			end)
+		end
+	else
+		magnetBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 200)
+		if magnetConn then magnetConn:Disconnect() magnetConn = nil end
+	end
+end
+magnetBtn.MouseButton1Click:Connect(toggleMagnet)
+
+-- === DROPDOWN PLAYER ===
+local function refreshDropdown()
+	for _, child in ipairs(dropdownFrame:GetChildren()) do
+		if child:IsA("TextButton") then child:Destroy() end
+	end
+	local playerList = {}
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= player then table.insert(playerList, plr) end
+	end
+	table.sort(playerList, function(a, b) return a.DisplayName:lower() < b.DisplayName:lower() end)
+	for _, plr in ipairs(playerList) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, -5, 0, 30)
+		btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.TextSize = 16
+		btn.Text = plr.DisplayName
+		btn.Parent = dropdownFrame
+		btn.MouseButton1Click:Connect(function()
+			targetPlayer = plr
+			playerDropdown.Text = plr.DisplayName
+			dropdownFrame.Visible = false
+			if enabled then followTarget() end
+		end)
+	end
+	dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, uiList.AbsoluteContentSize.Y)
+end
+playerDropdown.MouseButton1Click:Connect(function()
+	dropdownFrame.Visible = not dropdownFrame.Visible
+	if dropdownFrame.Visible then refreshDropdown() end
+end)
+task.spawn(function()
+	while task.wait(5) do refreshDropdown() end
+end)
+Players.PlayerAdded:Connect(refreshDropdown)
+Players.PlayerRemoving:Connect(refreshDropdown)
+
+-- === WALKSPEED PANEL (ANDROID FRIENDLY) ===
+local MAX_SPEED = 9_999_999_999_999
+local DEFAULT_SPEED = 16
+
+local walkGui = Instance.new("Frame")
+walkGui.Size = UDim2.new(0, 280, 0, 160)
+walkGui.Position = UDim2.new(0, 20, 1, -180)
+walkGui.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+walkGui.BorderSizePixel = 0
+walkGui.Parent = screenGui
+
+local walkCorner = Instance.new("UICorner", walkGui)
+walkCorner.CornerRadius = UDim.new(0, 12)
+
+local walkTitle = Instance.new("TextLabel")
+walkTitle.Size = UDim2.new(1, 0, 0, 28)
+walkTitle.Text = "⚡ WalkSpeed"
+walkTitle.TextColor3 = Color3.fromRGB(255,255,255)
+walkTitle.BackgroundTransparency = 1
+walkTitle.Font = Enum.Font.SourceSansBold
+walkTitle.TextSize = 20
+walkTitle.Parent = walkGui
+
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(0, 180, 0, 36)
+speedBox.Position = UDim2.new(0.5, -90, 0, 40)
+speedBox.PlaceholderText = tostring(DEFAULT_SPEED)
+speedBox.Text = ""
+speedBox.ClearTextOnFocus = false
+speedBox.TextColor3 = Color3.fromRGB(255,255,255)
+speedBox.Font = Enum.Font.SourceSans
+speedBox.TextSize = 20
+speedBox.BackgroundColor3 = Color3.fromRGB(45,45,45)
+speedBox.Parent = walkGui
+
+local function applySpeed(v)
+	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.WalkSpeed = math.clamp(v, 0, MAX_SPEED)
+	end
+end
+
+local setBtn = Instance.new("TextButton")
+setBtn.Size = UDim2.new(0, 100, 0, 36)
+setBtn.Position = UDim2.new(0.5, -50, 0, 85)
+setBtn.Text = "SET"
+setBtn.Font = Enum.Font.SourceSansBold
+setBtn.TextSize = 20
+setBtn.BackgroundColor3 = Color3.fromRGB(0,140,255)
+setBtn.TextColor3 = Color3.fromRGB(255,255,255)
+setBtn.Parent = walkGui
+
+local plusBtn = Instance.new("TextButton")
+plusBtn.Size = UDim2.new(0, 60, 0, 36)
+plusBtn.Position = UDim2.new(0, 20, 0, 125)
+plusBtn.Text = "+100"
+plusBtn.Font = Enum.Font.SourceSansBold
+plusBtn.TextSize = 18
+plusBtn.BackgroundColor3 = Color3.fromRGB(0,200,0)
+plusBtn.TextColor3 = Color3.fromRGB(255,255,255)
+plusBtn.Parent = walkGui
+
+local minusBtn = Instance.new("TextButton")
+minusBtn.Size = UDim2.new(0, 60, 0, 36)
+minusBtn.Position = UDim2.new(0, 100, 0, 125)
+minusBtn.Text = "-100"
+minusBtn.Font = Enum.Font.SourceSansBold
+minusBtn.TextSize = 18
+minusBtn.BackgroundColor3 = Color3.fromRGB(200,0,0)
+minusBtn.TextColor3 = Color3.fromRGB(255,255,255)
+minusBtn.Parent = walkGui
+
+local resetBtn = Instance.new("TextButton")
+resetBtn.Size = UDim2.new(0, 80, 0, 36)
+resetBtn.Position = UDim2.new(1, -100, 0, 125)
+resetBtn.Text = "Reset"
+resetBtn.Font = Enum.Font.SourceSansBold
+resetBtn.TextSize = 18
+resetBtn.BackgroundColor3 = Color3.fromRGB(90,90,90)
+resetBtn.TextColor3 = Color3.fromRGB(255,255,255)
+resetBtn.Parent = walkGui
+
+setBtn.MouseButton1Click:Connect(function()
+	local val = tonumber(speedBox.Text)
+	if val then applySpeed(val) end
+end)
+plusBtn.MouseButton1Click:Connect(function()
+	local v = tonumber(speedBox.Text) or DEFAULT_SPEED
+	v = v + 100
+	speedBox.Text = tostring(v)
+	applySpeed(v)
+end)
+minusBtn.MouseButton1Click:Connect(function()
+	local v = tonumber(speedBox.Text) or DEFAULT_SPEED
+	v = math.max(0, v - 100)
+	speedBox.Text = tostring(v)
+	applySpeed(v)
+end)
+resetBtn.MouseButton1Click:Connect(function()
+	speedBox.Text = tostring(DEFAULT_SPEED)
+	applySpeed(DEFAULT_SPEED)
+end)
+
+player.CharacterAdded:Connect(function()
+	task.wait(0.5)
+	local val = tonumber(speedBox.Text) or DEFAULT_SPEED
+	applySpeed(val)
+end)
+
+applySpeed(DEFAULT_SPEED)
+``
