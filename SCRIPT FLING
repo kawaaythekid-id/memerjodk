@@ -1,439 +1,228 @@
--- 💥 LocalScript Gabungan: Follow Player + Auto Teleport + Magnet Coin + WalkSpeed Control (Android)
--- Taruh di StarterPlayer > StarterPlayerScripts
+-- LocalScript untuk WalkSpeed GUI (Masukkan di StarterPlayerScripts)
 
--- === SERVICE ===
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
-local targetPlayer = nil
-local enabled = false
-local followConn
-local positionMode = "Back"
-local distance = 0
-local autoTeleporting = false
-local magnetEnabled = false
-local magnetConn
+local playerGui = player:WaitForChild("PlayerGui")
 
--- === GUI UTAMA (FOLLOW PANEL) ===
+-- Membuat ScreenGui
 local screenGui = Instance.new("ScreenGui")
-screenGui.Name = "StandFollowMobile"
+screenGui.Name = "WalkSpeedGUI"
 screenGui.ResetOnSpawn = false
-screenGui.Parent = player:WaitForChild("PlayerGui")
+screenGui.Parent = playerGui
 
-local frame = Instance.new("Frame")
-frame.Size = UDim2.new(0, 260, 0, 300)
-frame.Position = UDim2.new(1, -270, 0, 80)
-frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-frame.BorderSizePixel = 0
-frame.Active = true
-frame.Parent = screenGui
+-- Frame utama
+local mainFrame = Instance.new("Frame")
+mainFrame.Name = "MainFrame"
+mainFrame.Size = UDim2.new(0, 250, 0, 150)
+mainFrame.Position = UDim2.new(0, 10, 0, 10)
+mainFrame.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+mainFrame.BorderSizePixel = 0
+mainFrame.Active = true
+mainFrame.Draggable = true
+mainFrame.Parent = screenGui
 
--- drag support
-local dragging, dragInput, dragStart, startPos
-local function update(input)
-	local delta = input.Position - dragStart
-	frame.Position = UDim2.new(
-		startPos.X.Scale,
-		startPos.X.Offset + delta.X,
-		startPos.Y.Scale,
-		startPos.Y.Offset + delta.Y
-	)
-end
-frame.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = frame.Position
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
-end)
-frame.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-		dragInput = input
-	end
-end)
-UserInputService.InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		update(input)
-	end
-end)
+-- Membuat sudut frame membulat
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = mainFrame
 
--- title
-local title = Instance.new("TextLabel")
-title.Size = UDim2.new(1, -40, 0, 35)
-title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-title.Text = "kaweydlsra"
-title.TextColor3 = Color3.fromRGB(255, 0, 0)
-title.Font = Enum.Font.SourceSansBold
-title.TextSize = 20
-title.Parent = frame
+-- Title Bar
+local titleBar = Instance.new("Frame")
+titleBar.Name = "TitleBar"
+titleBar.Size = UDim2.new(1, 0, 0, 30)
+titleBar.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
 
--- minimize
-local minimizeBtn = Instance.new("TextButton")
-minimizeBtn.Size = UDim2.new(0, 35, 0, 35)
-minimizeBtn.Position = UDim2.new(1, -35, 0, 0)
-minimizeBtn.Text = "-"
-minimizeBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
-minimizeBtn.Parent = frame
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 8)
+titleCorner.Parent = titleBar
 
-local content = Instance.new("Frame")
-content.Size = UDim2.new(1, 0, 1, -35)
-content.Position = UDim2.new(0, 0, 0, 35)
-content.BackgroundTransparency = 1
-content.Parent = frame
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Name = "TitleLabel"
+titleLabel.Size = UDim2.new(1, -60, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "WalkSpeed Control"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextScaled = true
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
 
-local minimized = false
-local normalSize = frame.Size
-minimizeBtn.MouseButton1Click:Connect(function()
-	minimized = not minimized
-	content.Visible = not minimized
-	frame.Size = minimized and UDim2.new(0, 260, 0, 35) or normalSize
-	minimizeBtn.Text = minimized and "+" or "-"
-end)
+-- Tombol Minimize
+local minimizeButton = Instance.new("TextButton")
+minimizeButton.Name = "MinimizeButton"
+minimizeButton.Size = UDim2.new(0, 25, 0, 25)
+minimizeButton.Position = UDim2.new(1, -50, 0, 2.5)
+minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+minimizeButton.Text = "-"
+minimizeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeButton.TextScaled = true
+minimizeButton.Font = Enum.Font.GothamBold
+minimizeButton.BorderSizePixel = 0
+minimizeButton.Parent = titleBar
 
--- dropdown player
-local playerDropdown = Instance.new("TextButton")
-playerDropdown.Size = UDim2.new(1, -20, 0, 35)
-playerDropdown.Position = UDim2.new(0, 10, 0, 10)
-playerDropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
-playerDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
-playerDropdown.Text = "Pilih Player"
-playerDropdown.TextSize = 18
-playerDropdown.Parent = content
+local minimizeCorner = Instance.new("UICorner")
+minimizeCorner.CornerRadius = UDim.new(0, 4)
+minimizeCorner.Parent = minimizeButton
 
-local dropdownFrame = Instance.new("ScrollingFrame")
-dropdownFrame.Size = UDim2.new(1, -20, 0, 100)
-dropdownFrame.Position = UDim2.new(0, 10, 0, 50)
-dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
-dropdownFrame.Visible = false
-dropdownFrame.BorderSizePixel = 0
-dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
-dropdownFrame.ScrollBarThickness = 8
-dropdownFrame.Parent = content
+-- Tombol Close (X)
+local closeButton = Instance.new("TextButton")
+closeButton.Name = "CloseButton"
+closeButton.Size = UDim2.new(0, 25, 0, 25)
+closeButton.Position = UDim2.new(1, -20, 0, 2.5)
+closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
+closeButton.Text = "X"
+closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+closeButton.TextScaled = true
+closeButton.Font = Enum.Font.GothamBold
+closeButton.BorderSizePixel = 0
+closeButton.Parent = titleBar
 
-local uiList = Instance.new("UIListLayout")
-uiList.Parent = dropdownFrame
-uiList.SortOrder = Enum.SortOrder.LayoutOrder
-uiList.Padding = UDim.new(0, 2)
+local closeCorner = Instance.new("UICorner")
+closeCorner.CornerRadius = UDim.new(0, 4)
+closeCorner.Parent = closeButton
 
--- textBox jarak (hijau)
-local distBox = Instance.new("TextBox")
-distBox.Size = UDim2.new(1, -20, 0, 35)
-distBox.Position = UDim2.new(0, 10, 0, 160)
-distBox.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
-distBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-distBox.Text = tostring(distance)
-distBox.ClearTextOnFocus = false
-distBox.PlaceholderText = "Jarak (0-25)"
-distBox.TextSize = 18
-distBox.Parent = content
-
-distBox.FocusLost:Connect(function()
-	local val = tonumber(distBox.Text)
-	if val then
-		distance = math.clamp(val, 0, 25)
-		distBox.Text = tostring(distance)
-	else
-		distBox.Text = tostring(distance)
-	end
-end)
-
--- tombol sejajar
-local buttonFrame = Instance.new("Frame", content)
-buttonFrame.Size = UDim2.new(1, -20, 0, 30)
-buttonFrame.Position = UDim2.new(0, 10, 1, -40)
-buttonFrame.BackgroundTransparency = 1
-
-local buttonLayout = Instance.new("UIListLayout", buttonFrame)
-buttonLayout.FillDirection = Enum.FillDirection.Horizontal
-buttonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-buttonLayout.VerticalAlignment = Enum.VerticalAlignment.Center
-buttonLayout.Padding = UDim.new(0, 5)
-
-local function makeButton(text, color)
-	local btn = Instance.new("TextButton", buttonFrame)
-	btn.Size = UDim2.new(0, 60, 0, 30)
-	btn.BackgroundColor3 = color
-	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-	btn.TextSize = 14
-	btn.Text = text
-	return btn
-end
-
-local toggleBtn = makeButton("OFF", Color3.fromRGB(0, 120, 200))
-local autoBtn   = makeButton("Auto", Color3.fromRGB(200, 120, 0))
-local stopBtn   = makeButton("STOP", Color3.fromRGB(200, 0, 0))
-local magnetBtn = makeButton("Magnet", Color3.fromRGB(120, 0, 200))
-
--- === LOGIC FOLLOW ===
-local function getHRP(character)
-	if not character then return end
-	return character:FindFirstChild("HumanoidRootPart")
-end
-
-local function followTarget()
-	if followConn then followConn:Disconnect() end
-	followConn = RunService.RenderStepped:Connect(function()
-		if not targetPlayer or not targetPlayer.Character then return end
-		local targetHRP = getHRP(targetPlayer.Character)
-		local myHRP = getHRP(player.Character)
-		if targetHRP and myHRP then
-			local offset = Vector3.new()
-			if positionMode == "Back" then
-				offset = Vector3.new(0, 0, distance)
-			elseif positionMode == "Front" then
-				offset = Vector3.new(0, 0, -distance)
-			elseif positionMode == "Right" then
-				offset = Vector3.new(distance, 0, 0)
-			elseif positionMode == "Left" then
-				offset = Vector3.new(-distance, 0, 0)
-			end
-			myHRP.CFrame = targetHRP.CFrame * CFrame.new(offset)
-		end
-	end)
-end
-
-local function stopFollow()
-	if followConn then followConn:Disconnect() followConn = nil end
-end
-
-local function toggleFollow()
-	enabled = not enabled
-	if enabled and targetPlayer then
-		followTarget()
-		toggleBtn.Text = "ON"
-		toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
-	else
-		stopFollow()
-		enabled = false
-		toggleBtn.Text = "OFF"
-		toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
-	end
-end
-toggleBtn.MouseButton1Click:Connect(toggleFollow)
-
--- Auto teleport semua player
-autoBtn.MouseButton1Click:Connect(function()
-	if autoTeleporting then return end
-	autoTeleporting = true
-	local myHRP = getHRP(player.Character)
-	if not myHRP then return end
-	for _, plr in ipairs(Players:GetPlayers()) do
-		if plr ~= player then
-			local hrp = getHRP(plr.Character)
-			if hrp then
-				myHRP.CFrame = hrp.CFrame * CFrame.new(0, 0, 3)
-				task.wait(0.3)
-			end
-		end
-	end
-	autoTeleporting = false
-end)
-
--- Tombol STOP
-stopBtn.MouseButton1Click:Connect(function()
-	stopFollow()
-	enabled = false
-	autoTeleporting = false
-	magnetEnabled = false
-	if magnetConn then magnetConn:Disconnect() magnetConn = nil end
-	toggleBtn.Text = "OFF"
-	toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
-	magnetBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 200)
-end)
-
--- === MAGNET COIN ===
-local function findCoins()
-	local results = {}
-	for _, obj in pairs(workspace:GetDescendants()) do
-		if obj:IsA("BasePart") and string.find(string.lower(obj.Name), "coin") then
-			table.insert(results, obj)
-		end
-	end
-	return results
-end
-
-local function touchCoin(coin, hrp)
-	if not coin or not coin.Parent then return end
-	firetouchinterest(hrp, coin, 0)
-	task.wait()
-	firetouchinterest(hrp, coin, 1)
-end
-
-local function toggleMagnet()
-	magnetEnabled = not magnetEnabled
-	if magnetEnabled then
-		magnetBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 200)
-		if not magnetConn then
-			magnetConn = RunService.Heartbeat:Connect(function()
-				local char = player.Character
-				if not char then return end
-				local hrp = char:FindFirstChild("HumanoidRootPart")
-				if not hrp then return end
-				for _, coin in pairs(findCoins()) do
-					touchCoin(coin, hrp)
-				end
-			end)
-		end
-	else
-		magnetBtn.BackgroundColor3 = Color3.fromRGB(120, 0, 200)
-		if magnetConn then magnetConn:Disconnect() magnetConn = nil end
-	end
-end
-magnetBtn.MouseButton1Click:Connect(toggleMagnet)
-
--- === DROPDOWN PLAYER ===
-local function refreshDropdown()
-	for _, child in ipairs(dropdownFrame:GetChildren()) do
-		if child:IsA("TextButton") then child:Destroy() end
-	end
-	local playerList = {}
-	for _, plr in pairs(Players:GetPlayers()) do
-		if plr ~= player then table.insert(playerList, plr) end
-	end
-	table.sort(playerList, function(a, b) return a.DisplayName:lower() < b.DisplayName:lower() end)
-	for _, plr in ipairs(playerList) do
-		local btn = Instance.new("TextButton")
-		btn.Size = UDim2.new(1, -5, 0, 30)
-		btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
-		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		btn.TextSize = 16
-		btn.Text = plr.DisplayName
-		btn.Parent = dropdownFrame
-		btn.MouseButton1Click:Connect(function()
-			targetPlayer = plr
-			playerDropdown.Text = plr.DisplayName
-			dropdownFrame.Visible = false
-			if enabled then followTarget() end
-		end)
-	end
-	dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, uiList.AbsoluteContentSize.Y)
-end
-playerDropdown.MouseButton1Click:Connect(function()
-	dropdownFrame.Visible = not dropdownFrame.Visible
-	if dropdownFrame.Visible then refreshDropdown() end
-end)
-task.spawn(function()
-	while task.wait(5) do refreshDropdown() end
-end)
-Players.PlayerAdded:Connect(refreshDropdown)
-Players.PlayerRemoving:Connect(refreshDropdown)
-
--- === WALKSPEED PANEL (ANDROID FRIENDLY) ===
-local MAX_SPEED = 9_999_999_999_999
-local DEFAULT_SPEED = 16
-
-local walkGui = Instance.new("Frame")
-walkGui.Size = UDim2.new(0, 280, 0, 160)
-walkGui.Position = UDim2.new(0, 20, 1, -180)
-walkGui.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-walkGui.BorderSizePixel = 0
-walkGui.Parent = screenGui
-
-local walkCorner = Instance.new("UICorner", walkGui)
-walkCorner.CornerRadius = UDim.new(0, 12)
-
-local walkTitle = Instance.new("TextLabel")
-walkTitle.Size = UDim2.new(1, 0, 0, 28)
-walkTitle.Text = "⚡ WalkSpeed"
-walkTitle.TextColor3 = Color3.fromRGB(255,255,255)
-walkTitle.BackgroundTransparency = 1
-walkTitle.Font = Enum.Font.SourceSansBold
-walkTitle.TextSize = 20
-walkTitle.Parent = walkGui
-
+-- TextBox untuk input WalkSpeed
 local speedBox = Instance.new("TextBox")
-speedBox.Size = UDim2.new(0, 180, 0, 36)
-speedBox.Position = UDim2.new(0.5, -90, 0, 40)
-speedBox.PlaceholderText = tostring(DEFAULT_SPEED)
-speedBox.Text = ""
-speedBox.ClearTextOnFocus = false
-speedBox.TextColor3 = Color3.fromRGB(255,255,255)
-speedBox.Font = Enum.Font.SourceSans
-speedBox.TextSize = 20
-speedBox.BackgroundColor3 = Color3.fromRGB(45,45,45)
-speedBox.Parent = walkGui
+speedBox.Name = "SpeedBox"
+speedBox.Size = UDim2.new(0.8, 0, 0, 35)
+speedBox.Position = UDim2.new(0.1, 0, 0, 45)
+speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speedBox.Text = "16"
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.PlaceholderText = "Masukkan WalkSpeed (0-99999999999999)"
+speedBox.TextScaled = true
+speedBox.Font = Enum.Font.Gotham
+speedBox.BorderSizePixel = 0
+speedBox.Parent = mainFrame
 
-local function applySpeed(v)
-	local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-	if hum then
-		hum.WalkSpeed = math.clamp(v, 0, MAX_SPEED)
-	end
+local speedCorner = Instance.new("UICorner")
+speedCorner.CornerRadius = UDim.new(0, 5)
+speedCorner.Parent = speedBox
+
+-- Tombol Apply
+local applyButton = Instance.new("TextButton")
+applyButton.Name = "ApplyButton"
+applyButton.Size = UDim2.new(0.8, 0, 0, 35)
+applyButton.Position = UDim2.new(0.1, 0, 0, 90)
+applyButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+applyButton.Text = "APPLY SPEED"
+applyButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+applyButton.TextScaled = true
+applyButton.Font = Enum.Font.GothamBold
+applyButton.BorderSizePixel = 0
+applyButton.Parent = mainFrame
+
+local applyCorner = Instance.new("UICorner")
+applyCorner.CornerRadius = UDim.new(0, 5)
+applyCorner.Parent = applyButton
+
+-- Variabel state
+local isMinimized = false
+local originalSize = mainFrame.Size
+
+-- Fungsi untuk set WalkSpeed
+local function setWalkSpeed(speed)
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        local humanoid = player.Character.Humanoid
+        local clampedSpeed = math.clamp(tonumber(speed) or 16, 0, 99999999999999)
+        humanoid.WalkSpeed = clampedSpeed
+        speedBox.Text = tostring(clampedSpeed)
+        print("WalkSpeed set to: " .. clampedSpeed)
+    end
 end
 
-local setBtn = Instance.new("TextButton")
-setBtn.Size = UDim2.new(0, 100, 0, 36)
-setBtn.Position = UDim2.new(0.5, -50, 0, 85)
-setBtn.Text = "SET"
-setBtn.Font = Enum.Font.SourceSansBold
-setBtn.TextSize = 20
-setBtn.BackgroundColor3 = Color3.fromRGB(0,140,255)
-setBtn.TextColor3 = Color3.fromRGB(255,255,255)
-setBtn.Parent = walkGui
-
-local plusBtn = Instance.new("TextButton")
-plusBtn.Size = UDim2.new(0, 60, 0, 36)
-plusBtn.Position = UDim2.new(0, 20, 0, 125)
-plusBtn.Text = "+100"
-plusBtn.Font = Enum.Font.SourceSansBold
-plusBtn.TextSize = 18
-plusBtn.BackgroundColor3 = Color3.fromRGB(0,200,0)
-plusBtn.TextColor3 = Color3.fromRGB(255,255,255)
-plusBtn.Parent = walkGui
-
-local minusBtn = Instance.new("TextButton")
-minusBtn.Size = UDim2.new(0, 60, 0, 36)
-minusBtn.Position = UDim2.new(0, 100, 0, 125)
-minusBtn.Text = "-100"
-minusBtn.Font = Enum.Font.SourceSansBold
-minusBtn.TextSize = 18
-minusBtn.BackgroundColor3 = Color3.fromRGB(200,0,0)
-minusBtn.TextColor3 = Color3.fromRGB(255,255,255)
-minusBtn.Parent = walkGui
-
-local resetBtn = Instance.new("TextButton")
-resetBtn.Size = UDim2.new(0, 80, 0, 36)
-resetBtn.Position = UDim2.new(1, -100, 0, 125)
-resetBtn.Text = "Reset"
-resetBtn.Font = Enum.Font.SourceSansBold
-resetBtn.TextSize = 18
-resetBtn.BackgroundColor3 = Color3.fromRGB(90,90,90)
-resetBtn.TextColor3 = Color3.fromRGB(255,255,255)
-resetBtn.Parent = walkGui
-
-setBtn.MouseButton1Click:Connect(function()
-	local val = tonumber(speedBox.Text)
-	if val then applySpeed(val) end
-end)
-plusBtn.MouseButton1Click:Connect(function()
-	local v = tonumber(speedBox.Text) or DEFAULT_SPEED
-	v = v + 100
-	speedBox.Text = tostring(v)
-	applySpeed(v)
-end)
-minusBtn.MouseButton1Click:Connect(function()
-	local v = tonumber(speedBox.Text) or DEFAULT_SPEED
-	v = math.max(0, v - 100)
-	speedBox.Text = tostring(v)
-	applySpeed(v)
-end)
-resetBtn.MouseButton1Click:Connect(function()
-	speedBox.Text = tostring(DEFAULT_SPEED)
-	applySpeed(DEFAULT_SPEED)
+-- Event handlers
+closeButton.MouseButton1Click:Connect(function()
+    screenGui:Destroy()
 end)
 
-player.CharacterAdded:Connect(function()
-	task.wait(0.5)
-	local val = tonumber(speedBox.Text) or DEFAULT_SPEED
-	applySpeed(val)
+minimizeButton.MouseButton1Click:Connect(function()
+    isMinimized = not isMinimized
+    
+    if isMinimized then
+        minimizeButton.Text = "+"
+        minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
+        
+        -- Animate to minimize (hide content, keep title bar)
+        local tween = TweenService:Create(mainFrame, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Quad), 
+            {Size = UDim2.new(0, 250, 0, 30)}
+        )
+        tween:Play()
+        
+        speedBox.Visible = false
+        applyButton.Visible = false
+        
+    else
+        minimizeButton.Text = "-"
+        minimizeButton.BackgroundColor3 = Color3.fromRGB(255, 165, 0)
+        
+        local tween = TweenService:Create(mainFrame, 
+            TweenInfo.new(0.3, Enum.EasingStyle.Quad), 
+            {Size = originalSize}
+        )
+        tween:Play()
+        
+        speedBox.Visible = true
+        applyButton.Visible = true
+    end
 end)
 
-applySpeed(DEFAULT_SPEED)
-``
+applyButton.MouseButton1Click:Connect(function()
+    local inputSpeed = speedBox.Text
+    local speedNum = tonumber(inputSpeed)
+    
+    if speedNum then
+        setWalkSpeed(speedNum)
+        applyButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0) -- Green flash
+        wait(0.2)
+        applyButton.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+    else
+        -- Invalid input, reset to current speed
+        if player.Character and player.Character:FindFirstChild("Humanoid") then
+            speedBox.Text = tostring(player.Character.Humanoid.WalkSpeed)
+        end
+    end
+end)
+
+-- Enter key support for TextBox
+speedBox.FocusLost:Connect(function(enterPressed)
+    if enterPressed then
+        applyButton.MouseButton1Click:Fire()
+    end
+end)
+
+-- Handle character respawn
+player.CharacterAdded:Connect(function(character)
+    local humanoid = character:WaitForChild("Humanoid")
+    -- Restore last speed or default
+    local lastSpeed = tonumber(speedBox.Text) or 16
+    humanoid.WalkSpeed = lastSpeed
+end)
+
+-- Initial setup
+if player.Character and player.Character:FindFirstChild("Humanoid") then
+    speedBox.Text = tostring(player.Character.Humanoid.WalkSpeed)
+end
+
+-- Hover effects
+local function addHoverEffect(button, normalColor, hoverColor)
+    button.MouseEnter:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = hoverColor}):Play()
+    end)
+    button.MouseLeave:Connect(function()
+        TweenService:Create(button, TweenInfo.new(0.2), {BackgroundColor3 = normalColor}):Play()
+    end)
+end
+
+addHoverEffect(applyButton, Color3.fromRGB(0, 170, 0), Color3.fromRGB(0, 150, 0))
+addHoverEffect(closeButton, Color3.fromRGB(255, 50, 50), Color3.fromRGB(200, 50, 50))
+addHoverEffect(minimizeButton, Color3.fromRGB(255, 165, 0), Color3.fromRGB(255, 140, 0))
+
+print("WalkSpeed GUI loaded successfully!")
