@@ -9,29 +9,59 @@ local TweenService = game:GetService("TweenService")
 local GuiService = game:GetService("GuiService")
 
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
-local humanoid = character:WaitForChild("Humanoid")
-local rootPart = character:WaitForChild("HumanoidRootPart")
+local character = player.Character
+local humanoid, rootPart
+
+-- Fungsi untuk menunggu karakter dengan timeout
+local function waitForCharacter(timeout)
+    timeout = timeout or 10
+    local start = tick()
+    while not player.Character and tick() - start < timeout do
+        player.CharacterAdded:Wait()
+    end
+    return player.Character
+end
+
+-- Inisialisasi karakter
+if not character then
+    character = waitForCharacter()
+end
+if character then
+    humanoid = character:WaitForChild("Humanoid", 5)
+    rootPart = character:WaitForChild("HumanoidRootPart", 5)
+end
+if not humanoid or not rootPart then
+    warn("Failed to initialize character!")
+    return
+end
 
 local flying = false
 local invisible = false
 local speed = 50  -- Default speed
 local bodyVelocity = nil
 local bodyGyro = nil
+local connections = {}  -- Tabel untuk menyimpan koneksi
 
 -- Buat GUI (ScreenGui)
 local screenGui = Instance.new("ScreenGui")
 screenGui.Parent = player:WaitForChild("PlayerGui")
-screenGui.ResetOnSpawn = false  -- Biar gak hilang saat respawn
+screenGui.ResetOnSpawn = false
+screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 -- Frame utama (draggable)
 local mainFrame = Instance.new("Frame")
 mainFrame.Size = UDim2.new(0, 200, 0, 250)
-mainFrame.Position = UDim2.new(0, 10, 0, 10)  -- Kiri atas default
+mainFrame.Position = UDim2.new(0, 10, 0, 10)
 mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 mainFrame.BackgroundTransparency = 0.2
 mainFrame.BorderSizePixel = 0
+mainFrame.ZIndex = 10
 mainFrame.Parent = screenGui
+
+-- Tambah UICorner untuk frame
+local frameCorner = Instance.new("UICorner")
+frameCorner.CornerRadius = UDim.new(0, 8)
+frameCorner.Parent = mainFrame
 
 -- Buat draggable (support touch)
 local dragging = false
@@ -55,14 +85,34 @@ UserInputService.InputChanged:Connect(function(input)
     end
 end)
 
--- Tombol Minimize (kecilkan frame)
+-- Fungsi untuk styling tombol
+local function styleButton(button)
+    button.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    button.TextColor3 = Color3.fromRGB(255, 255, 255)
+    button.Font = Enum.Font.SourceSansBold
+    button.ZIndex = 11
+    button.Active = true
+    button.Selectable = true
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 8)
+    corner.Parent = button
+end
+
+-- Tombol Minimize
 local minimizeButton = Instance.new("TextButton")
 minimizeButton.Size = UDim2.new(0, 30, 0, 30)
 minimizeButton.Position = UDim2.new(1, -60, 0, 0)
 minimizeButton.Text = "-"
 minimizeButton.Parent = mainFrame
-minimizeButton.MouseButton1Click:Connect(function()
-    mainFrame.Size = UDim2.new(0, 200, 0, 30)  -- Minimize
+styleButton(minimizeButton)
+minimizeButton.Activated:Connect(function()
+    if mainFrame.Size == UDim2.new(0, 200, 0, 250) then
+        mainFrame.Size = UDim2.new(0, 200, 0, 30)  -- Minimize
+        minimizeButton.Text = "+"
+    else
+        mainFrame.Size = UDim2.new(0, 200, 0, 250)  -- Maximize
+        minimizeButton.Text = "-"
+    end
 end)
 
 -- Tombol Close (X)
@@ -71,8 +121,9 @@ closeButton.Size = UDim2.new(0, 30, 0, 30)
 closeButton.Position = UDim2.new(1, -30, 0, 0)
 closeButton.Text = "X"
 closeButton.Parent = mainFrame
-closeButton.MouseButton1Click:Connect(function()
-    screenGui.Enabled = false  -- Sembunyikan GUI
+styleButton(closeButton)
+closeButton.Activated:Connect(function()
+    screenGui.Enabled = false
 end)
 
 -- Tombol Toggle Fly
@@ -81,11 +132,15 @@ flyButton.Size = UDim2.new(1, 0, 0, 40)
 flyButton.Position = UDim2.new(0, 0, 0, 30)
 flyButton.Text = "Fly: Off"
 flyButton.Parent = mainFrame
-flyButton.MouseButton1Click:Connect(function()
+styleButton(flyButton)
+flyButton.Activated:Connect(function()
+    print("Fly button activated!")
     if flying then
+        print("Stopping fly")
         stopFly()
         flyButton.Text = "Fly: Off"
     else
+        print("Starting fly")
         startFly()
         flyButton.Text = "Fly: On"
     end
@@ -96,20 +151,30 @@ local speedLabel = Instance.new("TextLabel")
 speedLabel.Size = UDim2.new(1, 0, 0, 30)
 speedLabel.Position = UDim2.new(0, 0, 0, 70)
 speedLabel.Text = "Speed: 50"
+speedLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedLabel.BackgroundTransparency = 1
+speedLabel.ZIndex = 11
 speedLabel.Parent = mainFrame
 
 local speedBox = Instance.new("TextBox")
 speedBox.Size = UDim2.new(1, 0, 0, 30)
 speedBox.Position = UDim2.new(0, 0, 0, 100)
 speedBox.Text = "50"
+speedBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speedBox.ZIndex = 11
 speedBox.Parent = mainFrame
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 8)
+corner.Parent = speedBox
 speedBox.FocusLost:Connect(function()
     local newSpeed = tonumber(speedBox.Text)
     if newSpeed and newSpeed >= 20 and newSpeed <= 99999 then
-        speed = newSpeed
+        speed = math.floor(newSpeed)
         speedLabel.Text = "Speed: " .. speed
     else
-        speedBox.Text = tostring(speed)  -- Revert ke speed sebelumnya kalo invalid
+        speedBox.Text = tostring(speed)
+        warn("Invalid speed! Must be a number between 20 and 99999.")
     end
 end)
 
@@ -119,6 +184,7 @@ upButton.Size = UDim2.new(0.5, 0, 0, 40)
 upButton.Position = UDim2.new(0, 0, 0, 130)
 upButton.Text = "Up"
 upButton.Parent = mainFrame
+styleButton(upButton)
 local upPressed = false
 upButton.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.Touch then upPressed = true end end)
 upButton.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.Touch then upPressed = false end end)
@@ -129,6 +195,7 @@ downButton.Size = UDim2.new(0.5, 0, 0, 40)
 downButton.Position = UDim2.new(0.5, 0, 0, 130)
 downButton.Text = "Down"
 downButton.Parent = mainFrame
+styleButton(downButton)
 local downPressed = false
 downButton.InputBegan:Connect(function(input) if input.UserInputType == Enum.UserInputType.Touch then downPressed = true end end)
 downButton.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.Touch then downPressed = false end end)
@@ -139,56 +206,67 @@ invisibleButton.Size = UDim2.new(1, 0, 0, 40)
 invisibleButton.Position = UDim2.new(0, 0, 0, 170)
 invisibleButton.Text = "Invisible: Off"
 invisibleButton.Parent = mainFrame
-invisibleButton.MouseButton1Click:Connect(function()
+styleButton(invisibleButton)
+invisibleButton.Activated:Connect(function()
     invisible = not invisible
     invisibleButton.Text = "Invisible: " .. (invisible and "On" or "Off")
     setInvisible(invisible)
 end)
 
 local function setInvisible(state)
-    for _, part in pairs(character:GetChildren()) do
-        if part:IsA("BasePart") then
-            part.Transparency = state and 1 or 0
+    for _, part in pairs(character:GetDescendants()) do
+        if part:IsA("BasePart") or part:IsA("MeshPart") then
+            if not part:IsA("BillboardGui") and not part:IsA("ParticleEmitter") then
+                part.Transparency = state and 1 or (part:FindFirstChild("OriginalTransparency") and part.OriginalTransparency.Value or 0)
+            end
         end
     end
 end
 
 local function startFly()
     if flying then return end
+    if not character or not humanoid or not rootPart then
+        warn("Character, Humanoid, or RootPart not found!")
+        return
+    end
+    print("Starting fly...")
     flying = true
     humanoid.PlatformStand = true
     
-    bodyVelocity = Instance.new("BodyVelocity")
-    bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-    bodyVelocity.Velocity = Vector3.new(0, 0, 0)
-    bodyVelocity.Parent = rootPart
+    pcall(function()
+        bodyVelocity = Instance.new("BodyVelocity")
+        bodyVelocity.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+        bodyVelocity.Velocity = Vector3.new(0, 0, 0)
+        bodyVelocity.Parent = rootPart
+        
+        bodyGyro = Instance.new("BodyGyro")
+        bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
+        bodyGyro.CFrame = rootPart.CFrame
+        bodyGyro.Parent = rootPart
+    end)
     
-    bodyGyro = Instance.new("BodyGyro")
-    bodyGyro.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-    bodyGyro.CFrame = rootPart.CFrame
-    bodyGyro.Parent = rootPart
-    
-    -- Loop update
     local connection
     connection = RunService.Heartbeat:Connect(function()
-        if not flying then
-            connection:Disconnect()
+        if not flying or not bodyVelocity or not bodyGyro then
+            if connection then connection:Disconnect() end
             return
         end
         
         local camera = workspace.CurrentCamera
-        local moveVector = humanoid.MoveDirection  -- Joystick mobile
+        if not camera then
+            warn("Camera not found!")
+            return
+        end
         
+        local moveVector = humanoid.MoveDirection
         local velocity = camera.CFrame:VectorToWorldSpace(moveVector) * speed
         
-        -- Up/Down dari tombol
         if upPressed then
             velocity = velocity + Vector3.new(0, speed, 0)
         elseif downPressed then
             velocity = velocity + Vector3.new(0, -speed, 0)
         end
         
-        -- Keyboard fallback (buat PC test)
         if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
             velocity = velocity + Vector3.new(0, speed, 0)
         elseif UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then
@@ -198,30 +276,44 @@ local function startFly()
         bodyVelocity.Velocity = velocity
         bodyGyro.CFrame = camera.CFrame
     end)
+    table.insert(connections, connection)
     
-    -- Animasi masuk (smooth)
-    TweenService:Create(rootPart, TweenInfo.new(0.5), {CFrame = rootPart.CFrame + Vector3.new(0, 5, 0)}):Play()
+    pcall(function()
+        TweenService:Create(rootPart, TweenInfo.new(0.5), {CFrame = rootPart.CFrame + Vector3.new(0, 5, 0)}):Play()
+    end)
 end
 
 local function stopFly()
     if not flying then return end
+    print("Stopping fly...")
     flying = false
     humanoid.PlatformStand = false
+    
+    for _, connection in ipairs(connections) do
+        connection:Disconnect()
+    end
+    connections = {}
     
     if bodyVelocity then bodyVelocity:Destroy() bodyVelocity = nil end
     if bodyGyro then bodyGyro:Destroy() bodyGyro = nil end
     
-    -- Animasi keluar
-    TweenService:Create(rootPart, TweenInfo.new(0.5), {CFrame = rootPart.CFrame - Vector3.new(0, 5, 0)}):Play()
+    pcall(function()
+        TweenService:Create(rootPart, TweenInfo.new(0.5), {CFrame = rootPart.CFrame - Vector3.new(0, 5, 0)}):Play()
+    end)
 end
 
 -- Handle respawn
 player.CharacterAdded:Connect(function(newCharacter)
     character = newCharacter
-    humanoid = character:WaitForChild("Humanoid")
-    rootPart = character:WaitForChild("HumanoidRootPart")
+    humanoid = character:WaitForChild("Humanoid", 5)
+    rootPart = character:WaitForChild("HumanoidRootPart", 5)
+    if not humanoid or not rootPart then
+        warn("Failed to initialize new character!")
+        screenGui.Enabled = false
+        return
+    end
     if flying then startFly() end
-    setInvisible(invisible)  -- Restore invisible state
+    setInvisible(invisible)
 end)
 
 -- Tampilkan GUI
