@@ -1,0 +1,246 @@
+--// LocalScript Fly GUI Android Support (Max speed 9999)
+-- Taruh di StarterPlayer > StarterPlayerScripts
+
+--== Services ==--
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local character, humanoidRootPart
+
+--== Fly Variables ==--
+local flying = false
+local flySpeed = 50
+local MAX_SPEED = 9999
+local MIN_SPEED = 0
+local INCREMENT = 10
+
+local bodyGyro, bodyVelocity
+local renderConn
+
+--== Helper ==--
+local function clamp(n, lo, hi)
+	return math.max(lo, math.min(hi, n))
+end
+
+--== GUI Setup ==--
+local ScreenGui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+ScreenGui.Name = "FlyGui"
+ScreenGui.ResetOnSpawn = false
+
+local Frame = Instance.new("Frame", ScreenGui)
+Frame.Size = UDim2.new(0, 260, 0, 220)
+Frame.Position = UDim2.new(0.05, 0, 0.5, -110)
+Frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+Frame.BackgroundTransparency = 0.2
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+
+local UICorner = Instance.new("UICorner", Frame)
+UICorner.CornerRadius = UDim.new(0, 12)
+
+--== Title Bar ==--
+local Title = Instance.new("TextLabel", Frame)
+Title.Size = UDim2.new(1, -70, 0, 30)
+Title.Position = UDim2.new(0, 10, 0, 0)
+Title.Text = "Fly Controller"
+Title.BackgroundTransparency = 1
+Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 16
+Title.TextXAlignment = Enum.TextXAlignment.Left
+
+local Minimize = Instance.new("TextButton", Frame)
+Minimize.Size = UDim2.new(0, 30, 0, 30)
+Minimize.Position = UDim2.new(1, -60, 0, 0)
+Minimize.Text = "-"
+Minimize.BackgroundColor3 = Color3.fromRGB(255, 170, 0)
+Minimize.TextScaled = true
+Minimize.AutoButtonColor = true
+Minimize.TextColor3 = Color3.new(0, 0, 0)
+Instance.new("UICorner", Minimize).CornerRadius = UDim.new(0, 8)
+
+local Close = Instance.new("TextButton", Frame)
+Close.Size = UDim2.new(0, 30, 0, 30)
+Close.Position = UDim2.new(1, -30, 0, 0)
+Close.Text = "X"
+Close.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
+Close.TextScaled = true
+Close.AutoButtonColor = true
+Close.TextColor3 = Color3.new(1, 1, 1)
+Instance.new("UICorner", Close).CornerRadius = UDim.new(0, 8)
+
+--== Main Buttons ==--
+local FlyButton = Instance.new("TextButton", Frame)
+FlyButton.Size = UDim2.new(0, 230, 0, 40)
+FlyButton.Position = UDim2.new(0.5, -115, 0, 50)
+FlyButton.Text = "Fly: OFF"
+FlyButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+FlyButton.TextColor3 = Color3.new(1, 1, 1)
+FlyButton.Font = Enum.Font.GothamBold
+FlyButton.TextSize = 20
+Instance.new("UICorner", FlyButton).CornerRadius = UDim.new(0, 8)
+
+local AddButton = Instance.new("TextButton", Frame)
+AddButton.Size = UDim2.new(0, 50, 0, 40)
+AddButton.Position = UDim2.new(0.1, 0, 0, 110)
+AddButton.Text = "+"
+AddButton.BackgroundColor3 = Color3.fromRGB(0, 200, 0)
+AddButton.TextColor3 = Color3.new(1, 1, 1)
+AddButton.TextScaled = true
+Instance.new("UICorner", AddButton).CornerRadius = UDim.new(0, 8)
+
+local SubButton = Instance.new("TextButton", Frame)
+SubButton.Size = UDim2.new(0, 50, 0, 40)
+SubButton.Position = UDim2.new(0.5, -25, 0, 110)
+SubButton.Text = "-"
+SubButton.BackgroundColor3 = Color3.fromRGB(200, 0, 0)
+SubButton.TextColor3 = Color3.new(1, 1, 1)
+SubButton.TextScaled = true
+Instance.new("UICorner", SubButton).CornerRadius = UDim.new(0, 8)
+
+local SpeedBox = Instance.new("TextBox", Frame)
+SpeedBox.Size = UDim2.new(0, 100, 0, 40)
+SpeedBox.Position = UDim2.new(0.5, 60, 0, 110)
+SpeedBox.Text = tostring(flySpeed)
+SpeedBox.PlaceholderText = "Speed (0-9999)"
+SpeedBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+SpeedBox.TextColor3 = Color3.new(1, 1, 1)
+SpeedBox.Font = Enum.Font.Gotham
+SpeedBox.TextScaled = true
+Instance.new("UICorner", SpeedBox).CornerRadius = UDim.new(0, 8)
+
+--== Minimize Function ==--
+local minimized = false
+Minimize.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	for _, obj in ipairs(Frame:GetChildren()) do
+		if obj:IsA("TextButton") or obj:IsA("TextBox") then
+			if obj ~= Minimize and obj ~= Close and obj ~= Title then
+				obj.Visible = not minimized
+			end
+		end
+	end
+end)
+
+--== Close Function ==--
+Close.MouseButton1Click:Connect(function()
+	ScreenGui:Destroy()
+	if renderConn then
+		renderConn:Disconnect()
+	end
+end)
+
+--== Fly Logic ==--
+local function startFly()
+	character = player.Character or player.CharacterAdded:Wait()
+	humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+
+	-- create controllers
+	bodyGyro = Instance.new("BodyGyro")
+	bodyGyro.MaxTorque = Vector3.new(1e5, 1e5, 1e5)
+	bodyGyro.P = 20000
+	bodyGyro.CFrame = humanoidRootPart.CFrame
+	bodyGyro.Parent = humanoidRootPart
+
+	bodyVelocity = Instance.new("BodyVelocity")
+	bodyVelocity.MaxForce = Vector3.new(1e5, 1e5, 1e5)
+	bodyVelocity.Velocity = Vector3.new(0,0,0)
+	bodyVelocity.Parent = humanoidRootPart
+
+	-- render stepped handler (store to disconnect later)
+	renderConn = RunService.RenderStepped:Connect(function()
+		if flying and bodyVelocity and bodyGyro then
+			local cam = workspace.CurrentCamera
+			-- align to camera and move forward by speed
+			bodyGyro.CFrame = cam.CFrame
+			local forward = cam.CFrame.LookVector
+			bodyVelocity.Velocity = forward * flySpeed
+		end
+	end)
+end
+
+local function stopFly()
+	if renderConn then
+		renderConn:Disconnect()
+		renderConn = nil
+	end
+	if bodyGyro then
+		bodyGyro:Destroy()
+		bodyGyro = nil
+	end
+	if bodyVelocity then
+		bodyVelocity:Destroy()
+		bodyVelocity = nil
+	end
+end
+
+--== Button Controls ==--
+FlyButton.MouseButton1Click:Connect(function()
+	flying = not flying
+	if flying then
+		startFly()
+		FlyButton.Text = "Fly: ON"
+		FlyButton.BackgroundColor3 = Color3.fromRGB(50, 200, 50)
+	else
+		stopFly()
+		FlyButton.Text = "Fly: OFF"
+		FlyButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+	end
+end)
+
+AddButton.MouseButton1Click:Connect(function()
+	flySpeed = clamp(flySpeed + INCREMENT, MIN_SPEED, MAX_SPEED)
+	SpeedBox.Text = tostring(flySpeed)
+end)
+
+SubButton.MouseButton1Click:Connect(function()
+	flySpeed = clamp(flySpeed - INCREMENT, MIN_SPEED, MAX_SPEED)
+	SpeedBox.Text = tostring(flySpeed)
+end)
+
+SpeedBox.FocusLost:Connect(function(enterPressed)
+	local val = tonumber(SpeedBox.Text)
+	if val then
+		val = math.floor(val)
+		val = clamp(val, MIN_SPEED, MAX_SPEED)
+		flySpeed = val
+		SpeedBox.Text = tostring(flySpeed)
+	else
+		-- restore current valid value
+		SpeedBox.Text = tostring(flySpeed)
+	end
+end)
+
+-- Prevent non-number paste or invalid text while typing (mobile friendly)
+SpeedBox:GetPropertyChangedSignal("Text"):Connect(function()
+	-- optionally you can add live clamping here, but keep it non-intrusive
+	local txt = SpeedBox.Text
+	-- remove any non-digit characters
+	if txt ~= "" then
+		local clean = txt:gsub("%D", "")
+		if clean ~= txt then
+			SpeedBox.Text = clean
+		end
+		-- clamp if number too big while typing
+		local n = tonumber(clean)
+		if n then
+			if n > MAX_SPEED then
+				-- keep as string but truncated
+				SpeedBox.Text = tostring(MAX_SPEED)
+			end
+		end
+	end
+end)
+
+-- safety: when character respawns stop flying
+player.CharacterAdded:Connect(function()
+	stopFly()
+	FlyButton.Text = "Fly: OFF"
+	FlyButton.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+	flying = false
+end)
+
+print("✅ Fly GUI (max "..tostring(MAX_SPEED)..") aktif dan siap untuk Android.")
