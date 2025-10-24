@@ -1,0 +1,336 @@
+-- LocalScript Gabungan (Follow Player + Auto Teleport)
+-- Taruh di StarterPlayer > StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local targetPlayer = nil
+local enabled = false
+local followConn
+local positionMode = "Back"
+local distance = 0
+local autoTeleporting = false
+
+-- === GUI ===
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "PlayerFollowGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = player:WaitForChild("PlayerGui")
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 300)
+frame.Position = UDim2.new(1, -270, 0, 80)
+frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Parent = screenGui
+
+-- drag support
+local dragging, dragInput, dragStart, startPos
+local function update(input)
+	local delta = input.Position - dragStart
+	frame.Position = UDim2.new(
+		startPos.X.Scale,
+		startPos.X.Offset + delta.X,
+		startPos.Y.Scale,
+		startPos.Y.Offset + delta.Y
+	)
+end
+frame.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		dragging = true
+		dragStart = input.Position
+		startPos = frame.Position
+		input.Changed:Connect(function()
+			if input.UserInputState == Enum.UserInputState.End then
+				dragging = false
+			end
+		end)
+	end
+end)
+frame.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+		dragInput = input
+	end
+end)
+UserInputService.InputChanged:Connect(function(input)
+	if input == dragInput and dragging then
+		update(input)
+	end
+end)
+
+-- title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -40, 0, 35)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.Text = "Player Follow"
+title.TextColor3 = Color3.fromRGB(255, 0, 0)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 20
+title.Parent = frame
+
+-- minimize
+local minimizeBtn = Instance.new("TextButton")
+minimizeBtn.Size = UDim2.new(0, 35, 0, 35)
+minimizeBtn.Position = UDim2.new(1, -35, 0, 0)
+minimizeBtn.Text = "-"
+minimizeBtn.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
+minimizeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+minimizeBtn.Parent = frame
+
+local content = Instance.new("Frame")
+content.Size = UDim2.new(1, 0, 1, -35)
+content.Position = UDim2.new(0, 0, 0, 35)
+content.BackgroundTransparency = 1
+content.Parent = frame
+
+local minimized = false
+local normalSize = frame.Size
+minimizeBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	content.Visible = not minimized
+	frame.Size = minimized and UDim2.new(0, 260, 0, 35) or normalSize
+	minimizeBtn.Text = minimized and "+" or "-"
+end)
+
+-- dropdown player
+local playerDropdown = Instance.new("TextButton")
+playerDropdown.Size = UDim2.new(1, -20, 0, 35)
+playerDropdown.Position = UDim2.new(0, 10, 0, 10)
+playerDropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+playerDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+playerDropdown.Text = "Pilih Player"
+playerDropdown.TextSize = 18
+playerDropdown.Parent = content
+
+local dropdownFrame = Instance.new("ScrollingFrame")
+dropdownFrame.Size = UDim2.new(1, -20, 0, 100)
+dropdownFrame.Position = UDim2.new(0, 10, 0, 50)
+dropdownFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+dropdownFrame.Visible = false
+dropdownFrame.BorderSizePixel = 0
+dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+dropdownFrame.ScrollBarThickness = 8
+dropdownFrame.Parent = content
+
+local uiList = Instance.new("UIListLayout")
+uiList.Parent = dropdownFrame
+uiList.SortOrder = Enum.SortOrder.LayoutOrder
+uiList.Padding = UDim.new(0, 2)
+
+-- dropdown posisi
+local positionDropdown = Instance.new("TextButton")
+positionDropdown.Size = UDim2.new(1, -20, 0, 35)
+positionDropdown.Position = UDim2.new(0, 10, 0, 100)
+positionDropdown.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+positionDropdown.TextColor3 = Color3.fromRGB(255, 255, 255)
+positionDropdown.Text = "Posisi: Back"
+positionDropdown.TextSize = 18
+positionDropdown.Parent = content
+
+local positionFrame = Instance.new("ScrollingFrame")
+positionFrame.Size = UDim2.new(1, -20, 0, 100)
+positionFrame.Position = UDim2.new(0, 10, 0, 140)
+positionFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+positionFrame.Visible = false
+positionFrame.BorderSizePixel = 0
+positionFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
+positionFrame.ScrollBarThickness = 8
+positionFrame.Parent = content
+
+local positionList = Instance.new("UIListLayout")
+positionList.Parent = positionFrame
+positionList.SortOrder = Enum.SortOrder.LayoutOrder
+positionList.Padding = UDim.new(0, 2)
+
+-- textBox jarak (hijau)
+local distBox = Instance.new("TextBox")
+distBox.Size = UDim2.new(1, -20, 0, 35)
+distBox.Position = UDim2.new(0, 10, 0, 250)
+distBox.BackgroundColor3 = Color3.fromRGB(0, 120, 0)
+distBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+distBox.Text = tostring(distance)
+distBox.ClearTextOnFocus = false
+distBox.PlaceholderText = "Jarak (0-100)"
+distBox.TextSize = 18
+distBox.Parent = content
+
+distBox.FocusLost:Connect(function()
+	local val = tonumber(distBox.Text)
+	if val then
+		distance = math.clamp(val, 0, 100)
+		distBox.Text = tostring(distance)
+	else
+		distBox.Text = tostring(distance)
+	end
+end)
+
+-- tombol sejajar
+local buttonFrame = Instance.new("Frame", content)
+buttonFrame.Size = UDim2.new(1, -20, 0, 30)
+buttonFrame.Position = UDim2.new(0, 10, 1, -40)
+buttonFrame.BackgroundTransparency = 1
+
+local buttonLayout = Instance.new("UIListLayout", buttonFrame)
+buttonLayout.FillDirection = Enum.FillDirection.Horizontal
+buttonLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+buttonLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+buttonLayout.Padding = UDim.new(0, 5)
+
+local function makeButton(text, color)
+	local btn = Instance.new("TextButton", buttonFrame)
+	btn.Size = UDim2.new(0, 60, 0, 30)
+	btn.BackgroundColor3 = color
+	btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+	btn.TextSize = 14
+	btn.Text = text
+	return btn
+end
+
+local toggleBtn = makeButton("OFF", Color3.fromRGB(0, 120, 200))
+local autoBtn   = makeButton("Auto", Color3.fromRGB(200, 120, 0))
+local stopBtn   = makeButton("STOP", Color3.fromRGB(200, 0, 0))
+
+-- === LOGIC FOLLOW ===
+local function getHRP(character)
+	if not character then return end
+	return character:FindFirstChild("HumanoidRootPart")
+end
+
+local function followTarget()
+	if followConn then followConn:Disconnect() end
+	followConn = RunService.RenderStepped:Connect(function()
+		if not targetPlayer or not targetPlayer.Character or not player.Character then return end
+		local targetHRP = getHRP(targetPlayer.Character)
+		local myHRP = getHRP(player.Character)
+		if not (targetHRP and myHRP) then return end
+		local offset = Vector3.new()
+		if positionMode == "Back" then
+			offset = Vector3.new(0, 0, distance)
+		elseif positionMode == "Front" then
+			offset = Vector3.new(0, 0, -distance)
+		elseif positionMode == "Right" then
+			offset = Vector3.new(distance, 0, 0)
+		elseif positionMode == "Left" then
+			offset = Vector3.new(-distance, 0, 0)
+		elseif positionMode == "Above" then
+			offset = Vector3.new(0, distance, 0)
+		elseif positionMode == "Below" then
+			offset = Vector3.new(0, -distance, 0)
+		end
+		myHRP.CFrame = targetHRP.CFrame * CFrame.new(offset)
+	end)
+end
+
+local function stopFollow()
+	if followConn then followConn:Disconnect() followConn = nil end
+end
+
+local function toggleFollow()
+	enabled = not enabled
+	if enabled and targetPlayer then
+		followTarget()
+		toggleBtn.Text = "ON"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 200, 100)
+	else
+		stopFollow()
+		enabled = false
+		toggleBtn.Text = "OFF"
+		toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+	end
+end
+toggleBtn.MouseButton1Click:Connect(toggleFollow)
+
+-- Auto teleport semua player
+autoBtn.MouseButton1Click:Connect(function()
+	if autoTeleporting then return end
+	autoTeleporting = true
+	local myHRP = getHRP(player.Character)
+	if not myHRP then autoTeleporting = false return end
+	for _, plr in ipairs(Players:GetPlayers()) do
+		if plr ~= player then
+			local hrp = getHRP(plr.Character)
+			if hrp then
+				myHRP.CFrame = hrp.CFrame * CFrame.new(0, 0, 3)
+				task.wait(0.3)
+			end
+		end
+	end
+	autoTeleporting = false
+end)
+
+-- Tombol STOP
+stopBtn.MouseButton1Click:Connect(function()
+	stopFollow()
+	enabled = false
+	autoTeleporting = false
+	toggleBtn.Text = "OFF"
+	toggleBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 200)
+end)
+
+-- === DROPDOWN PLAYER ===
+local function refreshDropdown()
+	for _, child in ipairs(dropdownFrame:GetChildren()) do
+		if child:IsA("TextButton") then child:Destroy() end
+	end
+	local playerList = {}
+	for _, plr in pairs(Players:GetPlayers()) do
+		if plr ~= player then table.insert(playerList, plr) end
+	end
+	table.sort(playerList, function(a, b) return a.DisplayName:lower() < b.DisplayName:lower() end)
+	for i, plr in ipairs(playerList) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, -5, 0, 30)
+		btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.TextSize = 16
+		btn.Text = plr.DisplayName
+		btn.LayoutOrder = i
+		btn.Parent = dropdownFrame
+		btn.MouseButton1Click:Connect(function()
+			targetPlayer = plr
+			playerDropdown.Text = plr.DisplayName
+			dropdownFrame.Visible = false
+			if enabled then followTarget() end
+		end)
+	end
+	dropdownFrame.CanvasSize = UDim2.new(0, 0, 0, uiList.AbsoluteContentSize.Y)
+end
+playerDropdown.MouseButton1Click:Connect(function()
+	dropdownFrame.Visible = not dropdownFrame.Visible
+	if dropdownFrame.Visible then refreshDropdown() end
+end)
+Players.PlayerAdded:Connect(refreshDropdown)
+Players.PlayerRemoving:Connect(refreshDropdown)
+
+-- === DROPDOWN POSITION ===
+local positionOptions = {"Back", "Front", "Left", "Right", "Above", "Below"}
+local function refreshPositionDropdown()
+	for _, child in ipairs(positionFrame:GetChildren()) do
+		if child:IsA("TextButton") then child:Destroy() end
+	end
+	for i, pos in ipairs(positionOptions) do
+		local btn = Instance.new("TextButton")
+		btn.Size = UDim2.new(1, -5, 0, 30)
+		btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+		btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+		btn.TextSize = 16
+		btn.Text = pos
+		btn.LayoutOrder = i
+		btn.Parent = positionFrame
+		btn.MouseButton1Click:Connect(function()
+			positionMode = pos
+			positionDropdown.Text = "Posisi: " .. pos
+			positionFrame.Visible = false
+			if enabled then followTarget() end
+		end)
+	end
+	positionFrame.CanvasSize = UDim2.new(0, 0, 0, positionList.AbsoluteContentSize.Y)
+end
+positionDropdown.MouseButton1Click:Connect(function()
+	positionFrame.Visible = not positionFrame.Visible
+	if positionFrame.Visible then refreshPositionDropdown() end
+end)
+refreshPositionDropdown() -- Inisialisasi dropdown posisi
