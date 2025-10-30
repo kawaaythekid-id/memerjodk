@@ -1,0 +1,173 @@
+-- FLING MOBILE UNIVERSAL - ANDROID / iOS
+-- Bekerja di: CanCollide = true / false
+-- GUI: Tombol ON/OFF + Tap-to-Fling
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- === VARIABEL ===
+local FLING_POWER = 3500
+local FLING_DURATION = 0.2
+local flingEnabled = false
+
+-- === BUAT GUI ===
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "FlingMobileGUI"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = playerGui
+
+-- Frame utama (tombol toggle)
+local toggleFrame = Instance.new("Frame")
+toggleFrame.Size = UDim2.new(0, 60, 0, 60)
+toggleFrame.Position = UDim2.new(0, 20, 0.5, -30)
+toggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+toggleFrame.BorderSizePixel = 2
+toggleFrame.BorderColor3 = Color3.fromRGB(255, 100, 100)
+toggleFrame.Parent = screenGui
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(0, 30)
+corner.Parent = toggleFrame
+
+local toggleText = Instance.new("TextLabel")
+toggleText.Size = UDim2.new(1, 0, 1, 0)
+toggleText.BackgroundTransparency = 1
+toggleText.Text = "OFF"
+toggleText.TextColor3 = Color3.fromRGB(255, 100, 100)
+toggleText.Font = Enum.Font.GothamBold
+toggleText.TextSize = 18
+toggleText.Parent = toggleFrame
+
+-- Indikator status
+local statusLabel = Instance.new("TextLabel")
+statusLabel.Size = UDim2.new(0, 200, 0, 40)
+statusLabel.Position = UDim2.new(0, 90, 0.5, -20)
+statusLabel.BackgroundTransparency = 1
+statusLabel.Text = "Fling: OFF"
+statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+statusLabel.Font = Enum.Font.Gotham
+statusLabel.TextSize = 16
+statusLabel.TextXAlignment = Enum.TextXAlignment.Left
+statusLabel.Parent = screenGui
+
+-- === FUNGSI FLING ===
+local function flingTarget(targetPlayer)
+    if not targetPlayer or not targetPlayer.Character then return end
+    local char = targetPlayer.Character
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+
+    local attach = root:FindFirstChild("FlingAttach") or Instance.new("Attachment", root)
+    attach.Name = "FlingAttach"
+
+    local lv = Instance.new("LinearVelocity")
+    lv.Attachment0 = attach
+    lv.MaxForce = Vector3.new(1e6, 1e6, 1e6)
+    lv.VectorVelocity = Vector3.new(0, FLING_POWER, 0)
+    lv.Parent = root
+
+    task.delay(FLING_DURATION, function()
+        if lv and lv.Parent then lv:Destroy() end
+    end)
+
+    -- Efek suara kecil
+    local sound = Instance.new("Sound")
+    sound.SoundId = "rbxassetid://260430079"
+    sound.Volume = 0.3
+    sound.Parent = root
+    sound:Play()
+    task.delay(1, function() sound:Destroy() end)
+end
+
+-- === TOGGLE ON/OFF ===
+toggleFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+        flingEnabled = not flingEnabled
+
+        -- Update UI
+        if flingEnabled then
+            toggleFrame.BackgroundColor3 = Color3.fromRGB(100, 255, 100)
+            toggleFrame.BorderColor3 = Color3.fromRGB(0, 200, 0)
+            toggleText.Text = "ON"
+            toggleText.TextColor3 = Color3.fromRGB(0, 100, 0)
+            statusLabel.Text = "Fling: ON (Tap player!)"
+            statusLabel.TextColor3 = Color3.fromRGB(100, 255, 100)
+        else
+            toggleFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+            toggleFrame.BorderColor3 = Color3.fromRGB(255, 100, 100)
+            toggleText.Text = "OFF"
+            toggleText.TextColor3 = Color3.fromRGB(255, 100, 100)
+            statusLabel.Text = "Fling: OFF"
+            statusLabel.TextColor3 = Color3.fromRGB(255, 100, 100)
+        end
+
+        -- Efek klik
+        local clickEffect = toggleFrame:Clone()
+        clickEffect.Parent = screenGui
+        clickEffect.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+        clickEffect.Size = UDim2.new(0, 80, 0, 80)
+        clickEffect.Position = toggleFrame.Position - UDim2.new(0, 10, 0, 10)
+        local fade = TweenService:Create(clickEffect, TweenInfo.new(0.3), {Size = UDim2.new(0, 100, 0, 100), BackgroundTransparency = 1})
+        fade:Play()
+        fade.Completed:Connect(function() clickEffect:Destroy() end)
+    end
+end)
+
+-- === DETEKSI TAP PLAYER ===
+UserInputService.TouchTap:Connect(function(touchPositions, gameProcessed)
+    if gameProcessed or not flingEnabled then return end
+
+    local pos = touchPositions[1]
+    local ray = player:GetMouse().UnitRay
+    ray = Ray.new(ray.Origin, ray.Direction * 1000)
+
+    local hitPart = workspace:FindPartOnRayWithIgnoreList(ray, {player.Character or Instance.new("Folder")})
+    if not hitPart then return end
+
+    local model = hitPart:FindFirstAncestorWhichIsA("Model")
+    if not model then return end
+
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    if not humanoid then return end
+
+    local targetPlayer = Players:GetPlayerFromCharacter(model)
+    if not targetPlayer or targetPlayer == player then return end
+
+    -- FLING!
+    flingTarget(targetPlayer)
+end)
+
+-- === DRAGABLE (opsional: bisa digeser) ===
+local dragging = false
+local dragStart, startPos
+
+toggleFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragging = true
+        dragStart = input.Position
+        startPos = toggleFrame.Position
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and input.UserInputType == Enum.UserInputType.Touch then
+        local delta = input.Position - dragStart
+        toggleFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        statusLabel.Position = UDim2.new(0, toggleFrame.Position.X.Offset + 70, toggleFrame.Position.Y.Offset)
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Touch then
+        dragging = false
+    end
+end)
+
+-- === SELESAI ===
+print("FLING MOBILE SIAP! (Android/iOS)")
+print("Tap tombol bulat → ON → Tap player → FLING!")
