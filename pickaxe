@@ -1,23 +1,63 @@
--- PICKAXE SIMULATOR FASTER MINING
--- LocalScript (AMAN)
+-- PICKAXE SIMULATOR FAST MINE (FIXED + GUI)
+-- LocalScript
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
 local player = Players.LocalPlayer
 
--- PENGATURAN
-local ANIMATION_SPEED = 2       -- 2x animasi
-local AUTO_MINE_DELAY = 0.08    -- semakin kecil = semakin cepat (jangan < 0.05)
+------------------------------------------------
+-- SETTINGS
+------------------------------------------------
+local animSpeed = 2
+local autoMine = true
+local delayTime = 0.1
 
-----------------------------------------------------
+------------------------------------------------
+-- GUI
+------------------------------------------------
+local gui = Instance.new("ScreenGui")
+gui.Name = "FastMineGUI"
+gui.ResetOnSpawn = false
+gui.Parent = player:WaitForChild("PlayerGui")
 
--- Percepat animasi mining
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0,220,0,120)
+frame.Position = UDim2.new(0,20,0,120)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+frame.BorderSizePixel = 0
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,30)
+title.Text = "⛏️ Fast Pickaxe"
+title.TextColor3 = Color3.new(1,1,1)
+title.BackgroundTransparency = 1
+title.TextScaled = true
+
+local status = Instance.new("TextLabel", frame)
+status.Position = UDim2.new(0,0,0,35)
+status.Size = UDim2.new(1,0,0,25)
+status.Text = "Auto Mine: ON"
+status.TextColor3 = Color3.fromRGB(0,255,0)
+status.BackgroundTransparency = 1
+status.TextScaled = true
+
+local toggle = Instance.new("TextButton", frame)
+toggle.Position = UDim2.new(0,10,0,70)
+toggle.Size = UDim2.new(1,-20,0,35)
+toggle.Text = "Toggle Auto Mine"
+toggle.TextScaled = true
+toggle.BackgroundColor3 = Color3.fromRGB(40,40,40)
+toggle.TextColor3 = Color3.new(1,1,1)
+
+------------------------------------------------
+-- CHARACTER
+------------------------------------------------
 local function setupCharacter(char)
 	local humanoid = char:WaitForChild("Humanoid")
 
 	humanoid.AnimationPlayed:Connect(function(track)
-		track:AdjustSpeed(ANIMATION_SPEED)
+		track:AdjustSpeed(animSpeed)
 	end)
 end
 
@@ -26,13 +66,13 @@ if player.Character then
 end
 player.CharacterAdded:Connect(setupCharacter)
 
-----------------------------------------------------
-
--- Auto Mine
+------------------------------------------------
+-- AUTO MINE LOOP
+------------------------------------------------
 task.spawn(function()
 	while true do
-		task.wait(AUTO_MINE_DELAY)
-		if player.Character then
+		task.wait(delayTime)
+		if autoMine and player.Character then
 			local tool = player.Character:FindFirstChildOfClass("Tool")
 			if tool then
 				pcall(function()
@@ -41,4 +81,13 @@ task.spawn(function()
 			end
 		end
 	end
+end)
+
+------------------------------------------------
+-- BUTTON
+------------------------------------------------
+toggle.MouseButton1Click:Connect(function()
+	autoMine = not autoMine
+	status.Text = "Auto Mine: " .. (autoMine and "ON" or "OFF")
+	status.TextColor3 = autoMine and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
