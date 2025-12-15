@@ -1,94 +1,45 @@
---[[ 
-  PICKAXE SIMULATOR
-  MAGIC EGG + FAST HATCH
-  EXTREME CLIENT VERSION
-]]
+-- PICKAXE SIMULATOR
+-- FAST HATCH VISUAL (SERVER SAFE)
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local Player = Players.LocalPlayer
 
--- ===================== CONFIG EXTREME =====================
-_G.FastHatch = true
-_G.Instant = true
-_G.SpamHatch = true
-_G.MultiHatch = 10        -- visual multi hatch
-_G.MagicEgg = true
-_G.BlockDelay = true
--- ==========================================================
+-- HAPUS UI HATCH
+local function removeHatchUI()
+    local gui = Player:FindFirstChild("PlayerGui")
+    if not gui then return end
 
--- ===== BLOCK WAIT / DELAY =====
-if _G.BlockDelay then
-	local oldWait = task.wait
-	task.wait = function(...)
-		return
-	end
-
-	local oldwait2 = wait
-	wait = function(...)
-		return
-	end
+    for _,v in pairs(gui:GetDescendants()) do
+        if v:IsA("ScreenGui") or v:IsA("Frame") then
+            local n = v.Name:lower()
+            if n:find("egg") or n:find("hatch") or n:find("open") then
+                v.Enabled = false
+                v.Visible = false
+            end
+        end
+    end
 end
 
--- ===== MAGIC EGG VISUAL =====
-local function MagicEgg()
-	if not _G.MagicEgg then return end
-	for _,v in pairs(workspace:GetDescendants()) do
-		if v:IsA("Model") and v.Name:lower():find("egg") then
-			for _,p in pairs(v:GetDescendants()) do
-				if p:IsA("BasePart") then
-					p.Material = Enum.Material.Neon
-					p.Color = Color3.fromRGB(255, 220, 120)
-				end
-			end
-		end
-	end
+-- PERCEPAT CAMERA & EFFECT
+local function speedVisual()
+    for _,v in pairs(workspace:GetDescendants()) do
+        if v:IsA("Camera") then
+            v.FieldOfView = 90
+        end
+    end
 end
 
--- ===== HOOK HATCH FUNCTION =====
-local function HookHatch()
-	for _,v in pairs(getgc(true)) do
-		if typeof(v) == "table" then
-			for k,val in pairs(v) do
-				if tostring(k):lower():find("hatch") and type(val) == "function" then
-					v[k] = function(...)
-						if _G.Instant then
-							return val(...)
-						end
-						return val(...)
-					end
-				end
-			end
-		end
-	end
-end
-
--- ===== FIND EGG REMOTE =====
-local EggRemote
-for _,v in pairs(ReplicatedStorage:GetDescendants()) do
-	if v:IsA("RemoteEvent") and v.Name:lower():find("egg") then
-		EggRemote = v
-	end
-end
-
--- ===== SPAM HATCH (EXTREME) =====
+-- LOOP
 task.spawn(function()
-	while task.wait() do
-		if _G.SpamHatch and EggRemote then
-			pcall(function()
-				for i = 1, _G.MultiHatch do
-					EggRemote:FireServer()
-				end
-			end)
-		end
-	end
+    while task.wait(0.1) do
+        pcall(removeHatchUI)
+        pcall(speedVisual)
+    end
 end)
 
--- ===== AUTO REHOOK =====
-RunService.RenderStepped:Connect(function()
-	pcall(HookHatch)
-	pcall(MagicEgg)
-end)
-
-print("💀 EXTREME MAGIC EGG & FAST HATCH AKTIF")
+-- NOTIFIKASI
+game.StarterGui:SetCore("SendNotification",{
+    Title = "FAST HATCH VISUAL",
+    Text = "Animasi disembunyikan (SERVER SAFE)",
+    Duration = 5
+})
