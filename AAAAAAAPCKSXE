@@ -1,79 +1,94 @@
 --[[ 
-ULTIMATE MINING SPEED + VISUAL BYPASS
-• Kill animation
-• Freeze arms
-• Spam hit speed (adjustable)
-• Visual instant
+  PICKAXE SIMULATOR
+  MAGIC EGG + FAST HATCH
+  EXTREME CLIENT VERSION
 ]]
 
-local player = game.Players.LocalPlayer
-local runService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
+local Player = Players.LocalPlayer
 
--- ================= CONFIG =================
-local ENABLED = true
-local HIT_DELAY = 0.03   -- SEMAKIN KECIL = SEMAKIN CEPAT (0.02–0.1)
+-- ===================== CONFIG EXTREME =====================
+_G.FastHatch = true
+_G.Instant = true
+_G.SpamHatch = true
+_G.MultiHatch = 10        -- visual multi hatch
+_G.MagicEgg = true
+_G.BlockDelay = true
+-- ==========================================================
 
--- ================= CORE =================
-local function applyMax(char)
-	local humanoid = char:WaitForChild("Humanoid",5)
-	if not humanoid then return end
-
-	-- HANCURKAN ANIMATOR
-	local function killAnimator()
-		local a = humanoid:FindFirstChildOfClass("Animator")
-		if a then a:Destroy() end
+-- ===== BLOCK WAIT / DELAY =====
+if _G.BlockDelay then
+	local oldWait = task.wait
+	task.wait = function(...)
+		return
 	end
-	killAnimator()
 
-	humanoid.DescendantAdded:Connect(function(d)
-		if d:IsA("Animator") then
-			task.wait()
-			d:Destroy()
-		end
-	end)
+	local oldwait2 = wait
+	wait = function(...)
+		return
+	end
+end
 
-	-- STOP SEMUA ANIMASI
-	task.spawn(function()
-		while ENABLED do
-			for _,track in ipairs(humanoid:GetPlayingAnimationTracks()) do
-				pcall(function()
-					track:Stop(0)
-				end)
-			end
-			task.wait()
-		end
-	end)
-
-	-- FREEZE TANGAN
-	local function freezeArms()
-		for _,m in ipairs(char:GetDescendants()) do
-			if m:IsA("Motor6D") then
-				local n = m.Name:lower()
-				if n:find("arm") or n:find("shoulder") or n:find("hand") then
-					m.Transform = CFrame.new()
-					m.MaxVelocity = 0
+-- ===== MAGIC EGG VISUAL =====
+local function MagicEgg()
+	if not _G.MagicEgg then return end
+	for _,v in pairs(workspace:GetDescendants()) do
+		if v:IsA("Model") and v.Name:lower():find("egg") then
+			for _,p in pairs(v:GetDescendants()) do
+				if p:IsA("BasePart") then
+					p.Material = Enum.Material.Neon
+					p.Color = Color3.fromRGB(255, 220, 120)
 				end
 			end
 		end
 	end
+end
 
-	-- SPAM HIT TERCEPAT (CLIENT LIMIT)
-	task.spawn(function()
-		while ENABLED do
-			local tool = char:FindFirstChildOfClass("Tool")
-			if tool then
-				pcall(function()
-					tool:Activate()
-				end)
+-- ===== HOOK HATCH FUNCTION =====
+local function HookHatch()
+	for _,v in pairs(getgc(true)) do
+		if typeof(v) == "table" then
+			for k,val in pairs(v) do
+				if tostring(k):lower():find("hatch") and type(val) == "function" then
+					v[k] = function(...)
+						if _G.Instant then
+							return val(...)
+						end
+						return val(...)
+					end
+				end
 			end
-			freezeArms()
-			task.wait(HIT_DELAY)
 		end
-	end)
+	end
 end
 
--- ================= APPLY =================
-if player.Character then
-	applyMax(player.Character)
+-- ===== FIND EGG REMOTE =====
+local EggRemote
+for _,v in pairs(ReplicatedStorage:GetDescendants()) do
+	if v:IsA("RemoteEvent") and v.Name:lower():find("egg") then
+		EggRemote = v
+	end
 end
-player.CharacterAdded:Connect(applyMax)
+
+-- ===== SPAM HATCH (EXTREME) =====
+task.spawn(function()
+	while task.wait() do
+		if _G.SpamHatch and EggRemote then
+			pcall(function()
+				for i = 1, _G.MultiHatch do
+					EggRemote:FireServer()
+				end
+			end)
+		end
+	end
+end)
+
+-- ===== AUTO REHOOK =====
+RunService.RenderStepped:Connect(function()
+	pcall(HookHatch)
+	pcall(MagicEgg)
+end)
+
+print("💀 EXTREME MAGIC EGG & FAST HATCH AKTIF")
