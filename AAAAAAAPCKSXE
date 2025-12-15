@@ -1,85 +1,49 @@
--- Pickaxe Simulator SAFE Hatch Script
--- NO DESTROY MAP OBJECT
+-- FAST EGG HATCH (VISUAL ONLY)
+-- Safe, no destroy, no spam
 
 local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 local Player = Players.LocalPlayer
 
-local Enabled = false
-local HatchDelay = 0.1
+-- 1. Percepat semua Tween (animasi UI)
+local oldCreate = TweenService.Create
+TweenService.Create = function(self, obj, info, props)
+	info = TweenInfo.new(
+		0.01, -- waktu animasi (semakin kecil = semakin cepat)
+		info.EasingStyle,
+		info.EasingDirection,
+		info.RepeatCount,
+		info.Reverses,
+		info.DelayTime
+	)
+	return oldCreate(self, obj, info, props)
+end
 
--- GUI
-local gui = Instance.new("ScreenGui", Player.PlayerGui)
-gui.ResetOnSpawn = false
-
-local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0,220,0,130)
-main.Position = UDim2.new(0.35,0,0.3,0)
-main.BackgroundColor3 = Color3.fromRGB(30,30,30)
-main.Active = true
-main.Draggable = true
-Instance.new("UICorner", main)
-
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1,0,0,30)
-title.Text = "Safe Auto Hatch"
-title.BackgroundTransparency = 1
-title.TextColor3 = Color3.new(1,1,1)
-title.Font = Enum.Font.GothamBold
-
-local toggle = Instance.new("TextButton", main)
-toggle.Size = UDim2.new(0.9,0,0,30)
-toggle.Position = UDim2.new(0.05,0,0.35,0)
-toggle.Text = "OFF"
-toggle.BackgroundColor3 = Color3.fromRGB(180,0,0)
-toggle.TextColor3 = Color3.new(1,1,1)
-
-local min = Instance.new("TextButton", main)
-min.Size = UDim2.new(0,30,0,30)
-min.Position = UDim2.new(1,-35,0,0)
-min.Text = "-"
-min.BackgroundColor3 = Color3.fromRGB(60,60,60)
-min.TextColor3 = Color3.new(1,1,1)
-
-toggle.MouseButton1Click:Connect(function()
-	Enabled = not Enabled
-	toggle.Text = Enabled and "ON" or "OFF"
-	toggle.BackgroundColor3 = Enabled and Color3.fromRGB(0,180,0) or Color3.fromRGB(180,0,0)
-end)
-
-local minimized = false
-min.MouseButton1Click:Connect(function()
-	minimized = not minimized
-	for _,v in pairs(main:GetChildren()) do
-		if v ~= title and v ~= min then
-			v.Visible = not minimized
-		end
-	end
-	main.Size = minimized and UDim2.new(0,220,0,35) or UDim2.new(0,220,0,130)
-end)
-
--- VISUAL CAMERA FIX (AMAN)
+-- 2. Paksa camera tetap normal (skip cutscene)
 task.spawn(function()
-	while task.wait(0.2) do
-		if Enabled and workspace.CurrentCamera then
+	while task.wait(0.1) do
+		if workspace.CurrentCamera then
 			workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
 		end
 	end
 end)
 
--- AUTO HATCH (JIKA REMOTE ADA)
+-- 3. Percepat AnimationTrack (jika ada)
 task.spawn(function()
-	while task.wait(HatchDelay) do
-		if Enabled then
-			for _,v in pairs(ReplicatedStorage:GetDescendants()) do
-				if v:IsA("RemoteEvent") and v.Name:lower():find("hatch") then
-					pcall(function()
-						v:FireServer()
-					end)
+	while task.wait(0.2) do
+		local char = Player.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			if hum then
+				local animator = hum:FindFirstChildOfClass("Animator")
+				if animator then
+					for _,track in pairs(animator:GetPlayingAnimationTracks()) do
+						track:AdjustSpeed(5) -- default 1
+					end
 				end
 			end
 		end
 	end
 end)
 
-print("SAFE AUTO HATCH LOADED")
+print("FAST HATCH VISUAL ENABLED")
