@@ -1,4 +1,4 @@
--- BYPASS ANIMASI + SPEED CONTROL
+-- FORCE FAST MINING ANIMATION (VISUAL)
 -- Pickaxe Simulator
 -- LocalScript
 
@@ -11,86 +11,76 @@ player.CharacterAdded:Connect(function(c)
 	humanoid = c:WaitForChild("Humanoid")
 end)
 
--- ===== STOP SEMUA ANIMASI TOOL =====
-local function stopMiningAnim()
-	for _,track in pairs(humanoid:GetPlayingAnimationTracks()) do
-		if track.Name:lower():find("mine")
-		or track.Name:lower():find("swing")
-		or track.Name:lower():find("pick") then
-			track:Stop()
-		end
-	end
-end
-
--- ===== GUI =====
+-- ================= GUI =================
 local gui = Instance.new("ScreenGui", player.PlayerGui)
 gui.ResetOnSpawn = false
 
 local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,230,0,170)
+frame.Size = UDim2.new(0,240,0,190)
 frame.Position = UDim2.new(0.3,0,0.3,0)
-frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
 frame.Active = true
 frame.Draggable = true
 
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,30)
-title.Text = "Bypass Mining Anim"
+title.Text = "Fast Mining Animation"
 title.TextColor3 = Color3.new(1,1,1)
-title.BackgroundColor3 = Color3.fromRGB(40,40,40)
+title.BackgroundColor3 = Color3.fromRGB(45,45,45)
 
 local toggle = Instance.new("TextButton", frame)
-toggle.Position = UDim2.new(0.1,0,0.3,0)
+toggle.Position = UDim2.new(0.1,0,0.28,0)
 toggle.Size = UDim2.new(0.8,0,0,35)
 toggle.Text = "OFF"
-toggle.BackgroundColor3 = Color3.fromRGB(140,0,0)
+toggle.BackgroundColor3 = Color3.fromRGB(150,0,0)
 toggle.TextColor3 = Color3.new(1,1,1)
 
 local speedBox = Instance.new("TextBox", frame)
-speedBox.Position = UDim2.new(0.1,0,0.6,0)
+speedBox.Position = UDim2.new(0.1,0,0.55,0)
 speedBox.Size = UDim2.new(0.8,0,0,30)
-speedBox.Text = "0.05"
-speedBox.PlaceholderText = "Delay Hit (detik)"
+speedBox.Text = "3"
+speedBox.PlaceholderText = "Anim Speed (1–20)"
 speedBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
 speedBox.TextColor3 = Color3.new(1,1,1)
 
--- ===== LOGIC =====
-local running = false
-local delayHit = 0.05
+local info = Instance.new("TextLabel", frame)
+info.Position = UDim2.new(0.05,0,0.78,0)
+info.Size = UDim2.new(0.9,0,0,30)
+info.Text = "Visual only (server tetap normal)"
+info.TextScaled = true
+info.TextColor3 = Color3.fromRGB(200,200,200)
+info.BackgroundTransparency = 1
+
+-- ================= LOGIC =================
+local enabled = false
+local animSpeed = 3
 
 speedBox.FocusLost:Connect(function()
 	local n = tonumber(speedBox.Text)
-	if n and n > 0 then
-		delayHit = math.clamp(n, 0.01, 0.3)
+	if n then
+		animSpeed = math.clamp(n, 1, 20)
 	end
 end)
 
 toggle.MouseButton1Click:Connect(function()
-	running = not running
-	toggle.Text = running and "ON" or "OFF"
-	toggle.BackgroundColor3 = running
-		and Color3.fromRGB(0,140,0)
-		or Color3.fromRGB(140,0,0)
+	enabled = not enabled
+	toggle.Text = enabled and "ON" or "OFF"
+	toggle.BackgroundColor3 = enabled
+		and Color3.fromRGB(0,150,0)
+		or Color3.fromRGB(150,0,0)
 end)
 
-local function getPickaxe()
-	for _,v in pairs(char:GetChildren()) do
-		if v:IsA("Tool") then
-			return v
-		end
-	end
-end
-
--- ===== LOOP =====
+-- ================= FORCE SPEED =================
 task.spawn(function()
-	while task.wait(delayHit) do
-		if running then
-			local tool = getPickaxe()
-			if tool then
-				stopMiningAnim() -- BYPASS ANIMASI
-				pcall(function()
-					tool:Activate()
-				end)
+	while task.wait(0.05) do
+		if enabled and humanoid then
+			for _,track in pairs(humanoid:GetPlayingAnimationTracks()) do
+				local name = track.Name:lower()
+				if name:find("mine") or name:find("swing") or name:find("pick") then
+					pcall(function()
+						track:AdjustSpeed(animSpeed) -- PAKSA CEPAT
+					end)
+				end
 			end
 		end
 	end
