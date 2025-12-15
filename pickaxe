@@ -1,93 +1,113 @@
--- PICKAXE SIMULATOR FAST MINE (FIXED + GUI)
+-- SPEED MINING PICKAXE SIMULATOR
+-- GUI + TEXTBOX
 -- LocalScript
 
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
 
 local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
 
-------------------------------------------------
--- SETTINGS
-------------------------------------------------
-local animSpeed = 2
-local autoMine = true
-local delayTime = 0.1
+player.CharacterAdded:Connect(function(char)
+	character = char
+end)
 
-------------------------------------------------
+-- STATE
+local enabled = false
+local miningDelay = 0.1
+
 -- GUI
-------------------------------------------------
-local gui = Instance.new("ScreenGui")
-gui.Name = "FastMineGUI"
+local gui = Instance.new("ScreenGui", player.PlayerGui)
+gui.Name = "SpeedMiningGUI"
 gui.ResetOnSpawn = false
-gui.Parent = player:WaitForChild("PlayerGui")
 
-local frame = Instance.new("Frame", gui)
-frame.Size = UDim2.new(0,220,0,120)
-frame.Position = UDim2.new(0,20,0,120)
-frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
-frame.BorderSizePixel = 0
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0, 260, 0, 170)
+main.Position = UDim2.new(0.3, 0, 0.3, 0)
+main.BackgroundColor3 = Color3.fromRGB(30,30,30)
+main.Active = true
+main.Draggable = true
 
-local title = Instance.new("TextLabel", frame)
-title.Size = UDim2.new(1,0,0,30)
-title.Text = "⛏️ Fast Pickaxe"
+local corner = Instance.new("UICorner", main)
+corner.CornerRadius = UDim.new(0,12)
+
+-- TITLE
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, -40, 0, 35)
+title.Position = UDim2.new(0, 10, 0, 0)
+title.Text = "⚒ Speed Mining"
 title.TextColor3 = Color3.new(1,1,1)
 title.BackgroundTransparency = 1
-title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.TextXAlignment = Left
 
-local status = Instance.new("TextLabel", frame)
-status.Position = UDim2.new(0,0,0,35)
-status.Size = UDim2.new(1,0,0,25)
-status.Text = "Auto Mine: ON"
-status.TextColor3 = Color3.fromRGB(0,255,0)
-status.BackgroundTransparency = 1
-status.TextScaled = true
+-- CLOSE
+local close = Instance.new("TextButton", main)
+close.Size = UDim2.new(0, 30, 0, 30)
+close.Position = UDim2.new(1, -35, 0, 5)
+close.Text = "X"
+close.BackgroundColor3 = Color3.fromRGB(200,60,60)
+close.TextColor3 = Color3.new(1,1,1)
+close.Font = Enum.Font.GothamBold
+close.TextSize = 14
+Instance.new("UICorner", close)
 
-local toggle = Instance.new("TextButton", frame)
-toggle.Position = UDim2.new(0,10,0,70)
-toggle.Size = UDim2.new(1,-20,0,35)
-toggle.Text = "Toggle Auto Mine"
-toggle.TextScaled = true
-toggle.BackgroundColor3 = Color3.fromRGB(40,40,40)
+close.MouseButton1Click:Connect(function()
+	gui:Destroy()
+end)
+
+-- TEXTBOX SPEED
+local box = Instance.new("TextBox", main)
+box.Size = UDim2.new(1, -20, 0, 40)
+box.Position = UDim2.new(0, 10, 0, 50)
+box.PlaceholderText = "Mining Delay (contoh: 0.05)"
+box.Text = tostring(miningDelay)
+box.BackgroundColor3 = Color3.fromRGB(45,45,45)
+box.TextColor3 = Color3.new(1,1,1)
+box.Font = Enum.Font.Gotham
+box.TextSize = 14
+box.ClearTextOnFocus = false
+Instance.new("UICorner", box)
+
+box.FocusLost:Connect(function()
+	local val = tonumber(box.Text)
+	if val and val > 0 then
+		miningDelay = math.clamp(val, 0.001, 5)
+		box.Text = tostring(miningDelay)
+	else
+		box.Text = tostring(miningDelay)
+	end
+end)
+
+-- TOGGLE BUTTON
+local toggle = Instance.new("TextButton", main)
+toggle.Size = UDim2.new(1, -20, 0, 40)
+toggle.Position = UDim2.new(0, 10, 0, 100)
+toggle.Text = "OFF"
+toggle.BackgroundColor3 = Color3.fromRGB(120,50,50)
 toggle.TextColor3 = Color3.new(1,1,1)
+toggle.Font = Enum.Font.GothamBold
+toggle.TextSize = 15
+Instance.new("UICorner", toggle)
 
-------------------------------------------------
--- CHARACTER
-------------------------------------------------
-local function setupCharacter(char)
-	local humanoid = char:WaitForChild("Humanoid")
+toggle.MouseButton1Click:Connect(function()
+	enabled = not enabled
+	toggle.Text = enabled and "ON" or "OFF"
+	toggle.BackgroundColor3 = enabled and Color3.fromRGB(60,160,60) or Color3.fromRGB(120,50,50)
+end)
 
-	humanoid.AnimationPlayed:Connect(function(track)
-		track:AdjustSpeed(animSpeed)
-	end)
-end
-
-if player.Character then
-	setupCharacter(player.Character)
-end
-player.CharacterAdded:Connect(setupCharacter)
-
-------------------------------------------------
--- AUTO MINE LOOP
-------------------------------------------------
+-- MINING LOOP
 task.spawn(function()
-	while true do
-		task.wait(delayTime)
-		if autoMine and player.Character then
-			local tool = player.Character:FindFirstChildOfClass("Tool")
+	while task.wait() do
+		if enabled then
+			local tool = character:FindFirstChildOfClass("Tool")
 			if tool then
 				pcall(function()
 					tool:Activate()
 				end)
 			end
+			task.wait(miningDelay)
 		end
 	end
-end)
-
-------------------------------------------------
--- BUTTON
-------------------------------------------------
-toggle.MouseButton1Click:Connect(function()
-	autoMine = not autoMine
-	status.Text = "Auto Mine: " .. (autoMine and "ON" or "OFF")
-	status.TextColor3 = autoMine and Color3.fromRGB(0,255,0) or Color3.fromRGB(255,0,0)
 end)
