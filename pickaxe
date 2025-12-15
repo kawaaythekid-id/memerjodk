@@ -1,135 +1,44 @@
--- PICKAXE SIMULATOR ALL IN ONE
--- LocalScript | Mobile Friendly
+-- PICKAXE SIMULATOR FASTER MINING
+-- LocalScript (AMAN)
 
 local Players = game:GetService("Players")
-local player = Players.LocalPlayer
-local UIS = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 
---------------------------------------------------
--- SETTINGS
---------------------------------------------------
-local speedMultiplier = 2
-local boostEnabled = false
-local autoMine = false
+local player = Players.LocalPlayer
 
---------------------------------------------------
--- GUI
---------------------------------------------------
-local gui = Instance.new("ScreenGui", player.PlayerGui)
-gui.Name = "PickaxeGUI"
-gui.ResetOnSpawn = false
+-- PENGATURAN
+local ANIMATION_SPEED = 2       -- 2x animasi
+local AUTO_MINE_DELAY = 0.08    -- semakin kecil = semakin cepat (jangan < 0.05)
 
-local main = Instance.new("Frame", gui)
-main.Size = UDim2.fromScale(0.4,0.4)
-main.Position = UDim2.fromScale(0.3,0.3)
-main.BackgroundColor3 = Color3.fromRGB(25,25,25)
-main.Active = true
-main.Draggable = true
+----------------------------------------------------
 
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.fromScale(1,0.15)
-title.Text = "⛏️ Pickaxe Simulator"
-title.TextColor3 = Color3.new(1,1,1)
-title.BackgroundTransparency = 1
-title.TextScaled = true
+-- Percepat animasi mining
+local function setupCharacter(char)
+	local humanoid = char:WaitForChild("Humanoid")
 
-local function makeButton(text,pos)
-	local b = Instance.new("TextButton", main)
-	b.Size = UDim2.fromScale(0.9,0.15)
-	b.Position = pos
-	b.Text = text
-	b.TextScaled = true
-	b.BackgroundColor3 = Color3.fromRGB(40,40,40)
-	b.TextColor3 = Color3.new(1,1,1)
-	return b
-end
-
-local boostBtn = makeButton("Boost : OFF",UDim2.fromScale(0.05,0.18))
-local autoBtn = makeButton("Auto Mine : OFF",UDim2.fromScale(0.05,0.35))
-
-local speedBox = Instance.new("TextBox", main)
-speedBox.Size = UDim2.fromScale(0.9,0.15)
-speedBox.Position = UDim2.fromScale(0.05,0.52)
-speedBox.PlaceholderText = "Speed Multiplier (contoh: 2)"
-speedBox.Text = "2"
-speedBox.TextScaled = true
-speedBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
-speedBox.TextColor3 = Color3.new(1,1,1)
-
-local minimize = makeButton("Minimize",UDim2.fromScale(0.05,0.69))
-local close = makeButton("Close",UDim2.fromScale(0.05,0.86))
-
---------------------------------------------------
--- FUNCTION BOOST
---------------------------------------------------
-local function boostPickaxe(tool)
-	if not boostEnabled then return end
-	if tool:IsA("Tool") then
-		for _,v in pairs(tool:GetDescendants()) do
-			if v:IsA("NumberValue") then
-				local n = v.Name:lower()
-				if n:find("cool") or n:find("delay") or n:find("swing") then
-					v.Value = v.Value / speedMultiplier
-				end
-			end
-		end
-	end
-end
-
---------------------------------------------------
--- CHARACTER
---------------------------------------------------
-local function setupChar(char)
-	char.ChildAdded:Connect(function(tool)
-		boostPickaxe(tool)
+	humanoid.AnimationPlayed:Connect(function(track)
+		track:AdjustSpeed(ANIMATION_SPEED)
 	end)
 end
 
 if player.Character then
-	setupChar(player.Character)
+	setupCharacter(player.Character)
 end
+player.CharacterAdded:Connect(setupCharacter)
 
-player.CharacterAdded:Connect(setupChar)
+----------------------------------------------------
 
---------------------------------------------------
--- AUTO MINE
---------------------------------------------------
-RunService.RenderStepped:Connect(function()
-	if autoMine and player.Character then
-		local tool = player.Character:FindFirstChildOfClass("Tool")
-		if tool then
-			pcall(function()
-				tool:Activate()
-			end)
+-- Auto Mine
+task.spawn(function()
+	while true do
+		task.wait(AUTO_MINE_DELAY)
+		if player.Character then
+			local tool = player.Character:FindFirstChildOfClass("Tool")
+			if tool then
+				pcall(function()
+					tool:Activate()
+				end)
+			end
 		end
 	end
-end)
-
---------------------------------------------------
--- BUTTON EVENTS
---------------------------------------------------
-boostBtn.MouseButton1Click:Connect(function()
-	boostEnabled = not boostEnabled
-	boostBtn.Text = "Boost : "..(boostEnabled and "ON" or "OFF")
-end)
-
-autoBtn.MouseButton1Click:Connect(function()
-	autoMine = not autoMine
-	autoBtn.Text = "Auto Mine : "..(autoMine and "ON" or "OFF")
-end)
-
-speedBox.FocusLost:Connect(function()
-	local val = tonumber(speedBox.Text)
-	if val and val > 0 then
-		speedMultiplier = val
-	end
-end)
-
-minimize.MouseButton1Click:Connect(function()
-	main.Size = UDim2.fromScale(0.4,0.15)
-end)
-
-close.MouseButton1Click:Connect(function()
-	gui:Destroy()
 end)
