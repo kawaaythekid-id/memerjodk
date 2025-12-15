@@ -1,40 +1,102 @@
--- NO DELAY / 1 HIT MINING
+-- AUTO MINING NO DELAY + GUI
 -- Pickaxe Simulator
 -- LocalScript
 
 local player = game.Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 
--- Anti error respawn
 player.CharacterAdded:Connect(function(c)
 	char = c
 end)
 
--- Cari tool pickaxe
+-- ================= GUI =================
+local gui = Instance.new("ScreenGui")
+gui.Parent = player.PlayerGui
+gui.ResetOnSpawn = false
+
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0,220,0,160)
+frame.Position = UDim2.new(0.3,0,0.3,0)
+frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+frame.Active = true
+frame.Draggable = true
+
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,30)
+title.BackgroundColor3 = Color3.fromRGB(45,45,45)
+title.Text = "Auto Mining"
+title.TextColor3 = Color3.new(1,1,1)
+
+local toggle = Instance.new("TextButton", frame)
+toggle.Position = UDim2.new(0.1,0,0.3,0)
+toggle.Size = UDim2.new(0.8,0,0,35)
+toggle.Text = "OFF"
+toggle.BackgroundColor3 = Color3.fromRGB(150,0,0)
+toggle.TextColor3 = Color3.new(1,1,1)
+
+local speedBox = Instance.new("TextBox", frame)
+speedBox.Position = UDim2.new(0.1,0,0.6,0)
+speedBox.Size = UDim2.new(0.8,0,0,30)
+speedBox.Text = "5"
+speedBox.PlaceholderText = "Hit Speed"
+speedBox.BackgroundColor3 = Color3.fromRGB(50,50,50)
+speedBox.TextColor3 = Color3.new(1,1,1)
+
+local mini = Instance.new("TextButton", frame)
+mini.Position = UDim2.new(0.85,0,0,0)
+mini.Size = UDim2.new(0,30,0,30)
+mini.Text = "-"
+mini.TextColor3 = Color3.new(1,1,1)
+mini.BackgroundTransparency = 1
+
+-- ================= LOGIC =================
+local running = false
+local minimized = false
+local hitSpeed = 5
+
+speedBox.FocusLost:Connect(function()
+	local n = tonumber(speedBox.Text)
+	if n and n > 0 then
+		hitSpeed = math.clamp(n,1,50)
+	end
+end)
+
+toggle.MouseButton1Click:Connect(function()
+	running = not running
+	toggle.Text = running and "ON" or "OFF"
+	toggle.BackgroundColor3 = running and Color3.fromRGB(0,150,0) or Color3.fromRGB(150,0,0)
+end)
+
+mini.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	frame.Size = minimized and UDim2.new(0,220,0,30) or UDim2.new(0,220,0,160)
+end)
+
 local function getPickaxe()
+	for _,v in pairs(char:GetChildren()) do
+		if v:IsA("Tool") then
+			return v
+		end
+	end
 	for _,v in pairs(player.Backpack:GetChildren()) do
 		if v:IsA("Tool") then
 			return v
 		end
 	end
-	if char then
-		for _,v in pairs(char:GetChildren()) do
-			if v:IsA("Tool") then
-				return v
+end
+
+-- ================= AUTO HIT =================
+task.spawn(function()
+	while task.wait() do
+		if running then
+			local tool = getPickaxe()
+			if tool then
+				for i = 1, hitSpeed do
+					pcall(function()
+						tool:Activate()
+					end)
+				end
 			end
 		end
 	end
-end
-
--- Paksa hit tanpa delay
-while task.wait() do
-	local tool = getPickaxe()
-	if tool and tool:FindFirstChild("Activate") then
-		pcall(function()
-			-- spam activate (hapus delay)
-			for i = 1, 5 do
-				tool:Activate()
-			end
-		end)
-	end
-end
+end)
