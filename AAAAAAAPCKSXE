@@ -1,128 +1,92 @@
---// Pickaxe Simulator Egg Hatch Speed GUI
---// LocalScript / Client-side
+--// Pickaxe Simulator REAL Egg Hatch Speed
+--// VISUAL SKIP + AUTO FAST HATCH
 
 local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Player = Players.LocalPlayer
-local PlayerGui = Player:WaitForChild("PlayerGui")
 
 -- CONFIG
-local HatchEnabled = false
-local HatchSpeed = 0.1
-local HatchAmount = 6
+local Enabled = false
+local HatchDelay = 0.05
 
 -- GUI
-local ScreenGui = Instance.new("ScreenGui", PlayerGui)
-ScreenGui.Name = "EggHatchGUI"
-ScreenGui.ResetOnSpawn = false
+local gui = Instance.new("ScreenGui", Player.PlayerGui)
+gui.ResetOnSpawn = false
 
-local Main = Instance.new("Frame", ScreenGui)
-Main.Size = UDim2.new(0, 260, 0, 200)
-Main.Position = UDim2.new(0.35, 0, 0.3, 0)
-Main.BackgroundColor3 = Color3.fromRGB(25,25,25)
-Main.Active = true
-Main.Draggable = true
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0, 240, 0, 150)
+main.Position = UDim2.new(0.35,0,0.3,0)
+main.BackgroundColor3 = Color3.fromRGB(25,25,25)
+main.Active = true
+main.Draggable = true
 
-local UICorner = Instance.new("UICorner", Main)
-UICorner.CornerRadius = UDim.new(0, 10)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,10)
 
-local Title = Instance.new("TextLabel", Main)
-Title.Size = UDim2.new(1, 0, 0, 30)
-Title.Text = "Egg Hatch Speed"
-Title.TextColor3 = Color3.new(1,1,1)
-Title.BackgroundTransparency = 1
-Title.Font = Enum.Font.GothamBold
-Title.TextSize = 14
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1,0,0,30)
+title.Text = "FAST EGG HATCH"
+title.BackgroundTransparency = 1
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.GothamBold
 
--- Toggle Button
-local Toggle = Instance.new("TextButton", Main)
-Toggle.Size = UDim2.new(0.9, 0, 0, 30)
-Toggle.Position = UDim2.new(0.05, 0, 0.2, 0)
-Toggle.Text = "Status : OFF"
-Toggle.BackgroundColor3 = Color3.fromRGB(180,0,0)
-Toggle.TextColor3 = Color3.new(1,1,1)
-Toggle.Font = Enum.Font.GothamBold
-Toggle.TextSize = 14
+local toggle = Instance.new("TextButton", main)
+toggle.Size = UDim2.new(0.9,0,0,30)
+toggle.Position = UDim2.new(0.05,0,0.3,0)
+toggle.Text = "OFF"
+toggle.BackgroundColor3 = Color3.fromRGB(180,0,0)
+toggle.TextColor3 = Color3.new(1,1,1)
 
--- Speed Box
-local SpeedBox = Instance.new("TextBox", Main)
-SpeedBox.Size = UDim2.new(0.9, 0, 0, 30)
-SpeedBox.Position = UDim2.new(0.05, 0, 0.42, 0)
-SpeedBox.Text = "Hatch Speed (0.1)"
-SpeedBox.ClearTextOnFocus = false
-SpeedBox.BackgroundColor3 = Color3.fromRGB(40,40,40)
-SpeedBox.TextColor3 = Color3.new(1,1,1)
-SpeedBox.Font = Enum.Font.Gotham
-SpeedBox.TextSize = 13
-
--- Info
-local Info = Instance.new("TextLabel", Main)
-Info.Size = UDim2.new(1, 0, 0, 40)
-Info.Position = UDim2.new(0, 0, 0.65, 0)
-Info.Text = "Hatch telur x6\nSkip animasi visual"
-Info.TextColor3 = Color3.fromRGB(200,200,200)
-Info.BackgroundTransparency = 1
-Info.Font = Enum.Font.Gotham
-Info.TextSize = 12
-
--- Minimize
-local Min = Instance.new("TextButton", Main)
-Min.Size = UDim2.new(0, 30, 0, 30)
-Min.Position = UDim2.new(1, -35, 0, 0)
-Min.Text = "-"
-Min.Font = Enum.Font.GothamBold
-Min.TextSize = 18
-Min.BackgroundColor3 = Color3.fromRGB(60,60,60)
-Min.TextColor3 = Color3.new(1,1,1)
+local min = Instance.new("TextButton", main)
+min.Size = UDim2.new(0,30,0,30)
+min.Position = UDim2.new(1,-35,0,0)
+min.Text = "-"
+min.BackgroundColor3 = Color3.fromRGB(50,50,50)
+min.TextColor3 = Color3.new(1,1,1)
 
 local minimized = false
-Min.MouseButton1Click:Connect(function()
+min.MouseButton1Click:Connect(function()
 	minimized = not minimized
-	for _,v in pairs(Main:GetChildren()) do
-		if v:IsA("TextButton") or v:IsA("TextBox") or v:IsA("TextLabel") then
-			if v ~= Title and v ~= Min then
-				v.Visible = not minimized
+	for _,v in pairs(main:GetChildren()) do
+		if v ~= title and v ~= min then
+			v.Visible = not minimized
+		end
+	end
+	main.Size = minimized and UDim2.new(0,240,0,35) or UDim2.new(0,240,0,150)
+end)
+
+toggle.MouseButton1Click:Connect(function()
+	Enabled = not Enabled
+	toggle.Text = Enabled and "ON" or "OFF"
+	toggle.BackgroundColor3 = Enabled and Color3.fromRGB(0,180,0) or Color3.fromRGB(180,0,0)
+end)
+
+-- HIDE ANIMATION
+task.spawn(function()
+	while task.wait(0.1) do
+		if Enabled then
+			for _,v in pairs(workspace:GetChildren()) do
+				if v.Name:lower():find("egg") then
+					v:Destroy()
+				end
+			end
+			if workspace.CurrentCamera then
+				workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
 			end
 		end
 	end
-	Main.Size = minimized and UDim2.new(0,260,0,35) or UDim2.new(0,260,0,200)
 end)
 
--- Toggle Logic
-Toggle.MouseButton1Click:Connect(function()
-	HatchEnabled = not HatchEnabled
-	Toggle.Text = HatchEnabled and "Status : ON" or "Status : OFF"
-	Toggle.BackgroundColor3 = HatchEnabled and Color3.fromRGB(0,180,0) or Color3.fromRGB(180,0,0)
-end)
-
--- Speed Change
-SpeedBox.FocusLost:Connect(function()
-	local val = tonumber(SpeedBox.Text)
-	if val and val > 0 then
-		HatchSpeed = val
-	end
-	SpeedBox.Text = "Hatch Speed ("..HatchSpeed..")"
-end)
-
--- HOOK HATCH
-local mt = getrawmetatable(game)
-setreadonly(mt,false)
-local old = mt.__namecall
-
-mt.__namecall = newcclosure(function(self,...)
-	local args = {...}
-	local method = getnamecallmethod()
-
-	if HatchEnabled and method == "FireServer" then
-		if tostring(self):lower():find("egg") or tostring(self):lower():find("hatch") then
-			for i = 1, HatchAmount do
-				old(self, unpack(args))
-				task.wait(HatchSpeed)
+-- AUTO FAST HATCH
+task.spawn(function()
+	while task.wait(HatchDelay) do
+		if Enabled then
+			for _,v in pairs(ReplicatedStorage:GetDescendants()) do
+				if v:IsA("RemoteEvent") and v.Name:lower():find("egg") then
+					v:FireServer()
+				end
 			end
-			return
 		end
 	end
-
-	return old(self,...)
 end)
 
-print("Egg Hatch GUI Loaded")
+print("FAST HATCH LOADED")
