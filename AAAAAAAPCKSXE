@@ -1,20 +1,30 @@
--- NO MINING ANIMATION (HARD VISUAL BYPASS)
--- Pickaxe Simulator
--- LocalScript
+--[[ 
+ULTIMATE MINING SPEED + VISUAL BYPASS
+• Kill animation
+• Freeze arms
+• Spam hit speed (adjustable)
+• Visual instant
+]]
 
 local player = game.Players.LocalPlayer
+local runService = game:GetService("RunService")
 
-local function applyNoAnim(char)
+-- ================= CONFIG =================
+local ENABLED = true
+local HIT_DELAY = 0.03   -- SEMAKIN KECIL = SEMAKIN CEPAT (0.02–0.1)
+
+-- ================= CORE =================
+local function applyMax(char)
 	local humanoid = char:WaitForChild("Humanoid",5)
 	if not humanoid then return end
 
-	-- MATIKAN Animator
-	local animator = humanoid:FindFirstChildOfClass("Animator")
-	if animator then
-		animator:Destroy()
+	-- HANCURKAN ANIMATOR
+	local function killAnimator()
+		local a = humanoid:FindFirstChildOfClass("Animator")
+		if a then a:Destroy() end
 	end
+	killAnimator()
 
-	-- JAGA AGAR TIDAK BALIK
 	humanoid.DescendantAdded:Connect(function(d)
 		if d:IsA("Animator") then
 			task.wait()
@@ -24,19 +34,46 @@ local function applyNoAnim(char)
 
 	-- STOP SEMUA ANIMASI
 	task.spawn(function()
-		while task.wait(0.1) do
-			for _,track in pairs(humanoid:GetPlayingAnimationTracks()) do
+		while ENABLED do
+			for _,track in ipairs(humanoid:GetPlayingAnimationTracks()) do
 				pcall(function()
 					track:Stop(0)
 				end)
 			end
+			task.wait()
+		end
+	end)
+
+	-- FREEZE TANGAN
+	local function freezeArms()
+		for _,m in ipairs(char:GetDescendants()) do
+			if m:IsA("Motor6D") then
+				local n = m.Name:lower()
+				if n:find("arm") or n:find("shoulder") or n:find("hand") then
+					m.Transform = CFrame.new()
+					m.MaxVelocity = 0
+				end
+			end
+		end
+	end
+
+	-- SPAM HIT TERCEPAT (CLIENT LIMIT)
+	task.spawn(function()
+		while ENABLED do
+			local tool = char:FindFirstChildOfClass("Tool")
+			if tool then
+				pcall(function()
+					tool:Activate()
+				end)
+			end
+			freezeArms()
+			task.wait(HIT_DELAY)
 		end
 	end)
 end
 
--- APPLY SAAT SPAWN
+-- ================= APPLY =================
 if player.Character then
-	applyNoAnim(player.Character)
+	applyMax(player.Character)
 end
-
-player.CharacterAdded:Connect(applyNoAnim)
+player.CharacterAdded:Connect(applyMax)
