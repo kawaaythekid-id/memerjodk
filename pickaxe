@@ -1,13 +1,14 @@
 -- SPEED MINING PICKAXE SIMULATOR
--- GUI + TEXTBOX
+-- GUI + TEXTBOX (FIX GUI KOSONG)
 -- LocalScript
 
 local Players = game:GetService("Players")
-local UIS = game:GetService("UserInputService")
-
 local player = Players.LocalPlayer
-local character = player.Character or player.CharacterAdded:Wait()
 
+-- tunggu PlayerGui BENAR-BENAR siap
+local playerGui = player:WaitForChild("PlayerGui")
+
+local character = player.Character or player.CharacterAdded:Wait()
 player.CharacterAdded:Connect(function(char)
 	character = char
 end)
@@ -16,90 +17,97 @@ end)
 local enabled = false
 local miningDelay = 0.1
 
--- GUI
-local gui = Instance.new("ScreenGui", player.PlayerGui)
+-- SCREEN GUI
+local gui = Instance.new("ScreenGui")
 gui.Name = "SpeedMiningGUI"
+gui.IgnoreGuiInset = true
 gui.ResetOnSpawn = false
+gui.Parent = playerGui
 
-local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 260, 0, 170)
+-- MAIN FRAME
+local main = Instance.new("Frame")
+main.Parent = gui
+main.Size = UDim2.new(0, 260, 0, 180)
 main.Position = UDim2.new(0.3, 0, 0.3, 0)
-main.BackgroundColor3 = Color3.fromRGB(30,30,30)
+main.BackgroundColor3 = Color3.fromRGB(35,35,35)
 main.Active = true
 main.Draggable = true
 
-local corner = Instance.new("UICorner", main)
-corner.CornerRadius = UDim.new(0,12)
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 12)
 
 -- TITLE
-local title = Instance.new("TextLabel", main)
-title.Size = UDim2.new(1, -40, 0, 35)
-title.Position = UDim2.new(0, 10, 0, 0)
-title.Text = "⚒ Speed Mining"
+local title = Instance.new("TextLabel")
+title.Parent = main
+title.Size = UDim2.new(1, -10, 0, 35)
+title.Position = UDim2.new(0, 5, 0, 5)
+title.Text = "⛏ Speed Mining"
 title.TextColor3 = Color3.new(1,1,1)
 title.BackgroundTransparency = 1
 title.Font = Enum.Font.GothamBold
 title.TextSize = 16
-title.TextXAlignment = Left
+title.TextXAlignment = Enum.TextXAlignment.Left
 
--- CLOSE
-local close = Instance.new("TextButton", main)
-close.Size = UDim2.new(0, 30, 0, 30)
-close.Position = UDim2.new(1, -35, 0, 5)
+-- CLOSE BUTTON
+local close = Instance.new("TextButton")
+close.Parent = main
+close.Size = UDim2.new(0, 28, 0, 28)
+close.Position = UDim2.new(1, -33, 0, 5)
 close.Text = "X"
-close.BackgroundColor3 = Color3.fromRGB(200,60,60)
-close.TextColor3 = Color3.new(1,1,1)
 close.Font = Enum.Font.GothamBold
 close.TextSize = 14
+close.BackgroundColor3 = Color3.fromRGB(180,60,60)
+close.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", close)
 
 close.MouseButton1Click:Connect(function()
 	gui:Destroy()
 end)
 
--- TEXTBOX SPEED
-local box = Instance.new("TextBox", main)
+-- TEXTBOX
+local box = Instance.new("TextBox")
+box.Parent = main
 box.Size = UDim2.new(1, -20, 0, 40)
 box.Position = UDim2.new(0, 10, 0, 50)
-box.PlaceholderText = "Mining Delay (contoh: 0.05)"
+box.PlaceholderText = "Mining Delay (contoh 0.05)"
 box.Text = tostring(miningDelay)
-box.BackgroundColor3 = Color3.fromRGB(45,45,45)
+box.ClearTextOnFocus = false
+box.BackgroundColor3 = Color3.fromRGB(50,50,50)
 box.TextColor3 = Color3.new(1,1,1)
 box.Font = Enum.Font.Gotham
 box.TextSize = 14
-box.ClearTextOnFocus = false
 Instance.new("UICorner", box)
 
 box.FocusLost:Connect(function()
-	local val = tonumber(box.Text)
-	if val and val > 0 then
-		miningDelay = math.clamp(val, 0.001, 5)
-		box.Text = tostring(miningDelay)
-	else
-		box.Text = tostring(miningDelay)
+	local v = tonumber(box.Text)
+	if v and v > 0 then
+		miningDelay = math.clamp(v, 0.001, 5)
 	end
+	box.Text = tostring(miningDelay)
 end)
 
 -- TOGGLE BUTTON
-local toggle = Instance.new("TextButton", main)
+local toggle = Instance.new("TextButton")
+toggle.Parent = main
 toggle.Size = UDim2.new(1, -20, 0, 40)
-toggle.Position = UDim2.new(0, 10, 0, 100)
+toggle.Position = UDim2.new(0, 10, 0, 105)
 toggle.Text = "OFF"
-toggle.BackgroundColor3 = Color3.fromRGB(120,50,50)
-toggle.TextColor3 = Color3.new(1,1,1)
 toggle.Font = Enum.Font.GothamBold
 toggle.TextSize = 15
+toggle.BackgroundColor3 = Color3.fromRGB(120,60,60)
+toggle.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", toggle)
 
 toggle.MouseButton1Click:Connect(function()
 	enabled = not enabled
 	toggle.Text = enabled and "ON" or "OFF"
-	toggle.BackgroundColor3 = enabled and Color3.fromRGB(60,160,60) or Color3.fromRGB(120,50,50)
+	toggle.BackgroundColor3 = enabled
+		and Color3.fromRGB(60,160,60)
+		or Color3.fromRGB(120,60,60)
 end)
 
 -- MINING LOOP
 task.spawn(function()
-	while task.wait() do
+	while task.wait(0.01) do
 		if enabled then
 			local tool = character:FindFirstChildOfClass("Tool")
 			if tool then
