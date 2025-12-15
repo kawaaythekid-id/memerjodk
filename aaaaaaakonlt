@@ -1,0 +1,49 @@
+-- FAST EGG HATCH (VISUAL ONLY)
+-- Safe, no destroy, no spam
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local Player = Players.LocalPlayer
+
+-- 1. Percepat semua Tween (animasi UI)
+local oldCreate = TweenService.Create
+TweenService.Create = function(self, obj, info, props)
+	info = TweenInfo.new(
+		0.01, -- waktu animasi (semakin kecil = semakin cepat)
+		info.EasingStyle,
+		info.EasingDirection,
+		info.RepeatCount,
+		info.Reverses,
+		info.DelayTime
+	)
+	return oldCreate(self, obj, info, props)
+end
+
+-- 2. Paksa camera tetap normal (skip cutscene)
+task.spawn(function()
+	while task.wait(0.1) do
+		if workspace.CurrentCamera then
+			workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
+		end
+	end
+end)
+
+-- 3. Percepat AnimationTrack (jika ada)
+task.spawn(function()
+	while task.wait(0.2) do
+		local char = Player.Character
+		if char then
+			local hum = char:FindFirstChildOfClass("Humanoid")
+			if hum then
+				local animator = hum:FindFirstChildOfClass("Animator")
+				if animator then
+					for _,track in pairs(animator:GetPlayingAnimationTracks()) do
+						track:AdjustSpeed(5) -- default 1
+					end
+				end
+			end
+		end
+	end
+end)
+
+print("FAST HATCH VISUAL ENABLED")
