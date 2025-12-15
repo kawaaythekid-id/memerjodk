@@ -1,37 +1,35 @@
---// Pickaxe Simulator REAL Egg Hatch Speed
---// VISUAL SKIP + AUTO FAST HATCH
+-- Pickaxe Simulator SAFE Hatch Script
+-- NO DESTROY MAP OBJECT
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Player = Players.LocalPlayer
 
--- CONFIG
 local Enabled = false
-local HatchDelay = 0.05
+local HatchDelay = 0.1
 
 -- GUI
 local gui = Instance.new("ScreenGui", Player.PlayerGui)
 gui.ResetOnSpawn = false
 
 local main = Instance.new("Frame", gui)
-main.Size = UDim2.new(0, 240, 0, 150)
+main.Size = UDim2.new(0,220,0,130)
 main.Position = UDim2.new(0.35,0,0.3,0)
-main.BackgroundColor3 = Color3.fromRGB(25,25,25)
+main.BackgroundColor3 = Color3.fromRGB(30,30,30)
 main.Active = true
 main.Draggable = true
-
-Instance.new("UICorner", main).CornerRadius = UDim.new(0,10)
+Instance.new("UICorner", main)
 
 local title = Instance.new("TextLabel", main)
 title.Size = UDim2.new(1,0,0,30)
-title.Text = "FAST EGG HATCH"
+title.Text = "Safe Auto Hatch"
 title.BackgroundTransparency = 1
 title.TextColor3 = Color3.new(1,1,1)
 title.Font = Enum.Font.GothamBold
 
 local toggle = Instance.new("TextButton", main)
 toggle.Size = UDim2.new(0.9,0,0,30)
-toggle.Position = UDim2.new(0.05,0,0.3,0)
+toggle.Position = UDim2.new(0.05,0,0.35,0)
 toggle.Text = "OFF"
 toggle.BackgroundColor3 = Color3.fromRGB(180,0,0)
 toggle.TextColor3 = Color3.new(1,1,1)
@@ -40,8 +38,14 @@ local min = Instance.new("TextButton", main)
 min.Size = UDim2.new(0,30,0,30)
 min.Position = UDim2.new(1,-35,0,0)
 min.Text = "-"
-min.BackgroundColor3 = Color3.fromRGB(50,50,50)
+min.BackgroundColor3 = Color3.fromRGB(60,60,60)
 min.TextColor3 = Color3.new(1,1,1)
+
+toggle.MouseButton1Click:Connect(function()
+	Enabled = not Enabled
+	toggle.Text = Enabled and "ON" or "OFF"
+	toggle.BackgroundColor3 = Enabled and Color3.fromRGB(0,180,0) or Color3.fromRGB(180,0,0)
+end)
 
 local minimized = false
 min.MouseButton1Click:Connect(function()
@@ -51,42 +55,31 @@ min.MouseButton1Click:Connect(function()
 			v.Visible = not minimized
 		end
 	end
-	main.Size = minimized and UDim2.new(0,240,0,35) or UDim2.new(0,240,0,150)
+	main.Size = minimized and UDim2.new(0,220,0,35) or UDim2.new(0,220,0,130)
 end)
 
-toggle.MouseButton1Click:Connect(function()
-	Enabled = not Enabled
-	toggle.Text = Enabled and "ON" or "OFF"
-	toggle.BackgroundColor3 = Enabled and Color3.fromRGB(0,180,0) or Color3.fromRGB(180,0,0)
-end)
-
--- HIDE ANIMATION
+-- VISUAL CAMERA FIX (AMAN)
 task.spawn(function()
-	while task.wait(0.1) do
-		if Enabled then
-			for _,v in pairs(workspace:GetChildren()) do
-				if v.Name:lower():find("egg") then
-					v:Destroy()
-				end
-			end
-			if workspace.CurrentCamera then
-				workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
-			end
+	while task.wait(0.2) do
+		if Enabled and workspace.CurrentCamera then
+			workspace.CurrentCamera.CameraType = Enum.CameraType.Custom
 		end
 	end
 end)
 
--- AUTO FAST HATCH
+-- AUTO HATCH (JIKA REMOTE ADA)
 task.spawn(function()
 	while task.wait(HatchDelay) do
 		if Enabled then
 			for _,v in pairs(ReplicatedStorage:GetDescendants()) do
-				if v:IsA("RemoteEvent") and v.Name:lower():find("egg") then
-					v:FireServer()
+				if v:IsA("RemoteEvent") and v.Name:lower():find("hatch") then
+					pcall(function()
+						v:FireServer()
+					end)
 				end
 			end
 		end
 	end
 end)
 
-print("FAST HATCH LOADED")
+print("SAFE AUTO HATCH LOADED")
